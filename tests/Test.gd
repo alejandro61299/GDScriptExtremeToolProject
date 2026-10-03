@@ -8,11 +8,11 @@ extends Node
 # AAAA
 var a : int = 1
 # Bdas
-var b : int  = 2
+var b : int = 2
 # CCCC
 var c : int = a + b
 
-var _one_line_dict : Dictionary = {"Dictionaru" : 2, "Hello" : 3}
+var _one_line_dict : Dictionary = {"Dictionaru": 2, "Hello" : 3}
 
 # Dictionaryyyy
 # With several keys
@@ -32,9 +32,9 @@ var _multiline_3 : Dictionary = {
 }
 
 
-class Propietario extends  RefCounted:
+class Propietario extends RefCounted:
 	func _init() -> void:
-		var my_callable : Callable = 	func(x):
+		var my_callable : Callable = func(x) :
 			var local : int = 2
 			var a : int = 4
 			return a

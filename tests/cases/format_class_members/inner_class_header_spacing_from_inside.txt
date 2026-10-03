@@ -1,0 +1,24 @@
+action: format_class_members
+=== input
+extends Node
+
+
+class  Owner  extends  RefCounted:
+	func _init() -> void:
+		var my_callable : Callable = 	func(x):
+			var local : int = 2
+			var a : int =  4
+			return 	a<|>
+
+=== expected
+extends Node
+
+
+class Owner extends RefCounted:
+	func _init() -> void:
+		var my_callable : Callable = func(x):
+			var local : int = 2
+			var a : int = 4
+			return a<|>
+
+=== end

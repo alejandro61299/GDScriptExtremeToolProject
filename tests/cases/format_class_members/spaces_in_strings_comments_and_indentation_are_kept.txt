@@ -1,0 +1,38 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+const TITLE : String = "two  spaces	and a tab"  # two  spaces  in the comment
+const NAMES : Array[String] = [
+		"deep   indentation",
+	'single  quotes',
+]
+
+# A  comment  with  double  spaces.
+var text : String = """first  line
+	second	line  """
+
+
+func run() -> void:
+	print("a  b")    # aligned comment
+	print('#  not a comment',  1)
+
+=== expected
+extends Node<|>
+
+const TITLE : String = "two  spaces	and a tab"  # two  spaces  in the comment
+const NAMES : Array[String] = [
+		"deep   indentation",
+	'single  quotes',
+]
+
+# A  comment  with  double  spaces.
+var text : String = """first  line
+	second	line  """
+
+
+func run() -> void:
+	print("a  b")    # aligned comment
+	print('#  not a comment', 1)
+
+=== end

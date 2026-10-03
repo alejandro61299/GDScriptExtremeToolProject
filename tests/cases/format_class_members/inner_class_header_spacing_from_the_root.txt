@@ -1,0 +1,18 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+
+class  Owner  extends  RefCounted:
+	func _init() -> void:
+		var a : int =  4
+
+=== expected
+extends Node<|>
+
+
+class Owner extends RefCounted:
+	func _init() -> void:
+		var a : int =  4
+
+=== end

@@ -38,6 +38,7 @@ const REORDER_ACTION: String = "reorder_class_members"
 const FORMAT_ACTION: String = "format_class_members"
 const BLANK_CHARACTERS: Array[String] = [" ", "\t", "\n"]
 const COLLECTION_CLOSINGS: Array[String] = ["]", "}"]
+const STRING_LITERAL_PATTERN: String = "\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\\\n]|\\\\.)*'"
 const PLAN_ACTION: String = "apply_plan"
 const DESCRIPTION_INDENT: String = "  "
 
@@ -516,7 +517,9 @@ func _check_layout_of_project_scripts(action_name: String, keeps_line_order: boo
 		var class_names := _inner_class_names(SymbolIndexBuilder.build(original.split("\n")).root)
 		_apply_to_every_class(editor, action, class_names)
 		var changed := editor.text
-		var keeps_code := _compact_code(changed) == _compact_code(original) if keeps_line_order else _code_lines(changed) == _code_lines(original)
+		var keeps_code := _code_lines(changed) == _code_lines(original)
+		if keeps_line_order:
+			keeps_code = _compact_code(changed) == _compact_code(original) and _string_literals(changed) == _string_literals(original)
 		if not keeps_code:
 			problems.append("%s: %s lost, duplicated or misplaced code." % [path, action_name])
 		var script := GDScript.new()
@@ -557,6 +560,13 @@ func _code_lines(text: String) -> PackedStringArray:
 			code_lines.append(line)
 	code_lines.sort()
 	return code_lines
+
+
+func _string_literals(text: String) -> PackedStringArray:
+	var literals := PackedStringArray()
+	for literal in RegEx.create_from_string(STRING_LITERAL_PATTERN).search_all(text):
+		literals.append(literal.get_string())
+	return literals
 
 
 func _compact_code(text: String) -> String:

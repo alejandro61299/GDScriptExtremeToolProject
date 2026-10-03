@@ -1,0 +1,18 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var text : String = """first line  
+	
+# Not a comment.   
+last line  """  
+
+=== expected
+extends Node<|>
+
+var text : String = """first line  
+	
+# Not a comment.   
+last line  """
+
+=== end

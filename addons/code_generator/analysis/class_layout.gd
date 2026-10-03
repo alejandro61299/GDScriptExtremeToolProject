@@ -4,6 +4,7 @@ extends RefCounted
 const SymbolIndex = preload("res://addons/code_generator/analysis/symbol_index.gd")
 const SourceScanner = preload("res://addons/code_generator/analysis/source_scanner.gd")
 const BracketLayout = preload("res://addons/code_generator/analysis/bracket_layout.gd")
+const TokenSpacing = preload("res://addons/code_generator/analysis/token_spacing.gd")
 const TypeResolver = preload("res://addons/code_generator/analysis/type_resolver.gd")
 const Settings = preload("res://addons/code_generator/code_generator_settings.gd")
 
@@ -122,7 +123,7 @@ static func format(class_scope: SymbolIndex.ClassScope, statements: Array[Source
 	var blocks := _build_blocks(class_scope, false)
 	if blocks.is_empty():
 		return null
-	var scope_first := class_scope.body_start_line
+	var scope_first := class_scope.start_line
 	var scope_last := _last_line_with_comments(class_scope, lines)
 	for index in blocks.size():
 		blocks[index].original_index = index
@@ -130,8 +131,53 @@ static func format(class_scope: SymbolIndex.ClassScope, statements: Array[Source
 	if _has_header(class_scope):
 		_split_gap(_new_block(class_scope.header_end_line, class_scope.header_end_line, 0), blocks[0], lines)
 	var draft := Draft.new(lines, scope_first, scope_last)
-	draft.rewrites = _bracket_rewrites(class_scope, statements, lines)
+	draft.rewrites = _code_rewrites(class_scope, statements, lines, scope_first, scope_last)
 	return _compose(class_scope, blocks, blocks, draft, scope_last, true)
+
+
+static func _code_rewrites(class_scope: SymbolIndex.ClassScope, statements: Array[SourceScanner.Statement], lines: PackedStringArray, first_line: int, last_line: int) -> Dictionary[int, PackedStringArray]:
+	var tidied_lines := TokenSpacing.tidy(_own_statements(class_scope, statements), lines, _own_line_ranges(class_scope, first_line, last_line))
+	var tidied_statements := statements if tidied_lines == lines else SourceScanner.new().scan(tidied_lines)
+	var rewrites := _bracket_rewrites(class_scope, tidied_statements, tidied_lines)
+	for line in range(first_line, last_line + 1):
+		if tidied_lines[line] != lines[line] and not rewrites.has(line):
+			rewrites[line] = PackedStringArray([tidied_lines[line]])
+	return rewrites
+
+
+static func _own_line_ranges(class_scope: SymbolIndex.ClassScope, first_line: int, last_line: int) -> Array[Vector2i]:
+	var ranges: Array[Vector2i] = []
+	var range_start := first_line
+	for member in class_scope.members:
+		if member.kind == SymbolIndex.ClassMember.Kind.CLASS:
+			ranges.append(Vector2i(range_start, member.start_line))
+			range_start = member.end_line + 1
+	ranges.append(Vector2i(range_start, last_line))
+	return ranges
+
+
+static func _own_statements(class_scope: SymbolIndex.ClassScope, statements: Array[SourceScanner.Statement]) -> Array[SourceScanner.Statement]:
+	var own: Array[SourceScanner.Statement] = []
+	var scope_statements: Array[SourceScanner.Statement] = []
+	if class_scope.parent == null:
+		scope_statements = statements
+	else:
+		var class_statement := SourceScanner.find_statement_at(statements, class_scope.start_line)
+		if class_statement == null:
+			return own
+		own.append(class_statement)
+		for block in class_statement.blocks:
+			scope_statements.append_array(block.statements)
+	var inner_class_lines: Dictionary[int, bool] = {}
+	for member in class_scope.members:
+		if member.kind == SymbolIndex.ClassMember.Kind.CLASS:
+			inner_class_lines[member.start_line] = true
+	for statement in scope_statements:
+		if inner_class_lines.has(statement.first_line):
+			own.append(statement)
+		else:
+			_collect_statements(statement, own)
+	return own
 
 
 static func _bracket_rewrites(class_scope: SymbolIndex.ClassScope, statements: Array[SourceScanner.Statement], lines: PackedStringArray) -> Dictionary[int, PackedStringArray]:

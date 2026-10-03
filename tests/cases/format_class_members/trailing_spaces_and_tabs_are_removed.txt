@@ -1,0 +1,42 @@
+action: format_class_members
+=== input
+extends Node  	
+
+# Describes the value.	 
+var value : int = 0   
+var names : Array[String] = [  
+	"alpha",	
+	"beta",   # The second one.  
+]	
+
+
+func run() -> void:<|> 
+	var total := 1		
+		
+	if total > 0:  
+		# Prints it.   
+		print(total) 	
+	  
+	return  
+
+=== expected
+extends Node
+
+# Describes the value.
+var value : int = 0
+var names : Array[String] = [
+	"alpha",
+	"beta",   # The second one.
+]
+
+
+func run() -> void:<|>
+	var total := 1
+
+	if total > 0:
+		# Prints it.
+		print(total)
+
+	return
+
+=== end

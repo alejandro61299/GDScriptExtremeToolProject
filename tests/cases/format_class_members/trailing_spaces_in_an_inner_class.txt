@@ -1,0 +1,18 @@
+action: format_class_members
+=== input
+extends Node  
+
+
+class Inner:  
+	var count : int = 0  <|>
+	# End of the inner class.  
+
+=== expected
+extends Node  
+
+
+class Inner:
+	var count : int = 0<|>
+	# End of the inner class.
+
+=== end

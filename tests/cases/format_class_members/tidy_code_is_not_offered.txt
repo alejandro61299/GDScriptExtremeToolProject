@@ -1,0 +1,13 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+const TITLE : String = "two  spaces"  # two  spaces
+
+var total : int = 2
+
+
+func run() -> void:
+	print("a  b")    # aligned comment
+
+=== end

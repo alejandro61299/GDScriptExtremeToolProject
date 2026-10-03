@@ -63,6 +63,7 @@ addons/code_generator/
 │   ├── source_scanner.gd
 │   ├── symbol_index.gd
 │   ├── symbol_index_builder.gd
+│   ├── token_spacing.gd
 │   ├── call_site_parser.gd
 │   └── type_resolver.gd
 └── editing/
@@ -524,7 +525,7 @@ Reglas entre miembros:
 - **Dentro de una categoría se respeta la agrupación del usuario**: dos constantes seguidas siguen seguidas y las separadas por una línea siguen separadas; solo se recorta lo que pase de una.
 - **`#region` y `#endregion`** no forman un bloque indivisible como en la fase 9, porque también hay que dar formato dentro: `#endregion` va con el miembro de arriba y `#region` con el de abajo.
 - **`@export_group` y similares** tampoco agrupan: cuentan como un miembro de la categoría de exports.
-- **No se toca el interior de los miembros**: cuerpos de métodos, enums multilínea, ni los comentarios con más indentación que el miembro. La excepción son los cierres de corchetes de diccionarios, arrays y lambdas pasadas como argumento (ver más abajo).
+- **No se toca el interior de los miembros**: cuerpos de métodos, enums multilínea, ni los comentarios con más indentación que el miembro. Las excepciones son los espacios sobrantes entre tokens y los cierres de corchetes de diccionarios, arrays y lambdas pasadas como argumento (ver más abajo).
 - Una línea que solo tiene espacios o tabuladores cuenta como línea en blanco y queda vacía.
 
 Reglas de los comentarios. Hay dos clases de comentario: los del scope (su descripción al principio y lo que haya tras el último miembro) y los de un miembro.
@@ -534,6 +535,15 @@ Reglas de los comentarios. Hay dos clases de comentario: los del scope (su descr
 - **Comentario entre la cabecera y el primer miembro, separado de los dos**: se aplica la regla general tomando la cabecera como vecino de arriba. Si está más cerca de la cabecera es la descripción de la clase y se queda con ella; a igual distancia o más cerca del miembro, es del miembro y se pega a él.
 - **Tras la cabecera**, el primer miembro lleva una línea en blanco delante, dos si es un método o una clase. Sin cabecera, lleva las que hubiera con un máximo de una.
 - **Al final del scope**: entre el último miembro y los comentarios que le siguen, y entre esos comentarios, una línea en blanco como máximo. Las líneas en blanco sobrantes al final del archivo se quitan. En una clase interna, los comentarios finales son los que tienen la indentación de su cuerpo.
+
+Espacios entre tokens (`analysis/token_spacing.gd`). En todo el código de la clase, incluidas su cabecera y los cuerpos de métodos y lambdas, cada hueco entre dos tokens que tenga más de un espacio, o algún tabulador, queda en un solo espacio: `var a : int =  4` pasa a `var a : int = 4` y `return<tab>a` a `return a`.
+
+- **Final de línea**: se quitan los espacios y tabuladores sobrantes al final de cada línea de la clase, sea de código, de comentario o en blanco. Una línea que queda dentro de una cadena multilínea no se toca, porque ahí son contenido: se sabe porque el trozo de la sentencia llega hasta el final de la línea.
+- **No se toca**: la indentación, el interior de las cadenas, el texto de los comentarios, ni el hueco entre el código y un comentario de final de línea.
+- No añade ni quita espacios simples: `foo( 1 )` se queda igual.
+- Las clases internas no se recorren por dentro, pero su línea `class X extends Y:` sí se limpia, tanto desde la raíz como desde dentro de la clase.
+- Se trabaja sobre los trozos de cada sentencia, donde las cadenas ya están enmascaradas y los comentarios fuera. Antes de cambiar un tramo se comprueba que en la línea real solo hay espacios.
+- Este paso va antes que los cierres de corchetes: como cambia columnas pero no líneas ni sentencias, se vuelve a pasar el `SourceScanner` sobre las líneas limpias y las reglas de corchetes trabajan sobre ese resultado.
 
 Cierres de corchetes (`analysis/bracket_layout.gd`). Se aplican a las variables, constantes y métodos de la clase, entrando en los cuerpos de los métodos y de las lambdas, pero no en las clases internas.
 
@@ -576,7 +586,7 @@ Cómo se aplica: `ClassLayout.format` usa los mismos bloques y el mismo composit
 Tests:
 
 - Casos de texto en `tests/cases/format_class_members/` y `tests/cases/view/formatting_keeps_the_caret_on_the_same_row.txt`.
-- `action: check_format_project_scripts` da formato a la raíz y a todas las clases internas de cada script del proyecto y comprueba que el código queda idéntico salvo espacios, saltos de línea y comas finales, que el resultado compila, que el motor ve los mismos miembros y las constantes conservan su valor, y que repetir la acción no cambia nada. La acción modifica 7 de los 27 scripts que revisa.
+- `action: check_format_project_scripts` da formato a la raíz y a todas las clases internas de cada script del proyecto y comprueba que el código queda idéntico salvo espacios, saltos de línea y comas finales, que los literales de cadena no cambian, que el resultado compila, que el motor ve los mismos miembros y las constantes conservan su valor, y que repetir la acción no cambia nada. La acción modifica 7 de los 27 scripts que revisa.
 
 ## Casos pendientes
 

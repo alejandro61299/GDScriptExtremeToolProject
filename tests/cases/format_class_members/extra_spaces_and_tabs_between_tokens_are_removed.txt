@@ -1,0 +1,42 @@
+action: format_class_members
+=== input
+extends  Node<|>
+
+signal  changed( value :  int )
+
+enum  Mode  { SLOW,  FAST }
+
+@export  var speed :   float =	1.0
+
+var total : int  = 2
+
+
+func run(amount :  int,	name  : String) ->  int:
+	var callback : Callable = 	func(x):
+		var local : int =  4
+		return 	local +  x
+	if amount  >  1  and name  !=  "":
+		return	callback.call( amount )
+	return  0
+
+=== expected
+extends Node<|>
+
+signal changed( value : int )
+
+enum Mode { SLOW, FAST }
+
+@export var speed : float = 1.0
+
+var total : int = 2
+
+
+func run(amount : int, name : String) -> int:
+	var callback : Callable = func(x):
+		var local : int = 4
+		return local + x
+	if amount > 1 and name != "":
+		return callback.call( amount )
+	return 0
+
+=== end
