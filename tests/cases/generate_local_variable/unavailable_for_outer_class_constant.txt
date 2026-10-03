@@ -1,0 +1,15 @@
+action: generate_local_variable
+=== input
+extends Node
+
+const LIMIT : int = 10
+
+var count : int = 0
+
+
+class Worker extends RefCounted:
+	func run() -> void:
+		print("run")
+		print(<|LIMIT|>)
+
+=== end

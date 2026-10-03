@@ -1,6 +1,9 @@
-extends Node
+class_name MainTest extends Node
+
+signal my_signal(array : Array[int])
 
 
+	
 func _test_methods() -> void:
 	var nested_method = func(value: bool) -> float:
 		value = !value
@@ -28,3 +31,7 @@ func extreme_nesting():
 		return level_2.call()
 	hola(level_1.call())
 	print(level_1.call())
+
+
+func hola(param_0: String) -> void:
+	pass

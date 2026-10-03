@@ -55,6 +55,7 @@ class Member:
 	var param_types: Array[SymbolIndex.TypeData] = []
 	var function: SymbolIndex.FunctionScope
 	var symbol: SymbolIndex.VariableSymbol
+	var is_constant: bool = false
 
 
 class Resolved:
@@ -186,7 +187,8 @@ static func is_name_defined(identifier: String, scope_info: SymbolIndex.ScopeInf
 		return true
 	var outer_class := scope_info.class_scope.parent
 	while outer_class is SymbolIndex.ClassScope:
-		if find_class_member(outer_class as SymbolIndex.ClassScope, identifier) != null:
+		var outer_member := find_class_member(outer_class as SymbolIndex.ClassScope, identifier)
+		if outer_member != null and outer_member.is_constant:
 			return true
 		outer_class = outer_class.parent
 	return Language.is_project_global(identifier)
@@ -692,6 +694,13 @@ static func _variable_member(type: SymbolIndex.TypeData) -> Member:
 static func _symbol_member(symbol: SymbolIndex.VariableSymbol) -> Member:
 	var member := _variable_member(symbol.type)
 	member.symbol = symbol
+	member.is_constant = symbol.is_const
+	return member
+
+
+static func _constant_member(type: SymbolIndex.TypeData) -> Member:
+	var member := _variable_member(type)
+	member.is_constant = true
 	return member
 
 
@@ -776,7 +785,7 @@ static func _find_script_member(script: Script, member_name: String) -> Member:
 	while current != null:
 		var constants := current.get_script_constant_map()
 		if constants.has(member_name):
-			return _variable_member(_type_of_value(constants[member_name]))
+			return _constant_member(_type_of_value(constants[member_name]))
 		current = current.get_base_script()
 	return _find_engine_member(script.get_instance_base_type(), member_name)
 
@@ -799,7 +808,7 @@ static func _find_engine_member(type_name: String, member_name: String) -> Membe
 		if property["name"] == member_name:
 			return _variable_member(_type_from_info(property, false))
 	if ClassDB.class_has_integer_constant(type_name, member_name) or ClassDB.class_has_enum(type_name, member_name):
-		return _variable_member(SymbolIndex.make_type(Language.INTEGER_TYPE_NAME))
+		return _constant_member(SymbolIndex.make_type(Language.INTEGER_TYPE_NAME))
 	return null
 
 

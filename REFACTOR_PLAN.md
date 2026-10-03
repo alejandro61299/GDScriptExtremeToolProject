@@ -426,7 +426,8 @@ func _on_my_signal(p_value: int) -> void:
 - **Qué señales.** Propias (`my_signal`, `self.my_signal`), de una clase del archivo (`foo.changed`), del motor (`player.animation_changed`) y variables o parámetros de tipo `Signal` (sin parámetros conocidos).
 - **Nombre del método.** `GENERATED_SIGNAL_CALLBACK_FORMAT` aplicado al nombre de la señal sin guiones bajos iniciales (`String.lstrip("_")`): `_my_signal` da `_on_my_signal`. No incluye el nombre del objeto: `button.pressed` da `_on_pressed`.
 - **Parámetros.** Los de la señal, con el formato de `GENERATED_PARAM_FORMAT`.
-- **Si el método ya existe**, solo se completa la expresión y el cursor queda detrás.
+- **Si el método ya existe**, solo se completa la expresión y el cursor queda detrás. Se mira la clase donde se crearía el método y sus clases base; un método con el mismo nombre en una clase exterior no cuenta, porque desde una clase interna no se puede llamar.
+- **Regla general de visibilidad desde una clase interna:** de las clases exteriores solo se ven las constantes (incluidos `preload`, `enum` y clases internas). Sus métodos, variables y señales no cuentan como definidos para ninguna acción.
 - **No se ofrece** en la declaración `signal ...`, si la conexión ya tiene argumento, con otro método (`emit`, `disconnect`) ni cuando la señal es parte de una expresión mayor (argumento, asignación, `await`).
 
 Lo que ha hecho falta en las capas comunes:

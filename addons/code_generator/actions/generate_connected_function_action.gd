@@ -40,7 +40,7 @@ func build_plan(context: CodeContext) -> EditPlan:
 		return null
 	var plan := EditPlan.new()
 	plan.replace(from.x, from.y, to.y, CONNECTION_TEMPLATE % callback_name)
-	if not TypeResolver.is_name_defined(callback_name, context.scope_info):
+	if not _is_callback_defined(callback_name, context.scope_info):
 		var target := Target.new()
 		target.name = callback_name
 		target.target_class = context.scope_info.class_scope
@@ -48,6 +48,12 @@ func build_plan(context: CodeContext) -> EditPlan:
 		var snippet := _build_snippet(_build_signature(target, code, context.scope_info))
 		plan.insert(Placement.new_method(target.target_class, context.scope_info, context.lines, context.indent_unit), snippet)
 	return plan
+
+
+func _is_callback_defined(callback_name: String, scope_info: SymbolIndex.ScopeInfo) -> bool:
+	if TypeResolver.find_class_member(scope_info.class_scope, callback_name) != null:
+		return true
+	return SymbolIndex.find_variable(callback_name, scope_info).is_defined
 
 
 func callback_name_for(signal_name: String) -> String:
