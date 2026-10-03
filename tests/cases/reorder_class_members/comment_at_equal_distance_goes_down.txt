@@ -1,0 +1,23 @@
+action: reorder_class_members
+=== input
+extends Node
+
+func beta() -> void:
+	pass<|>
+
+# Same distance to both.
+
+var alpha : int = 0
+
+=== expected
+extends Node
+
+# Same distance to both.
+
+var alpha : int = 0
+
+
+func beta() -> void:
+	pass<|>
+
+=== end

@@ -1,0 +1,36 @@
+action: reorder_class_members
+=== input
+extends Node
+
+func root_method() -> void:
+	pass
+
+var root_value : int = 0
+
+
+class Inner:
+	func run() -> void:
+		pass
+
+	var count : int = 0<|>
+	signal done
+
+=== expected
+extends Node
+
+func root_method() -> void:
+	pass
+
+var root_value : int = 0
+
+
+class Inner:
+	signal done
+
+	var count : int = 0<|>
+
+
+	func run() -> void:
+		pass
+
+=== end

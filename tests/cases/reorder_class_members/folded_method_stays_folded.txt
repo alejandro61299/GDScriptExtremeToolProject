@@ -1,0 +1,23 @@
+action: reorder_class_members
+folds: 3
+expect_folds: 6
+=== input
+extends Node
+
+func beta() -> void:
+	print("beta")
+	print("more")
+
+var alpha : int = 0<|>
+
+=== expected
+extends Node
+
+var alpha : int = 0<|>
+
+
+func beta() -> void:
+	print("beta")
+	print("more")
+
+=== end

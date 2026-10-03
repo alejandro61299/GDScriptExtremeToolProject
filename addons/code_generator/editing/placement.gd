@@ -50,7 +50,7 @@ static func member_variable(class_scope: SymbolIndex.ClassScope, lines: PackedSt
 			break
 		if member.kind == SymbolIndex.ClassMember.Kind.VARIABLE:
 			last_variable = member
-		else:
+		elif member.kind != SymbolIndex.ClassMember.Kind.ANNOTATION and member.kind != SymbolIndex.ClassMember.Kind.OTHER:
 			last_declaration = member
 	var point := EditPlan.InsertionPoint.new()
 	point.indent_text = _member_indent_text(class_scope, lines, indent_unit)

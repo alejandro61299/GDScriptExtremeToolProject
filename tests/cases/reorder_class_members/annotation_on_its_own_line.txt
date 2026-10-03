@@ -1,0 +1,27 @@
+action: reorder_class_members
+=== input
+extends Node
+
+var plain : int = 0<|>
+
+@export
+var exported : int = 1
+
+@rpc("any_peer")
+func remote() -> void:
+	pass
+
+=== expected
+extends Node
+
+@export
+var exported : int = 1
+
+var plain : int = 0<|>
+
+
+@rpc("any_peer")
+func remote() -> void:
+	pass
+
+=== end

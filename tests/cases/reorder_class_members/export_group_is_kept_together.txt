@@ -1,0 +1,37 @@
+action: reorder_class_members
+=== input
+extends Node
+
+var plain : int = 0<|>
+
+@export var first : int = 1
+@export_group("Movement")
+@export var speed : float = 1.0
+@export var jump : float = 2.0
+signal moved
+@export_group("")
+@export var title : String = ""
+
+
+func test() -> void:
+	pass
+
+=== expected
+extends Node
+
+signal moved
+
+@export var first : int = 1
+@export_group("Movement")
+@export var speed : float = 1.0
+@export var jump : float = 2.0
+@export_group("")
+@export var title : String = ""
+
+var plain : int = 0<|>
+
+
+func test() -> void:
+	pass
+
+=== end

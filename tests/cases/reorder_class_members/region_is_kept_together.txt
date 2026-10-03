@@ -1,0 +1,31 @@
+action: reorder_class_members
+=== input
+extends Node
+
+
+func later() -> void:
+	pass<|>
+
+
+#region Settings
+var b : int = 1
+const A : int = 2
+#endregion
+
+signal ping
+
+=== expected
+extends Node
+
+signal ping
+
+#region Settings
+var b : int = 1
+const A : int = 2
+#endregion
+
+
+func later() -> void:
+	pass<|>
+
+=== end

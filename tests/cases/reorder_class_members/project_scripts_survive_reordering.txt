@@ -1,0 +1,4 @@
+action: check_reorder_project_scripts
+=== input
+extends Node
+=== end

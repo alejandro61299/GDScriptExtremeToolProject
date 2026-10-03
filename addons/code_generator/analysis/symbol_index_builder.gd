@@ -72,31 +72,36 @@ static func _add_class_members(class_scope: SymbolIndex.ClassScope, statements: 
 
 
 static func _add_class_member(class_scope: SymbolIndex.ClassScope, statement: SourceScanner.Statement, code: String, lines: PackedStringArray) -> void:
-	if _class_pattern.search(code) != null:
-		_add_inner_class(class_scope, statement, code, lines)
-		_record_member(class_scope, SymbolIndex.ClassMember.Kind.CLASS, statement)
-	elif _starts_with_function(code):
-		_add_method(class_scope, statement, code)
-		_record_member(class_scope, SymbolIndex.ClassMember.Kind.METHOD, statement)
-	elif _signal_pattern.search(code) != null:
-		_add_signal(class_scope, code)
-		_record_member(class_scope, SymbolIndex.ClassMember.Kind.SIGNAL, statement)
-	elif _enum_pattern.search(code) != null:
-		_add_enum(class_scope, statement, code)
-		_record_member(class_scope, SymbolIndex.ClassMember.Kind.ENUM, statement)
-	elif _variable_pattern.search(code) != null:
-		var variable := _add_member_variable(class_scope, statement, code)
-		_record_member(class_scope, SymbolIndex.ClassMember.Kind.CONSTANT if variable.is_const else SymbolIndex.ClassMember.Kind.VARIABLE, statement)
-	else:
-		_add_lambdas(class_scope, statement, null)
-
-
-static func _record_member(class_scope: SymbolIndex.ClassScope, kind: SymbolIndex.ClassMember.Kind, statement: SourceScanner.Statement) -> void:
 	var member := SymbolIndex.ClassMember.new()
-	member.kind = kind
+	member.modifiers = statement.code.substr(0, statement.code.length() - code.length())
 	member.start_line = statement.first_line
 	member.end_line = statement.last_line
 	class_scope.members.append(member)
+	var annotation_match := _annotation_pattern.search(code)
+	if _class_pattern.search(code) != null:
+		_add_inner_class(class_scope, statement, code, lines)
+		member.kind = SymbolIndex.ClassMember.Kind.CLASS
+		member.name = _class_pattern.search(code).get_string(1)
+	elif _starts_with_function(code):
+		_add_method(class_scope, statement, code)
+		member.kind = SymbolIndex.ClassMember.Kind.METHOD
+		member.name = _parse_function_header(code).name
+	elif _signal_pattern.search(code) != null:
+		_add_signal(class_scope, code)
+		member.kind = SymbolIndex.ClassMember.Kind.SIGNAL
+		member.name = _signal_pattern.search(code).get_string(1)
+	elif _enum_pattern.search(code) != null:
+		_add_enum(class_scope, statement, code)
+		member.kind = SymbolIndex.ClassMember.Kind.ENUM
+		member.name = _enum_pattern.search(code).get_string(1)
+	elif _variable_pattern.search(code) != null:
+		var variable := _add_member_variable(class_scope, statement, code)
+		member.kind = SymbolIndex.ClassMember.Kind.CONSTANT if variable.is_const else SymbolIndex.ClassMember.Kind.VARIABLE
+		member.name = variable.name
+	else:
+		member.kind = SymbolIndex.ClassMember.Kind.OTHER if annotation_match == null else SymbolIndex.ClassMember.Kind.ANNOTATION
+		member.name = "" if annotation_match == null else annotation_match.get_string(0)
+		_add_lambdas(class_scope, statement, null)
 
 
 static func _is_header_annotation(code: String) -> bool:

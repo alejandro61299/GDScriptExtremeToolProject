@@ -24,6 +24,9 @@ class ResolvedInsertion:
 static func apply(editor: CodeEdit, plan: EditPlan) -> void:
 	if editor == null or plan == null or plan.is_empty():
 		return
+	if plan.line_replacement != null:
+		_replace_lines(editor, plan.line_replacement)
+		return
 	var indent_unit := Indentation.detect_unit(editor.text.split("\n"), Indentation.editor_unit(editor))
 	var resolved: Array[ResolvedInsertion] = []
 	for insertion in plan.insertions:
@@ -61,6 +64,62 @@ static func apply(editor: CodeEdit, plan: EditPlan) -> void:
 		if insertion.line <= first_visible_line:
 			lines_inserted_above += insertion.block_lines.size()
 	_now_and_next_frame(editor, _restore_scroll.bind(scroll_before + lines_inserted_above))
+
+
+static func _replace_lines(editor: CodeEdit, replacement: EditPlan.LineReplacement) -> void:
+	var caret_line := editor.get_caret_line()
+	var caret_column := editor.get_caret_column()
+	var scroll_before := editor.scroll_vertical
+	var breakpoints := _lines_in_range(editor.get_breakpointed_lines(), replacement)
+	var bookmarks := _lines_in_range(editor.get_bookmarked_lines(), replacement)
+	var folded := _lines_in_range(PackedInt32Array(editor.get_folded_lines()), replacement)
+	for line in folded:
+		editor.unfold_line(line)
+
+	editor.begin_complex_operation()
+	if replacement.last_line >= replacement.first_line:
+		editor.remove_text(replacement.first_line, 0, replacement.last_line, editor.get_line(replacement.last_line).length())
+		editor.insert_text("\n".join(replacement.lines), replacement.first_line, 0)
+	else:
+		editor.insert_text("\n".join(replacement.lines) + "\n", replacement.first_line, 0)
+	editor.end_complex_operation()
+
+	for line in range(replacement.first_line, replacement.first_line + replacement.lines.size()):
+		editor.set_line_as_breakpoint(line, false)
+		editor.set_line_as_bookmarked(line, false)
+	for line in breakpoints:
+		editor.set_line_as_breakpoint(_moved_line(replacement, line), true)
+	for line in bookmarks:
+		editor.set_line_as_bookmarked(_moved_line(replacement, line), true)
+	for line in folded:
+		editor.fold_line(_moved_line(replacement, line))
+
+	var new_caret_line := _moved_line(replacement, caret_line)
+	editor.remove_secondary_carets()
+	editor.deselect()
+	editor.set_caret_line(new_caret_line)
+	editor.set_caret_column(caret_column)
+	_now_and_next_frame(editor, _restore_scroll.bind(scroll_before + new_caret_line - caret_line))
+
+
+static func _lines_in_range(lines: PackedInt32Array, replacement: EditPlan.LineReplacement) -> PackedInt32Array:
+	var inside := PackedInt32Array()
+	for line in lines:
+		if line >= replacement.first_line and line <= replacement.last_line and replacement.line_map[line - replacement.first_line] != -1:
+			inside.append(line)
+	return inside
+
+
+static func _moved_line(replacement: EditPlan.LineReplacement, line: int) -> int:
+	if line < replacement.first_line:
+		return line
+	if line > replacement.last_line:
+		return line + replacement.lines.size() - (replacement.last_line - replacement.first_line + 1)
+	for candidate in range(line, replacement.first_line - 1, -1):
+		var moved := replacement.line_map[candidate - replacement.first_line]
+		if moved != -1:
+			return moved
+	return replacement.first_line
 
 
 static func _resolve(editor: CodeEdit, insertion: EditPlan.Insertion, indent_unit: String, order: int) -> ResolvedInsertion:

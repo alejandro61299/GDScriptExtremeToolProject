@@ -1,0 +1,38 @@
+action: reorder_class_members
+=== input
+extends Node
+## Class description stays here.
+
+# Loose note far from everything.
+
+
+## Documents beta.
+func beta() -> void:
+	pass<|>
+# Glued under beta.
+
+# Between, nearer to alpha.
+var alpha : int = 0
+
+
+# Trailing remark glued to nothing.
+
+=== expected
+extends Node
+## Class description stays here.
+
+# Loose note far from everything.
+
+# Between, nearer to alpha.
+var alpha : int = 0
+
+
+## Documents beta.
+func beta() -> void:
+	pass<|>
+# Glued under beta.
+
+
+# Trailing remark glued to nothing.
+
+=== end

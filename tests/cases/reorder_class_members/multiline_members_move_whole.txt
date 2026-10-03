@@ -1,0 +1,42 @@
+action: reorder_class_members
+=== input
+extends Node
+
+func compute(
+	first : int,
+	second : int,
+) -> int:
+	return first + second<|>
+
+var health : int = 3:
+	set(value):
+		health = maxi(value, 0)
+var table : Dictionary = {
+	"a": 1,
+}
+const TEXT : String = """
+func not_code():
+"""
+
+=== expected
+extends Node
+
+const TEXT : String = """
+func not_code():
+"""
+
+var health : int = 3:
+	set(value):
+		health = maxi(value, 0)
+var table : Dictionary = {
+	"a": 1,
+}
+
+
+func compute(
+	first : int,
+	second : int,
+) -> int:
+	return first + second<|>
+
+=== end

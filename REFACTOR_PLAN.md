@@ -13,6 +13,7 @@ Godot 4.7.2. Estado de partida: una única utilidad ("Generate Method Stub") con
 | 6 | Tipos compuestos, tipos inferidos e iteradores | Hecha |
 | 7 | Generate Connected Function | Hecha |
 | 8 | Vista y navegación tras generar | Hecha |
+| 9 | Reordenar los miembros de una clase | Hecha |
 
 ## Objetivo
 
@@ -50,9 +51,11 @@ addons/code_generator/
 │   ├── variable_action.gd
 │   ├── generate_local_variable_action.gd
 │   ├── generate_class_variable_action.gd
-│   └── generate_connected_function_action.gd
+│   ├── generate_connected_function_action.gd
+│   └── reorder_class_members_action.gd
 ├── analysis/
 │   ├── builtin_types.gd
+│   ├── class_layout.gd
 │   ├── language.gd
 │   ├── source_scanner.gd
 │   ├── symbol_index.gd
@@ -454,6 +457,51 @@ Casos en `tests/cases/view/`, con tres cabeceras nuevas:
 - `expect_view`: `caret_visible`, `unchanged` (la primera línea visible no cambia), `same_top_text` (se sigue viendo el mismo código arriba) o `text_visible` (la línea indicada en `view_text` queda a la vista).
 - En los casos `apply_plan`, una inserción lleva `"reveal": true` para pedir que se muestre.
 
+### Fase 9 — Reordenar los miembros de una clase (hecha)
+
+"Reorder Class Members" reordena la clase donde está el cursor (la raíz o una interna, sin entrar en sus clases internas). Solo aparece en el menú si la clase no está ya en orden.
+
+El orden es la constante `CLASS_MEMBER_ORDER` de `code_generator_settings.gd`. La cabecera (`@tool`, `class_name`, `extends`) no se mueve:
+
+1. Señales.
+2. Constantes.
+3. Variables `static`.
+4. Enums.
+5. Variables `@export`.
+6. Variables `@onready`.
+7. Variables públicas.
+8. Variables privadas (nombre que empieza por `_`).
+9. Clases internas.
+10. Funciones `static` públicas.
+11. Funciones `static` privadas.
+12. `_init`.
+13. Métodos del motor (los virtuales de la clase base según ClassDB: `_ready`, `_process`, `_input`...).
+14. Métodos públicos.
+15. Métodos privados.
+
+Reglas:
+
+- **Dentro de cada categoría se mantiene el orden actual.**
+- **Variables con dependencias.** Si el valor inicial de una variable usa otra variable de la clase que se inicializa en la misma fase (`static`, normal u `@onready`), la segunda se declara antes aunque rompa el formato. La variable dependiente se retrasa hasta justo después.
+- **`@export_category`, `@export_group` y `@export_subgroup`** forman un bloque con los `@export` a los que afectan, hasta la siguiente anotación de grupo.
+- **`#region` ... `#endregion`** es un bloque indivisible, y se coloca según su primer miembro.
+- **Anotaciones en línea propia** (`@export`, `@rpc(...)` encima de la declaración) viajan con el miembro y cuentan para su categoría.
+- **Comentarios.** Cada bloque de comentarios va con el miembro más cercano, contando las líneas en blanco que lo separan; a igual distancia, con el de abajo. Dos excepciones: entre la cabecera y el primer miembro, y tras el último, un comentario solo viaja con el miembro si está pegado a él; si no, se queda en su sitio. Así la descripción de la clase no se mueve.
+- **Líneas en blanco.** Entre dos bloques que ya eran consecutivos se conserva lo que había. Entre los demás: dos alrededor de métodos y clases, una entre categorías distintas, ninguna dentro de la misma categoría.
+
+Cómo se aplica:
+
+- `analysis/class_layout.gd` calcula el texto nuevo recolocando los bloques originales copiados literalmente, sin regenerar código.
+- Un único reemplazo (`EditPlan.replace_lines`), recortado al tramo que cambia, en un solo undo.
+- Con el mapa de línea antigua a línea nueva se restauran el cursor, los breakpoints, los marcadores y los plegados, y el scroll se ajusta para que el cursor quede en la misma fila de la pantalla.
+
+Límite conocido: las dependencias entre variables solo se detectan cuando el nombre aparece en el valor inicial. Si el valor llama a un método que lee otra variable, no se ve.
+
+Tests:
+
+- Casos de texto en `tests/cases/reorder_class_members/`. Cabeceras nuevas: `breakpoints`, `bookmarks` y `folds` (líneas en base 1 antes de la acción) con `expect_breakpoints`, `expect_bookmarks` y `expect_folds`, y `expect_view: caret_row_unchanged`.
+- `action: check_reorder_project_scripts` reordena la raíz y todas las clases internas de cada script del proyecto y comprueba que no se pierde ni se duplica ninguna línea, que el resultado compila, que el motor ve los mismos métodos, señales, variables y constantes, y que reordenar otra vez no cambia nada. La acción modifica 8 de las 25 clases raíz del proyecto.
+
 ## Casos pendientes
 
 Todos bajo `tests/cases/`. La columna "Hoy" es lo que hace la versión actual.
@@ -468,5 +516,4 @@ Todos bajo `tests/cases/`. La columna "Hoy" es lo que hace la versión actual.
 - Generar código en otro archivo: un método sobre un objeto cuya clase está definida en otro script no se ofrece.
 - Rutas relativas en `extends "base.gd"`: solo se resuelven las rutas `res://`.
 - Atajos de teclado para las acciones.
-- Ediciones de borrado o reemplazos que abarquen varias líneas.
 - Scope propio para lambdas de una sola línea.

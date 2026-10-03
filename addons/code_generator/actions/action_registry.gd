@@ -7,6 +7,7 @@ const GenerateMethodAction = preload("res://addons/code_generator/actions/genera
 const GenerateLocalVariableAction = preload("res://addons/code_generator/actions/generate_local_variable_action.gd")
 const GenerateClassVariableAction = preload("res://addons/code_generator/actions/generate_class_variable_action.gd")
 const GenerateConnectedFunctionAction = preload("res://addons/code_generator/actions/generate_connected_function_action.gd")
+const ReorderClassMembersAction = preload("res://addons/code_generator/actions/reorder_class_members_action.gd")
 
 
 static func create_actions() -> Array[CodeAction]:
@@ -15,6 +16,7 @@ static func create_actions() -> Array[CodeAction]:
 	actions.append(GenerateLocalVariableAction.new())
 	actions.append(GenerateClassVariableAction.new())
 	actions.append(GenerateConnectedFunctionAction.new())
+	actions.append(ReorderClassMembersAction.new())
 	return actions
 
 

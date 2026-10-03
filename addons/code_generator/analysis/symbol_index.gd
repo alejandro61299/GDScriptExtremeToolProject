@@ -109,9 +109,11 @@ class BlockScope extends ScopeBase:
 
 
 class ClassMember:
-	enum Kind { VARIABLE, CONSTANT, SIGNAL, ENUM, METHOD, CLASS }
+	enum Kind { VARIABLE, CONSTANT, SIGNAL, ENUM, METHOD, CLASS, ANNOTATION, OTHER }
 
 	var kind: Kind = Kind.VARIABLE
+	var name: String = ""
+	var modifiers: String = ""
 	var start_line: int = 0
 	var end_line: int = 0
 

@@ -1,0 +1,8 @@
+action: reorder_class_members
+=== input
+extends Node
+
+func only() -> void:
+	pass<|>
+
+=== end

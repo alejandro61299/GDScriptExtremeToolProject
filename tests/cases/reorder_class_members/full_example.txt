@@ -1,0 +1,94 @@
+action: reorder_class_members
+=== input
+@tool
+extends Node
+
+func _private_helper() -> void:
+	pass
+
+
+func public_method() -> void:
+	pass<|>
+
+
+var _hidden : int = 0
+var visible_value : int = 1
+
+@onready var label : Label = get_node_or_null("Label")
+@export var speed : float = 1.0
+
+
+func _ready() -> void:
+	pass
+
+
+func _init() -> void:
+	pass
+
+
+static func _make_private() -> void:
+	pass
+
+
+static func create() -> Node:
+	return null
+
+
+class Inner:
+	var value : int = 0
+
+
+enum Mode { SLOW, FAST }
+static var instances : int = 0
+const LIMIT : int = 10
+signal changed(value : int)
+
+=== expected
+@tool
+extends Node
+
+signal changed(value : int)
+
+const LIMIT : int = 10
+
+static var instances : int = 0
+
+enum Mode { SLOW, FAST }
+
+@export var speed : float = 1.0
+
+@onready var label : Label = get_node_or_null("Label")
+
+var visible_value : int = 1
+
+var _hidden : int = 0
+
+
+class Inner:
+	var value : int = 0
+
+
+static func create() -> Node:
+	return null
+
+
+static func _make_private() -> void:
+	pass
+
+
+func _init() -> void:
+	pass
+
+
+func _ready() -> void:
+	pass
+
+
+func public_method() -> void:
+	pass<|>
+
+
+func _private_helper() -> void:
+	pass
+
+=== end

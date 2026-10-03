@@ -23,8 +23,16 @@ class Replacement:
 	var text: String = ""
 
 
+class LineReplacement:
+	var first_line: int = 0
+	var last_line: int = 0
+	var lines: PackedStringArray = []
+	var line_map: PackedInt32Array = []
+
+
 var insertions: Array[Insertion] = []
 var replacements: Array[Replacement] = []
+var line_replacement: LineReplacement
 var revealed_insertion: Insertion
 
 
@@ -49,8 +57,16 @@ func replace(line: int, from_column: int, to_column: int, text: String) -> void:
 	replacements.append(replacement)
 
 
+func replace_lines(first_line: int, last_line: int, lines: PackedStringArray, line_map: PackedInt32Array) -> void:
+	line_replacement = LineReplacement.new()
+	line_replacement.first_line = first_line
+	line_replacement.last_line = last_line
+	line_replacement.lines = lines
+	line_replacement.line_map = line_map
+
+
 func is_empty() -> bool:
-	return insertions.is_empty() and replacements.is_empty()
+	return insertions.is_empty() and replacements.is_empty() and line_replacement == null
 
 
 func leaves_current_position() -> bool:

@@ -33,6 +33,8 @@ const VIEW_CARET_VISIBLE: String = "caret_visible"
 const VIEW_UNCHANGED: String = "unchanged"
 const VIEW_SAME_TOP_TEXT: String = "same_top_text"
 const VIEW_TEXT_VISIBLE: String = "text_visible"
+const VIEW_CARET_ROW_UNCHANGED: String = "caret_row_unchanged"
+const REORDER_ACTION: String = "reorder_class_members"
 const PLAN_ACTION: String = "apply_plan"
 const DESCRIPTION_INDENT: String = "  "
 
@@ -97,6 +99,12 @@ class TestCase:
 	var scroll_to_line: int = 0
 	var expected_view: String = ""
 	var view_text: String = ""
+	var breakpoints: PackedInt32Array = []
+	var bookmarks: PackedInt32Array = []
+	var expected_breakpoints: PackedInt32Array = []
+	var expected_bookmarks: PackedInt32Array = []
+	var folds: PackedInt32Array = []
+	var expected_folds: PackedInt32Array = []
 
 
 class ErrorCollector extends Logger:
@@ -183,6 +191,7 @@ func _check_view(test_case: TestCase) -> PackedStringArray:
 		await process_frame
 	var top_line := editor.get_first_visible_line()
 	var top_text := editor.get_line(top_line)
+	var caret_row := editor.get_caret_line() - top_line
 	if test_case.expected_view == VIEW_SAME_TOP_TEXT and top_text.strip_edges().is_empty():
 		problems.append("The view starts on an empty line; scroll to a line with code.")
 	EditApplier.apply(editor, _build_plan(test_case.plan_description) if test_case.action == PLAN_ACTION else action.build_plan(CodeContext.new(editor)))
@@ -201,6 +210,9 @@ func _check_view(test_case: TestCase) -> PackedStringArray:
 		VIEW_SAME_TOP_TEXT:
 			if editor.get_line(first_line) != top_text:
 				problems.append("The view shows different code: its first line was '%s' and now is '%s'." % [top_text, editor.get_line(first_line)])
+		VIEW_CARET_ROW_UNCHANGED:
+			if caret_line - first_line != caret_row:
+				problems.append("The caret was on row %d of the view and now is on row %d." % [caret_row + 1, caret_line - first_line + 1])
 		VIEW_TEXT_VISIBLE:
 			var text_line := -1
 			for line in editor.get_line_count():
@@ -248,7 +260,20 @@ func _parse_case(path: String) -> TestCase:
 	test_case.scroll_to_line = int(headers.get("scroll_to_line", "0"))
 	test_case.expected_view = headers.get("expect_view", "")
 	test_case.view_text = headers.get("view_text", "")
+	test_case.breakpoints = _parse_lines(headers.get("breakpoints", ""))
+	test_case.bookmarks = _parse_lines(headers.get("bookmarks", ""))
+	test_case.expected_breakpoints = _parse_lines(headers.get("expect_breakpoints", ""))
+	test_case.expected_bookmarks = _parse_lines(headers.get("expect_bookmarks", ""))
+	test_case.folds = _parse_lines(headers.get("folds", ""))
+	test_case.expected_folds = _parse_lines(headers.get("expect_folds", ""))
 	return test_case
+
+
+func _parse_lines(text: String) -> PackedInt32Array:
+	var lines := PackedInt32Array()
+	for part in text.split(",", false):
+		lines.append(int(part) - 1)
+	return lines
 
 
 func _check_expected_compiles(test_case: TestCase) -> PackedStringArray:
@@ -293,6 +318,8 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_no_false_targets()
 		"check_no_undefined_identifiers":
 			return _check_no_undefined_identifiers()
+		"check_reorder_project_scripts":
+			return _check_reorder_project_scripts()
 		"check_index_memory":
 			return _check_index_memory(editor)
 	var action := _find_code_action(test_case.action)
@@ -318,9 +345,29 @@ func _check_code_action(test_case: TestCase, action: CodeAction, editor: CodeEdi
 		problems.append("The action is offered in the menu but nothing should change.")
 	if not is_offered and expects_change:
 		problems.append("The action is not offered in the menu.")
+	for line in test_case.breakpoints:
+		editor.set_line_as_breakpoint(line, true)
+	for line in test_case.bookmarks:
+		editor.set_line_as_bookmarked(line, true)
+	editor.line_folding = not test_case.folds.is_empty()
+	for line in test_case.folds:
+		editor.fold_line(line)
 	EditApplier.apply(editor, action.build_plan(CodeContext.new(editor)))
+	if PackedInt32Array(editor.get_folded_lines()) != test_case.expected_folds:
+		problems.append("Folded lines are %s instead of %s." % [_one_based(PackedInt32Array(editor.get_folded_lines())), _one_based(test_case.expected_folds)])
+	if editor.get_breakpointed_lines() != test_case.expected_breakpoints:
+		problems.append("Breakpoints are on lines %s instead of %s." % [_one_based(editor.get_breakpointed_lines()), _one_based(test_case.expected_breakpoints)])
+	if editor.get_bookmarked_lines() != test_case.expected_bookmarks:
+		problems.append("Bookmarks are on lines %s instead of %s." % [_one_based(editor.get_bookmarked_lines()), _one_based(test_case.expected_bookmarks)])
 	problems.append_array(_check_edit(test_case, editor))
 	return problems
+
+
+func _one_based(lines: PackedInt32Array) -> Array:
+	var shifted: Array = []
+	for line in lines:
+		shifted.append(line + 1)
+	return shifted
 
 
 func _build_plan(description: String) -> EditPlan:
@@ -450,6 +497,73 @@ func _check_no_false_targets() -> PackedStringArray:
 	for path in _project_script_paths():
 		var index := SymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
 		_collect_false_targets(path, index, index.statements, generator, problems)
+	return problems
+
+
+func _check_reorder_project_scripts() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var action := _find_code_action(REORDER_ACTION)
+	for path in _project_script_paths():
+		var original := FileAccess.get_file_as_string(path)
+		var editor := CodeEdit.new()
+		root.add_child(editor)
+		editor.text = original
+		var class_names := _inner_class_names(SymbolIndexBuilder.build(original.split("\n")).root)
+		_reorder_every_class(editor, action, class_names)
+		var reordered := editor.text
+		if _code_lines(reordered) != _code_lines(original):
+			problems.append("%s: reordering lost or duplicated lines." % path)
+		var script := GDScript.new()
+		script.source_code = reordered
+		if script.reload() != OK:
+			problems.append("%s: the reordered script does not compile." % path)
+		else:
+			problems.append_array(_compare_scripts(path, load(path) as GDScript, script))
+		_reorder_every_class(editor, action, class_names)
+		if editor.text != reordered:
+			problems.append("%s: reordering a second time changes the script again." % path)
+		editor.free()
+	return problems
+
+
+func _reorder_every_class(editor: CodeEdit, action: CodeAction, class_names: PackedStringArray) -> void:
+	editor.set_caret_line(0)
+	EditApplier.apply(editor, action.build_plan(CodeContext.new(editor)))
+	for inner_name in class_names:
+		var scope := SymbolIndex.find_class(SymbolIndexBuilder.build(editor.text.split("\n")).root, inner_name)
+		if scope != null and scope.body_start_line != -1:
+			editor.set_caret_line(scope.body_start_line)
+			EditApplier.apply(editor, action.build_plan(CodeContext.new(editor)))
+
+
+func _inner_class_names(class_scope: SymbolIndex.ClassScope) -> PackedStringArray:
+	var names := PackedStringArray()
+	for inner_name: String in class_scope.inner_classes:
+		names.append(inner_name)
+		names.append_array(_inner_class_names(class_scope.inner_classes[inner_name]))
+	return names
+
+
+func _code_lines(text: String) -> PackedStringArray:
+	var code_lines := PackedStringArray()
+	for line in text.split("\n"):
+		if not line.strip_edges().is_empty():
+			code_lines.append(line)
+	code_lines.sort()
+	return code_lines
+
+
+func _compare_scripts(path: String, original: GDScript, reordered: GDScript) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var original_members := [_names_of(original.get_script_method_list(), 0), _names_of(original.get_script_signal_list(), 0), _names_of(original.get_script_property_list(), PROPERTY_USAGE_SCRIPT_VARIABLE), original.get_script_constant_map().keys()]
+	var reordered_members := [_names_of(reordered.get_script_method_list(), 0), _names_of(reordered.get_script_signal_list(), 0), _names_of(reordered.get_script_property_list(), PROPERTY_USAGE_SCRIPT_VARIABLE), reordered.get_script_constant_map().keys()]
+	for index in original_members.size():
+		var before: Array = original_members[index]
+		var after: Array = reordered_members[index]
+		before.sort()
+		after.sort()
+		if before != after:
+			problems.append("%s: the engine sees different members after reordering.\n  before: %s\n  after:  %s" % [path, before, after])
 	return problems
 
 

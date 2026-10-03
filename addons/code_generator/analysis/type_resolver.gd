@@ -44,6 +44,7 @@ static var _condition_pattern := RegEx.create_from_string("^(?:if|elif|while)\\b
 static var _for_pattern := RegEx.create_from_string("^for\\s+\\w+\\s*(?::\\s*(.+?))?\\s+in\\s+(.+):$")
 static var _identifier_pattern := RegEx.create_from_string("^[A-Za-z_]\\w*$")
 static var _deferred_depth: int = 0
+static var _engine_callbacks: Dictionary[String, Dictionary] = {}
 
 
 class Member:
@@ -153,6 +154,31 @@ static func is_function_defined(function_name: String, scope_info: SymbolIndex.S
 	if SymbolIndex.find_class(SymbolIndex.find_root_class(scope_info.class_scope), function_name) != null:
 		return true
 	return find_class_member(scope_info.class_scope, function_name) != null
+
+
+static func is_engine_callback(class_scope: SymbolIndex.ClassScope, method_name: String) -> bool:
+	var type_name := _engine_base_type(class_scope)
+	if not _engine_callbacks.has(type_name):
+		var callbacks: Dictionary = {}
+		if ClassDB.class_exists(type_name):
+			for method in ClassDB.class_get_method_list(type_name):
+				if method["flags"] & METHOD_FLAG_VIRTUAL != 0:
+					callbacks[method["name"]] = true
+		_engine_callbacks[type_name] = callbacks
+	return _engine_callbacks[type_name].has(method_name)
+
+
+static func _engine_base_type(class_scope: SymbolIndex.ClassScope) -> String:
+	var root := SymbolIndex.find_root_class(class_scope)
+	var current := class_scope
+	for depth in MAX_INHERITANCE_DEPTH:
+		var base_name := _base_class_name(current)
+		var base_class := SymbolIndex.find_class(root, base_name) if current.base_script_path.is_empty() else null
+		if base_class == null or base_class == current:
+			var base_script := _load_script(current.base_script_path if not current.base_script_path.is_empty() else Language.global_class_path(base_name))
+			return base_name if base_script == null else String(base_script.get_instance_base_type())
+		current = base_class
+	return Language.DEFAULT_SCRIPT_BASE
 
 
 static func is_identifier(text: String) -> bool:

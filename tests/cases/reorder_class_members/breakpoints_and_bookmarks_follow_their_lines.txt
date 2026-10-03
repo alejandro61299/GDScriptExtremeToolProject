@@ -1,0 +1,23 @@
+action: reorder_class_members
+breakpoints: 4
+bookmarks: 6
+expect_breakpoints: 7
+expect_bookmarks: 3
+=== input
+extends Node
+
+func beta() -> void:
+	print("beta")<|>
+
+var alpha : int = 0
+
+=== expected
+extends Node
+
+var alpha : int = 0
+
+
+func beta() -> void:
+	print("beta")<|>
+
+=== end

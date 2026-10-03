@@ -1,0 +1,25 @@
+action: reorder_class_members
+=== input
+extends Node
+
+var _base : int = 2
+var total : int = _base * 3
+var other : int = 1<|>
+
+
+func test() -> void:
+	pass
+
+=== expected
+extends Node
+
+var other : int = 1<|>
+
+var _base : int = 2
+var total : int = _base * 3
+
+
+func test() -> void:
+	pass
+
+=== end
