@@ -1,0 +1,32 @@
+action: format_class_members
+=== input
+extends Node
+
+
+func run() -> void:<|>
+	_call(func() -> void:
+		var sizes : Array[int] = [
+			1,
+			2])
+
+
+func _call(callback : Callable, times : int = 1) -> Array:
+	return [callback, times]
+
+=== expected
+extends Node
+
+
+func run() -> void:<|>
+	_call(func() -> void:
+		var sizes : Array[int] = [
+			1,
+			2,
+		]
+	)
+
+
+func _call(callback : Callable, times : int = 1) -> Array:
+	return [callback, times]
+
+=== end

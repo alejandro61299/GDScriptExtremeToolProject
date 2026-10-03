@@ -1,0 +1,21 @@
+action: format_class_members
+=== input
+extends Node
+
+
+class Inner:
+	func run(numbers : Array) -> Array:<|>
+		return numbers.filter(func(number : int) -> bool:
+			return number > 1)
+
+=== expected
+extends Node
+
+
+class Inner:
+	func run(numbers : Array) -> Array:<|>
+		return numbers.filter(func(number : int) -> bool:
+			return number > 1
+		)
+
+=== end

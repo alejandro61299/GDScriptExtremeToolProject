@@ -57,8 +57,8 @@ addons/code_generator/
 │   └── format_class_members_action.gd
 ├── analysis/
 │   ├── builtin_types.gd
+│   ├── bracket_layout.gd
 │   ├── class_layout.gd
-│   ├── collection_layout.gd
 │   ├── language.gd
 │   ├── source_scanner.gd
 │   ├── symbol_index.gd
@@ -524,7 +524,7 @@ Reglas entre miembros:
 - **Dentro de una categoría se respeta la agrupación del usuario**: dos constantes seguidas siguen seguidas y las separadas por una línea siguen separadas; solo se recorta lo que pase de una.
 - **`#region` y `#endregion`** no forman un bloque indivisible como en la fase 9, porque también hay que dar formato dentro: `#endregion` va con el miembro de arriba y `#region` con el de abajo.
 - **`@export_group` y similares** tampoco agrupan: cuentan como un miembro de la categoría de exports.
-- **No se toca el interior de los miembros**: cuerpos de métodos, enums multilínea, ni los comentarios con más indentación que el miembro. La excepción son los diccionarios y arrays multilínea de las variables y constantes de clase (ver más abajo).
+- **No se toca el interior de los miembros**: cuerpos de métodos, enums multilínea, ni los comentarios con más indentación que el miembro. La excepción son los cierres de corchetes de diccionarios, arrays y lambdas pasadas como argumento (ver más abajo).
 - Una línea que solo tiene espacios o tabuladores cuenta como línea en blanco y queda vacía.
 
 Reglas de los comentarios. Hay dos clases de comentario: los del scope (su descripción al principio y lo que haya tras el último miembro) y los de un miembro.
@@ -535,7 +535,9 @@ Reglas de los comentarios. Hay dos clases de comentario: los del scope (su descr
 - **Tras la cabecera**, el primer miembro lleva una línea en blanco delante, dos si es un método o una clase. Sin cabecera, lleva las que hubiera con un máximo de una.
 - **Al final del scope**: entre el último miembro y los comentarios que le siguen, y entre esos comentarios, una línea en blanco como máximo. Las líneas en blanco sobrantes al final del archivo se quitan. En una clase interna, los comentarios finales son los que tienen la indentación de su cuerpo.
 
-Diccionarios y arrays multilínea (`analysis/collection_layout.gd`). En las variables y constantes de la clase, cada `{...}` o `[...]` que se abre en una línea y se cierra en otra queda así:
+Cierres de corchetes (`analysis/bracket_layout.gd`). Se aplican a las variables, constantes y métodos de la clase, entrando en los cuerpos de los métodos y de las lambdas, pero no en las clases internas.
+
+Diccionarios y arrays: cada `{...}` o `[...]` que se abre en una línea y se cierra en otra queda así:
 
 ```gdscript
 var sizes : Dictionary = {
@@ -544,13 +546,28 @@ var sizes : Dictionary = {
 }
 ```
 
-- **El cierre va en su propia línea**, con la indentación de la línea donde se abrió. Lo que haya detrás del cierre (`.keys()`, `)`, `+ [`) baja con él.
-- **Coma tras el último elemento**, antes del comentario de final de línea si lo hay. Una colección vacía no la lleva.
+- **El cierre va en su propia línea**, con la indentación de la línea donde se abrió. Lo que haya detrás del cierre (`.keys()`, `)`, `+ [`, `:`) baja con él.
+- **Coma tras el último elemento**, antes del comentario de final de línea si lo hay. Una colección vacía no la lleva. Si el último elemento es una lambda multilínea, la coma va tras la última sentencia de su cuerpo.
 - Vale para colecciones anidadas, cada una alineada con la línea donde se abre.
-- **No se toca**: las colecciones de una sola línea, el reparto de elementos por línea, su indentación, el espaciado de `clave : valor`, ni un primer elemento escrito en la misma línea que la apertura.
-- **Fuera de alcance**: las colecciones dentro de los métodos, los `enum`, las declaraciones que contienen una lambda o `get`/`set`, y un `[` que es un índice (`TABLE[...]`) y no un array.
-- No hacen falta scopes: una colección no declara nombres. Se trabaja sobre la sentencia del árbol de `SourceScanner`, que ya trae el código con cadenas y comentarios enmascarados y la posición de cada trozo en su línea.
-- El cursor se queda en su línea y columna; si la línea se parte, en la primera mitad.
+
+Lambdas multilínea como argumento: el paréntesis que cierra la llamada baja a su propia línea, alineado con la línea donde se abrió.
+
+```gdscript
+button.pressed.connect(func() -> void:
+	print("pressed")
+)
+```
+
+- Solo se mueve el cierre que va justo detrás del final de la lambda. Lo que le siga (`.clear()`, otro `)`) baja con él y no se le añade coma.
+- Si tras la lambda viene otro argumento (`, 2)`), no se toca: no hay un cierre que recolocar.
+- Las lambdas de una línea y las asignadas a una variable no cambian.
+- La guía de estilo oficial de GDScript no dice nada de lambdas; el formato es el habitual en la documentación y es válido para el motor, comprobado compilando cada variante.
+
+Lo que no se toca: las colecciones de una sola línea, el reparto de elementos por línea, su indentación, la del cuerpo de las lambdas, el espaciado de `clave : valor`, un primer elemento escrito en la misma línea que la apertura, los `enum`, las llamadas multilínea sin lambda, y un `[` que es un índice (`TABLE[...]`) y no un array.
+
+No hacen falta scopes: ni una colección ni un cierre de llamada declaran nombres. Se trabaja sobre las sentencias del árbol de `SourceScanner`, que ya traen el código con cadenas y comentarios enmascarados, la posición de cada trozo en su línea y los bloques de las lambdas. Una misma línea puede recibir cambios de dos sentencias (el final del cuerpo de una lambda y el cierre de la llamada que la contiene), así que los cambios se reúnen por línea antes de reescribir.
+
+El cursor se queda en su línea y columna; si la línea se parte, en la primera mitad.
 
 Cómo se aplica: `ClassLayout.format` usa los mismos bloques y el mismo compositor que `ClassLayout.reorder`, con el orden original y las separaciones normalizadas. El tramo que se procesa va desde el principio del scope hasta su último comentario, mientras que el reordenado empieza tras la cabecera. El reemplazo, el undo único y la restauración de cursor, breakpoints, marcadores, plegados y scroll son los de la fase 9. Las líneas en blanco también entran en el mapa de líneas, así que el cursor situado en un hueco se queda en el hueco.
 

@@ -1,9 +1,0 @@
-action: format_class_members
-=== input
-extends Node
-
-var callbacks : Dictionary = {
-	"alpha" : func() -> int:
-		return 1}<|>
-
-=== end

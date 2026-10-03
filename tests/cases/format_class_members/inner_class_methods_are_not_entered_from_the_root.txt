@@ -1,0 +1,13 @@
+action: format_class_members
+=== input
+extends Node
+
+var value : int = 0<|>
+
+
+class Inner:
+	func run(numbers : Array) -> Array:
+		return numbers.filter(func(number : int) -> bool:
+			return number > 1)
+
+=== end

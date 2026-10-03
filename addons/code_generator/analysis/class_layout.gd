@@ -3,7 +3,7 @@ extends RefCounted
 
 const SymbolIndex = preload("res://addons/code_generator/analysis/symbol_index.gd")
 const SourceScanner = preload("res://addons/code_generator/analysis/source_scanner.gd")
-const CollectionLayout = preload("res://addons/code_generator/analysis/collection_layout.gd")
+const BracketLayout = preload("res://addons/code_generator/analysis/bracket_layout.gd")
 const TypeResolver = preload("res://addons/code_generator/analysis/type_resolver.gd")
 const Settings = preload("res://addons/code_generator/code_generator_settings.gd")
 
@@ -130,17 +130,26 @@ static func format(class_scope: SymbolIndex.ClassScope, statements: Array[Source
 	if _has_header(class_scope):
 		_split_gap(_new_block(class_scope.header_end_line, class_scope.header_end_line, 0), blocks[0], lines)
 	var draft := Draft.new(lines, scope_first, scope_last)
-	draft.rewrites = _collection_rewrites(class_scope, statements, lines)
+	draft.rewrites = _bracket_rewrites(class_scope, statements, lines)
 	return _compose(class_scope, blocks, blocks, draft, scope_last, true)
 
 
-static func _collection_rewrites(class_scope: SymbolIndex.ClassScope, statements: Array[SourceScanner.Statement], lines: PackedStringArray) -> Dictionary[int, PackedStringArray]:
-	var rewrites: Dictionary[int, PackedStringArray] = {}
+static func _bracket_rewrites(class_scope: SymbolIndex.ClassScope, statements: Array[SourceScanner.Statement], lines: PackedStringArray) -> Dictionary[int, PackedStringArray]:
+	var formatted: Array[SourceScanner.Statement] = []
 	for member in class_scope.members:
-		var holds_value := member.kind == SymbolIndex.ClassMember.Kind.VARIABLE or member.kind == SymbolIndex.ClassMember.Kind.CONSTANT
-		if holds_value and member.end_line > member.start_line:
-			rewrites.merge(CollectionLayout.rewrite(SourceScanner.find_statement_at(statements, member.start_line), lines))
-	return rewrites
+		var holds_code := member.kind == SymbolIndex.ClassMember.Kind.VARIABLE or member.kind == SymbolIndex.ClassMember.Kind.CONSTANT or member.kind == SymbolIndex.ClassMember.Kind.METHOD
+		if holds_code and member.end_line > member.start_line:
+			_collect_statements(SourceScanner.find_statement_at(statements, member.start_line), formatted)
+	return BracketLayout.rewrite(formatted, lines)
+
+
+static func _collect_statements(statement: SourceScanner.Statement, collected: Array[SourceScanner.Statement]) -> void:
+	if statement == null:
+		return
+	collected.append(statement)
+	for block in statement.blocks:
+		for inner in block.statements:
+			_collect_statements(inner, collected)
 
 
 static func _last_line_with_comments(class_scope: SymbolIndex.ClassScope, lines: PackedStringArray) -> int:

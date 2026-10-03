@@ -1,0 +1,33 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var callbacks : Dictionary = {
+	"alpha" : func() -> int:
+		return 1,
+	"beta" : func() -> int:
+		if true:
+			return 2
+		return 3}
+var steps : Array[Callable] = [
+	func() -> void:
+		print(1)
+]
+
+=== expected
+extends Node<|>
+
+var callbacks : Dictionary = {
+	"alpha" : func() -> int:
+		return 1,
+	"beta" : func() -> int:
+		if true:
+			return 2
+		return 3,
+}
+var steps : Array[Callable] = [
+	func() -> void:
+		print(1),
+]
+
+=== end

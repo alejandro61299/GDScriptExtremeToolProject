@@ -1,0 +1,40 @@
+action: format_class_members
+=== input
+extends Node
+
+
+func run(names : Array[String]) -> Dictionary:<|>
+	var sizes : Dictionary = {
+		"alpha" : 2,
+		"beta" : 3}
+	for name in [
+		"alpha",
+		"beta"]:
+		if names.has(name):
+			print("%s is %s" % [
+				name,
+				sizes[name]
+				])
+	return sizes
+
+=== expected
+extends Node
+
+
+func run(names : Array[String]) -> Dictionary:<|>
+	var sizes : Dictionary = {
+		"alpha" : 2,
+		"beta" : 3,
+	}
+	for name in [
+		"alpha",
+		"beta",
+	]:
+		if names.has(name):
+			print("%s is %s" % [
+				name,
+				sizes[name],
+			])
+	return sizes
+
+=== end

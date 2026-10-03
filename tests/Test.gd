@@ -34,7 +34,10 @@ var _multiline_3 : Dictionary = {
 
 class Propietario extends  RefCounted:
 	func _init() -> void:
-		pass
+		var my_callable : Callable = 	func(x):
+			var local : int = 2
+			var a : int = 4
+			return a
 
 
 # Clase
