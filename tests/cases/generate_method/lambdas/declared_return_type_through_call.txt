@@ -1,0 +1,24 @@
+action: generate_method
+=== input
+extends Node
+
+
+func test() -> void:
+	var convert = func(value: int) -> float:
+		return value * 0.5
+	_use(convert.call(2))<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var convert = func(value: int) -> float:
+		return value * 0.5
+	_use(convert.call(2))
+
+
+func _use(param_0: float) -> void:
+	<|pass|>
+
+=== end

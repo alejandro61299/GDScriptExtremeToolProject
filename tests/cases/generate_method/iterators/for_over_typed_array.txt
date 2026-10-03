@@ -1,5 +1,4 @@
 action: generate_method
-status: pending
 === input
 extends Node
 

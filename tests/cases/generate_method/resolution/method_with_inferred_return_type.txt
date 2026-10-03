@@ -4,19 +4,25 @@ extends Node
 
 
 func test() -> void:
-	for child in get_children():
-		_use(child)<|>
+	_use(compute())<|>
+
+
+func compute():
+	return 5
 
 === expected
 extends Node
 
 
 func test() -> void:
-	for child in get_children():
-		_use(child)
+	_use(compute())
 
 
-func _use(p_child: Node) -> void:
+func _use(param_0: int) -> void:
 	<|pass|>
+
+
+func compute():
+	return 5
 
 === end

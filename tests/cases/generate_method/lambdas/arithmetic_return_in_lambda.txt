@@ -4,16 +4,22 @@ extends Node
 
 
 func test() -> void:
-	var values : Array[int] = [1]
-	_use(values.front())<|>
+	var sum = func():
+		var a = 10
+		var b = 20
+		return a + b
+	_use(sum.call())<|>
 
 === expected
 extends Node
 
 
 func test() -> void:
-	var values : Array[int] = [1]
-	_use(values.front())
+	var sum = func():
+		var a = 10
+		var b = 20
+		return a + b
+	_use(sum.call())
 
 
 func _use(param_0: int) -> void:

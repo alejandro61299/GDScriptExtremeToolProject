@@ -21,11 +21,16 @@ class TypeData:
 
 
 class VariableSymbol:
+	enum Deferred { NONE, VALUE, ITERATION }
+
 	var name: String = ""
 	var type: TypeData
 	var is_const: bool = false
 	var start_line: int = 0
 	var end_line: int = 0
+	var value_code: String = ""
+	var deferred: Deferred = Deferred.NONE
+	var function: FunctionScope
 
 
 class SignalSymbol:
@@ -41,6 +46,7 @@ class DeclarationTail:
 class VariableLookup:
 	var is_defined: bool = false
 	var type: TypeData
+	var symbol: VariableSymbol
 
 
 class ScopeBase:
@@ -58,6 +64,9 @@ class ScopeBase:
 	func attach_to(new_parent: ScopeBase) -> void:
 		_parent_reference = weakref(new_parent)
 		new_parent.children.append(self)
+
+	func enclose_in(enclosing_scope: ScopeBase) -> void:
+		_parent_reference = weakref(enclosing_scope)
 
 	func first_contained_line() -> int:
 		return start_line
@@ -77,8 +86,11 @@ class FunctionScope extends ScopeBase:
 	var name: String = ""
 	var is_lambda: bool = false
 	var is_static: bool = false
+	var is_inline: bool = false
 	var params: Dictionary = {}
 	var return_type: TypeData
+	var return_codes: PackedStringArray = []
+	var return_lines: PackedInt32Array = []
 
 	func first_contained_line() -> int:
 		return body_start_line if is_lambda else start_line
@@ -115,6 +127,7 @@ class SymbolIndexData:
 
 
 class ScopeInfo:
+	var index: SymbolIndexData
 	var line: int = 0
 	var scope: ScopeBase
 	var class_scope: ClassScope
@@ -214,10 +227,7 @@ static func literal_type(masked_value: String) -> TypeData:
 	return null
 
 
-static func infer_type_from_value(masked_value: String) -> TypeData:
-	var literal := literal_type(masked_value)
-	if literal != null:
-		return literal
+static func constructed_type(masked_value: String) -> TypeData:
 	var constructor_match := _constructor_pattern.search(masked_value.strip_edges())
 	if constructor_match != null and Language.is_known_type(constructor_match.get_string(1)):
 		return make_type(constructor_match.get_string(1))
@@ -231,7 +241,8 @@ static func parse_func_parameters(params_text: String) -> Dictionary:
 		while name_end < param.length() and SourceScanner.is_identifier_character(param[name_end]):
 			name_end += 1
 		if name_end > 0:
-			result[param.substr(0, name_end)] = parse_declaration_tail(param.substr(name_end)).type
+			var declaration := parse_declaration_tail(param.substr(name_end))
+			result[param.substr(0, name_end)] = declaration.type if declaration.type != null else constructed_type(declaration.value)
 	return result
 
 
@@ -254,14 +265,19 @@ static func parse_declaration_tail(tail: String) -> DeclarationTail:
 			result.value = text.substr(assignment + 1).strip_edges()
 	elif text.begins_with(ASSIGNMENT):
 		result.value = text.substr(ASSIGNMENT.length()).strip_edges()
-	result.type = infer_type_from_value(result.value) if type_text.is_empty() else parse_type(type_text)
+	result.type = literal_type(result.value) if type_text.is_empty() else parse_type(type_text)
 	return result
 
 
 static func get_scope_info_for_line(index: SymbolIndexData, line: int) -> ScopeInfo:
+	return get_scope_info_for_scope(index, _find_innermost_scope(index.root, line), line)
+
+
+static func get_scope_info_for_scope(index: SymbolIndexData, scope: ScopeBase, line: int) -> ScopeInfo:
 	var info := ScopeInfo.new()
+	info.index = index
 	info.line = line
-	info.scope = _find_innermost_scope(index.root, line)
+	info.scope = scope
 	var current := info.scope
 	while current != null:
 		if current is FunctionScope and info.function_scope == null:
@@ -282,6 +298,7 @@ static func find_variable(variable_name: String, scope_info: ScopeInfo) -> Varia
 			if member != null and (is_current_class or member.is_const):
 				lookup.is_defined = true
 				lookup.type = member.type
+				lookup.symbol = member
 			is_current_class = false
 		elif current is FunctionScope and (current as FunctionScope).params.has(variable_name):
 			lookup.is_defined = true
@@ -291,6 +308,7 @@ static func find_variable(variable_name: String, scope_info: ScopeInfo) -> Varia
 			if local != null:
 				lookup.is_defined = true
 				lookup.type = local.type
+				lookup.symbol = local
 		current = current.parent
 	return lookup
 

@@ -4,19 +4,19 @@ extends Node
 
 
 func test(count : int) -> void:
-	for index in count:
-		_use(index)<|>
+	var total := count * 2
+	_use(total)<|>
 
 === expected
 extends Node
 
 
 func test(count : int) -> void:
-	for index in count:
-		_use(index)
+	var total := count * 2
+	_use(total)
 
 
-func _use(p_index: int) -> void:
+func _use(p_total: int) -> void:
 	<|pass|>
 
 === end

@@ -4,16 +4,16 @@ extends Node
 
 
 func test() -> void:
-	var values : Array[int] = [1]
-	_use(values.front())<|>
+	var pick = func(x: int) -> int: return x
+	_use(pick.bind(1).call())<|>
 
 === expected
 extends Node
 
 
 func test() -> void:
-	var values : Array[int] = [1]
-	_use(values.front())
+	var pick = func(x: int) -> int: return x
+	_use(pick.bind(1).call())
 
 
 func _use(param_0: int) -> void:

@@ -10,7 +10,7 @@ Godot 4.7.2. Estado de partida: una única utilidad ("Generate Method Stub") con
 | 3 | Resolución e inferencia compartidas | Hecha |
 | 4 | Acciones y menú | Hecha |
 | 5 | Generate local variable y Generate class variable | Pendiente |
-| 6 | Tipos compuestos, tipos inferidos e iteradores | Pendiente |
+| 6 | Tipos compuestos, tipos inferidos e iteradores | Hecha |
 
 ## Objetivo
 
@@ -48,6 +48,7 @@ addons/code_generator/
 │   ├── generate_local_variable_action.gd
 │   └── generate_class_variable_action.gd
 ├── analysis/
+│   ├── builtin_types.gd
 │   ├── language.gd
 │   ├── source_scanner.gd
 │   ├── symbol_index.gd
@@ -64,6 +65,8 @@ tests/
 ├── run_tests.gd
 ├── main.gd
 └── cases/
+tools/
+└── generate_builtin_types.gd
 ```
 
 `code_inserter.gd`, `code_generator_unit_tests.gd` y `stub_generator.gd` ya están borrados.
@@ -166,6 +169,17 @@ El builder recorre el árbol de sentencias y crea los scopes:
   - `resolve_signal(expression, scope_info)`: la señal a la que apunta `x.signal_name`, con sus parámetros.
   - `expected_type(statement_code, call, scope_info)`: el tipo que el contexto espera de una llamada.
   - `default_value_text(type)`: el literal por defecto de un tipo.
+  - `function_return_type(function, scope_info)`: el retorno declarado de un método o lambda o, si no lo declara, el tipo común de sus `return`.
+- **`builtin_types.gd`**: métodos, miembros y tipo de elemento de los 38 tipos integrados (`String`, `Vector2`, `Array`, `Packed*Array`...). Está generado; no se edita a mano.
+
+Tipos que se resuelven al consultarlos, no al construir el índice:
+
+- Una variable con `:=` o `=` cuyo valor no es un literal guarda la expresión, y el resolvedor la evalúa con el scope de la línea donde se declara.
+- La variable de un `for` guarda la expresión que recorre, y su tipo es el del elemento.
+- Una variable que guarda una lambda queda enlazada con ella, de modo que `variable.call()` devuelve lo que devuelve la lambda. Funciona en cadena: una lambda que devuelve `otra.call()` hereda su tipo.
+- Hay un límite de profundidad para que una función recursiva no cuelgue la resolución.
+
+Operadores: comparaciones, `and`, `or` y `not` dan `bool`; `as T` da `T`; la aritmética da el tipo común de los operandos (`int` con `float` da `float`); el ternario da el tipo de sus dos ramas si coinciden.
 
 `expected_type` decide así:
 
@@ -359,38 +373,32 @@ indent: spaces
 - `generate_local_variable_action.gd` y `generate_class_variable_action.gd`.
 - Hecho cuando: pasan `generate_local_variable/` y `generate_class_variable/`, ampliados con: lambdas anidadas, ramas de `match`, cuerpos de una línea, espacios, última línea sin salto final, y tipo inferido por asignación y por `return`.
 
-### Fase 6 — Tipos compuestos, tipos inferidos e iteradores
+### Fase 6 — Tipos compuestos, tipos inferidos e iteradores (hecha)
 
-No depende de la fase 4 ni de la 5; se puede adelantar a la 5, que saldría ganando porque las variables generadas usarían estos tipos.
+- **Tipos compuestos.** `Array[T]` y `Dictionary[K, V]` declarados, como parámetro, como retorno, por índice y como receptor.
+- **Tipos inferidos de forma diferida.** `var first := values[0]`, `var child := get_child(0)` y `var foo := Foo.new()` ya tienen tipo.
+- **Variable de un `for`.** Sobre `Array[T]`, `Dictionary[K, V]`, un `int`, un `String`, un `Packed*Array` o cualquier expresión que el resolvedor entienda (`get_children()`, `names.values()`).
+- **Llamada sin definir usada como iterable.** `for value: int in _values():` genera `-> Array[int]`; sin anotación, `-> Array`.
+- **Variables de un patrón de `match`.** `var other:` declara un local de la rama con el tipo de la expresión comparada.
+- **Retorno de lambdas y métodos.** El declarado se guardaba ya; ahora se infiere también el no declarado a partir de los `return`, y `variable.call()` lo usa. `hola(level_1.call())` con tres lambdas anidadas genera `hola(param_0: String)`.
+- **Operadores.** `count > 3` es `bool`, `count * ratio` es `float`, etc. Antes se tomaba el tipo del primer identificador de la expresión.
+- **Tipos integrados.** `label.length()`, `position.x`, `values.front()`, `names.keys()` y `foos.append(_make_foo())` se resuelven con `builtin_types.gd` y con las reglas de genéricos de `language.gd`.
 
-Ya cubierto, con 12 casos activos en `generate_method/composite_types/` e `iterators/`:
+`while` no declara ninguna variable, así que no tiene iterador que tipar.
 
-- `Array[T]` y `Dictionary[K, V]` declarados en variables, constantes, parámetros, señales y tipos de retorno, incluidos los del motor (`get_children()` es `Array[Node]`).
-- El tipo se escribe completo en el método generado, como parámetro y como retorno (`-> Array[int]` con `return []`).
-- Acceso por índice: `values[0]` es `T` y `names[key]` es `V`, también como receptor (`foos[0].reset()`) y como destino de una asignación (`names[1] = _make()`).
-- `for` con variable anotada o sobre `range(...)`, y variables declaradas dentro de un `while`.
+Descartado: los diccionarios tipados del motor. Ningún método de Godot 4.7.2 devuelve ni recibe uno, así que no hay nada que leer ni con qué probarlo.
 
-Pendiente:
+Para regenerar `builtin_types.gd` con otra versión de Godot:
 
-- **Tipos inferidos de forma diferida.** Una variable con `:=` o `=` solo tiene tipo si su valor es un literal o un constructor del motor. `var first := values[0]`, `var child := get_child(0)` y `var foo := Foo.new()` (clase del archivo) quedan sin tipo.
-  - El símbolo guarda la expresión del valor y `TypeResolver` la resuelve al consultarla, con el scope de la línea de la declaración y un límite de recursión.
-  - Para eso `ScopeInfo` necesita una referencia al índice.
-- **Variable de un `for`.** Se resuelve igual, a partir de la expresión que se recorre:
-  - `Array[T]` da `T` y `Dictionary[K, V]` da `K`.
-  - Un `int` da `int`, un `String` da `String` y un `Packed*Array` da su tipo de elemento.
-  - Cualquier expresión que el resolvedor ya entienda (`get_children()`, `names.values()`).
-- **Llamada sin definir usada como iterable.** `for value: int in _values():` debe generar `-> Array[int]`, y sin anotación `-> Array`.
-- **Métodos y elementos de colecciones.** Los tipos integrados no tienen reflexión, así que hace falta una tabla en `language.gd`, generada desde la documentación del motor como la de funciones globales:
-  - Elemento por índice de `Packed*Array` y `String`.
-  - Retorno: `front`, `back`, `pop_back`, `pick_random` y `get` dan el elemento; `keys()` da `Array[K]`; `values()` da `Array[V]`; `size` da `int`.
-  - Parámetros: `append`, `push_back`, `has`, `erase` y `insert` esperan el elemento, de modo que `foos.append(_make_foo())` genere `-> Foo`.
-  - La misma tabla puede ampliarse a todos los tipos integrados (`String.length()`, `Vector2.normalized()`); queda como opción.
-- **Variables de un patrón de `match`.** `var other:` como patrón declara un local de la rama con el tipo de la expresión comparada. Dentro de un patrón de array o diccionario queda sin tipo.
-- **Diccionarios tipados del motor.** Los arrays tipados de ClassDB ya se leen; los diccionarios usan otro formato de `hint_string` y hoy salen como `Dictionary`.
+```bash
+/Applications/Godot.app/Contents/MacOS/Godot --headless --dump-extension-api
+```
 
-`while` no declara ninguna variable, así que no tiene iterador que tipar. Lo que se declara en su cuerpo ya pertenece a su scope.
+```bash
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --script res://tools/generate_builtin_types.gd -- extension_api.json
+```
 
-Hecho cuando: pasan los 18 casos pendientes de `composite_types/` e `iterators/`.
+El primer comando escribe `extension_api.json` en la carpeta actual; se puede borrar después.
 
 ## Casos pendientes
 
@@ -400,14 +408,6 @@ Todos bajo `tests/cases/`. La columna "Hoy" es lo que hace la versión actual.
 |---|---|---|
 | `generate_local_variable/*` (6 casos) | La acción no existe | 5 |
 | `generate_class_variable/*` (4 casos) | La acción no existe | 5 |
-| `generate_method/composite_types/inferred_from_*` (3 casos) | La variable con `:=` queda sin tipo | 6 |
-| `generate_method/composite_types/packed_array_element` | `names[0]` sin tipo | 6 |
-| `generate_method/composite_types/collection_method_element` | `values.front()` sin tipo | 6 |
-| `generate_method/composite_types/dictionary_keys_and_values` | `keys()` y `values()` sin tipo | 6 |
-| `generate_method/composite_types/append_argument` | `-> Variant` en vez de `-> Foo` | 6 |
-| `generate_method/iterators/for_over_*` (8 casos) | La variable del bucle queda sin tipo | 6 |
-| `generate_method/iterators/*_for_iterable_return_type` (2 casos) | `-> Variant` en vez de `-> Array` | 6 |
-| `generate_method/iterators/match_pattern_binding` | La variable del patrón no se indexa | 6 |
 
 ## Fuera de alcance
 

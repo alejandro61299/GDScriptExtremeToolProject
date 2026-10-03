@@ -1,0 +1,28 @@
+action: generate_method
+=== input
+extends Node
+
+
+func test() -> void:
+	var pick = func(flag: bool):
+		if flag:
+			return 1
+		return "one"
+	_use(pick.call(true))<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var pick = func(flag: bool):
+		if flag:
+			return 1
+		return "one"
+	_use(pick.call(true))
+
+
+func _use(param_0) -> void:
+	<|pass|>
+
+=== end

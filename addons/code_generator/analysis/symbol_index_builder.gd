@@ -3,13 +3,15 @@ extends RefCounted
 
 const SymbolIndex = preload("res://addons/code_generator/analysis/symbol_index.gd")
 const SourceScanner = preload("res://addons/code_generator/analysis/source_scanner.gd")
+const Language = preload("res://addons/code_generator/analysis/language.gd")
 
 const FUNCTION_KEYWORD: String = "func"
 const CONSTANT_KEYWORD: String = "const"
 const SETTER_NAME: String = "set"
 const GETTER_NAME: String = "get"
-const INTEGER_TYPE_NAME: String = "int"
 const RANGE_CALL: String = "range("
+const RETURN_ARROW: String = "->"
+const PATTERN_GUARD: String = " when "
 
 static var _modifiers_pattern := RegEx.create_from_string("^(?:(?:@\\w+(?:\\([^)]*\\))?|static)\\s+)+")
 static var _class_name_pattern := RegEx.create_from_string("^class_name\\s+(\\w+)")
@@ -19,6 +21,9 @@ static var _signal_pattern := RegEx.create_from_string("^signal\\s+(\\w+)\\s*(?:
 static var _variable_pattern := RegEx.create_from_string("^(var|const)\\s+(\\w+)(.*)$")
 static var _block_pattern := RegEx.create_from_string("^(if|elif|else|for|while|match)\\b")
 static var _for_pattern := RegEx.create_from_string("^for\\s+(\\w+)\\s*(?::\\s*(.+?))?\\s+in\\s+(.+):$")
+static var _match_pattern := RegEx.create_from_string("^match\\s+(.*):$")
+static var _binding_pattern := RegEx.create_from_string("\\bvar\\s+(\\w+)")
+static var _return_pattern := RegEx.create_from_string("^return\\b(.*)$")
 static var _setter_pattern := RegEx.create_from_string("^set\\s*\\(\\s*(\\w+)\\s*\\)\\s*:")
 static var _getter_pattern := RegEx.create_from_string("^get\\s*(?:\\(\\s*\\))?\\s*:")
 static var _static_function_pattern := RegEx.create_from_string("\\bstatic\\s+func\\b")
@@ -28,6 +33,7 @@ class FunctionHeader:
 	var name: String = ""
 	var params_text: String = ""
 	var return_text: String = ""
+	var body_offset: int = -1
 
 
 static func build(lines: PackedStringArray) -> SymbolIndex.SymbolIndexData:
@@ -52,7 +58,7 @@ static func _add_class_members(class_scope: SymbolIndex.ClassScope, statements: 
 			_read_extends(class_scope, statement, code)
 		elif _class_pattern.search(code) != null:
 			_add_inner_class(class_scope, statement, code)
-		elif _is_function_declaration(code):
+		elif _starts_with_function(code):
 			_add_method(class_scope, statement, code)
 		elif _signal_pattern.search(code) != null:
 			_add_signal(class_scope, code)
@@ -95,7 +101,9 @@ static func _add_method(class_scope: SymbolIndex.ClassScope, statement: SourceSc
 		if not class_scope.methods.has(method.name):
 			class_scope.methods[method.name] = []
 		class_scope.methods[method.name].append(method)
-	if body != null:
+	if body == null:
+		_record_inline_return(method, code, statement.first_line)
+	else:
 		_add_body_statements(method, body.statements)
 	_add_lambdas(method, statement, body)
 
@@ -114,7 +122,7 @@ static func _add_member_variable(class_scope: SymbolIndex.ClassScope, statement:
 	class_scope.vars[variable.name] = variable
 	if accessors != null:
 		_add_property(class_scope, statement, accessors, variable)
-	_add_lambdas(class_scope, statement, accessors)
+	_link_function(variable, _add_lambdas(class_scope, statement, accessors), class_scope, statement)
 
 
 static func _add_property(class_scope: SymbolIndex.ClassScope, statement: SourceScanner.Statement, accessors: SourceScanner.Block, variable: SymbolIndex.VariableSymbol) -> void:
@@ -143,11 +151,17 @@ static func _add_body_statements(scope: SymbolIndex.ScopeBase, statements: Array
 	for statement in statements:
 		var code := _strip_modifiers(statement.code)
 		var body := _own_block(statement, false)
+		var variable: SymbolIndex.VariableSymbol = null
 		if _variable_pattern.search(code) != null:
-			scope.locals.append(_parse_variable(code, statement, false))
+			variable = _parse_variable(code, statement, false)
+			scope.locals.append(variable)
+		else:
+			_record_return(scope, code, statement.first_line)
 		if body != null:
 			_add_block(scope, statement, body, code)
-		_add_lambdas(scope, statement, body)
+		var lambdas := _add_lambdas(scope, statement, body)
+		if variable != null:
+			_link_function(variable, lambdas, scope, statement)
 
 
 static func _add_block(scope: SymbolIndex.ScopeBase, statement: SourceScanner.Statement, body: SourceScanner.Block, code: String) -> void:
@@ -159,44 +173,76 @@ static func _add_block(scope: SymbolIndex.ScopeBase, statement: SourceScanner.St
 	if kind != SymbolIndex.BlockScope.Kind.MATCH:
 		_add_body_statements(block_scope, body.statements)
 		return
+	var subject_match := _match_pattern.search(code)
+	var subject := "" if subject_match == null else subject_match.get_string(1).strip_edges()
 	for branch in body.statements:
 		var branch_body := _own_block(branch, false)
 		if branch_body != null:
 			var branch_scope := _create_block_scope(SymbolIndex.BlockScope.Kind.MATCH_BRANCH, branch, branch_body)
 			branch_scope.attach_to(block_scope)
+			_add_pattern_bindings(branch_scope, branch, subject)
 			_add_body_statements(branch_scope, branch_body.statements)
 		_add_lambdas(block_scope, branch, branch_body)
+
+
+static func _add_pattern_bindings(branch_scope: SymbolIndex.BlockScope, branch: SourceScanner.Statement, subject: String) -> void:
+	var pattern := branch.code.trim_suffix(SourceScanner.BLOCK_OPENER).strip_edges()
+	var guard := pattern.find(PATTERN_GUARD)
+	if guard != -1:
+		pattern = pattern.substr(0, guard).strip_edges()
+	for binding in _binding_pattern.search_all(pattern):
+		var variable := SymbolIndex.VariableSymbol.new()
+		variable.name = binding.get_string(1)
+		variable.start_line = branch.first_line
+		variable.end_line = branch.first_line
+		if binding.get_string(0) == pattern and not subject.is_empty():
+			variable.value_code = subject
+			variable.deferred = SymbolIndex.VariableSymbol.Deferred.VALUE
+		branch_scope.locals.append(variable)
 
 
 static func _add_loop_variable(block_scope: SymbolIndex.BlockScope, statement: SourceScanner.Statement, code: String) -> void:
 	var for_match := _for_pattern.search(code)
 	if for_match == null:
 		return
+	var iterable := for_match.get_string(3).strip_edges()
 	var variable := SymbolIndex.VariableSymbol.new()
 	variable.name = for_match.get_string(1)
 	variable.start_line = statement.first_line
 	variable.end_line = statement.first_line
-	if for_match.get_string(2).is_empty():
-		variable.type = _infer_loop_variable_type(for_match.get_string(3))
-	else:
+	variable.value_code = iterable
+	if not for_match.get_string(2).is_empty():
 		variable.type = SymbolIndex.parse_type(for_match.get_string(2))
+	elif iterable.begins_with(RANGE_CALL) or iterable.is_valid_int():
+		variable.type = SymbolIndex.make_type(Language.INTEGER_TYPE_NAME)
+	else:
+		variable.deferred = SymbolIndex.VariableSymbol.Deferred.ITERATION
 	block_scope.locals.append(variable)
 
 
-static func _infer_loop_variable_type(iterable: String) -> SymbolIndex.TypeData:
-	var text := iterable.strip_edges()
-	if text.begins_with(RANGE_CALL) or text.is_valid_int():
-		return SymbolIndex.parse_type(INTEGER_TYPE_NAME)
-	return null
-
-
-static func _add_lambdas(scope: SymbolIndex.ScopeBase, statement: SourceScanner.Statement, own_block: SourceScanner.Block) -> void:
+static func _add_lambdas(scope: SymbolIndex.ScopeBase, statement: SourceScanner.Statement, own_block: SourceScanner.Block) -> Array[SymbolIndex.FunctionScope]:
+	var lambdas: Array[SymbolIndex.FunctionScope] = []
 	for block in statement.blocks:
 		if block == own_block or not block.opened_by_function:
 			continue
 		var lambda := _create_function_scope(block.header_code, true, block.header_line, block.last_line, block)
 		lambda.attach_to(scope)
 		_add_body_statements(lambda, block.statements)
+		lambdas.append(lambda)
+	return lambdas
+
+
+static func _link_function(variable: SymbolIndex.VariableSymbol, lambdas: Array[SymbolIndex.FunctionScope], scope: SymbolIndex.ScopeBase, statement: SourceScanner.Statement) -> void:
+	if not _starts_with_function(variable.value_code):
+		return
+	if not lambdas.is_empty():
+		variable.function = lambdas[0]
+		return
+	var inline_function := _create_function_scope(variable.value_code, true, statement.first_line, statement.first_line, null)
+	inline_function.is_inline = true
+	inline_function.enclose_in(scope)
+	_record_inline_return(inline_function, variable.value_code, statement.first_line)
+	variable.function = inline_function
 
 
 static func _create_function_scope(header_code: String, is_lambda: bool, start_line: int, end_line: int, body: SourceScanner.Block) -> SymbolIndex.FunctionScope:
@@ -235,6 +281,9 @@ static func _parse_variable(code: String, statement: SourceScanner.Statement, ha
 	variable.name = variable_match.get_string(2)
 	variable.is_const = variable_match.get_string(1) == CONSTANT_KEYWORD
 	variable.type = declaration.type
+	variable.value_code = declaration.value
+	if declaration.type == null and not declaration.value.is_empty():
+		variable.deferred = SymbolIndex.VariableSymbol.Deferred.VALUE
 	variable.start_line = statement.first_line
 	variable.end_line = statement.last_line
 	return variable
@@ -254,12 +303,37 @@ static func _parse_function_header(code: String) -> FunctionHeader:
 	if close == -1:
 		return header
 	header.params_text = code.substr(index + 1, close - index - 1)
-	var rest := code.substr(close + 1).strip_edges()
-	if rest.begins_with("->"):
-		var colon := rest.find(SourceScanner.BLOCK_OPENER)
-		var return_end := rest.length() if colon == -1 else colon
-		header.return_text = rest.substr(2, return_end - 2).strip_edges()
+	var colon := code.find(SourceScanner.BLOCK_OPENER, close + 1)
+	var header_end := code.length() if colon == -1 else colon
+	var return_part := code.substr(close + 1, header_end - close - 1).strip_edges()
+	if return_part.begins_with(RETURN_ARROW):
+		header.return_text = return_part.substr(RETURN_ARROW.length()).strip_edges()
+	if colon != -1:
+		header.body_offset = colon + 1
 	return header
+
+
+static func _record_return(scope: SymbolIndex.ScopeBase, code: String, line: int) -> void:
+	var return_match := _return_pattern.search(code)
+	if return_match == null:
+		return
+	var current := scope
+	while current != null and not current is SymbolIndex.FunctionScope:
+		current = current.parent
+	if current != null:
+		var function := current as SymbolIndex.FunctionScope
+		function.return_codes.append(return_match.get_string(1).strip_edges())
+		function.return_lines.append(line)
+
+
+static func _record_inline_return(function: SymbolIndex.FunctionScope, code: String, line: int) -> void:
+	var header := _parse_function_header(code)
+	if header.body_offset == -1:
+		return
+	var return_match := _return_pattern.search(code.substr(header.body_offset).strip_edges())
+	if return_match != null:
+		function.return_codes.append(return_match.get_string(1).strip_edges())
+		function.return_lines.append(line)
 
 
 static func _block_kind(code: String) -> SymbolIndex.BlockScope.Kind:
@@ -287,7 +361,7 @@ static func _own_block(statement: SourceScanner.Statement, opened_by_function: b
 	return last if last.opened_by_function == opened_by_function else null
 
 
-static func _is_function_declaration(code: String) -> bool:
+static func _starts_with_function(code: String) -> bool:
 	if not code.begins_with(FUNCTION_KEYWORD):
 		return false
 	return code.length() == FUNCTION_KEYWORD.length() or not SourceScanner.is_identifier_character(code[FUNCTION_KEYWORD.length()])

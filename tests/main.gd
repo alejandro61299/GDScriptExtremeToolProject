@@ -25,5 +25,9 @@ func extreme_nesting():
 				return "¡Hello!"
 			return level_3.call()
 		return level_2.call()
-	
+	hola(level_1.call())
 	print(level_1.call())
+
+
+func hola(param_0) -> void:
+	pass

@@ -12,6 +12,38 @@ const DEFAULT_SCRIPT_BASE: String = "RefCounted"
 const SELF_KEYWORD: String = "self"
 const SUPER_KEYWORD: String = "super"
 const CONSTRUCTOR_NAME: String = "new"
+const ARRAY_TYPE_NAME: String = "Array"
+const DICTIONARY_TYPE_NAME: String = "Dictionary"
+const INTEGER_TYPE_NAME: String = "int"
+const FLOAT_TYPE_NAME: String = "float"
+const STRING_TYPE_NAME: String = "String"
+const ELEMENT_PLACEHOLDER: String = "<T>"
+const KEY_PLACEHOLDER: String = "<K>"
+const VALUE_PLACEHOLDER: String = "<V>"
+const CALLABLE_INVOCATIONS: Array[String] = ["call", "callv"]
+const CALLABLE_BINDINGS: Array[String] = ["bind", "bindv", "unbind"]
+
+const ARRAY_RETURNS: Dictionary[String, String] = {
+	"front": "<T>", "back": "<T>", "pop_front": "<T>", "pop_back": "<T>", "pop_at": "<T>", "pick_random": "<T>",
+	"get": "<T>", "max": "<T>", "min": "<T>",
+	"duplicate": "Array[<T>]", "duplicate_deep": "Array[<T>]", "slice": "Array[<T>]", "filter": "Array[<T>]",
+}
+
+const ARRAY_PARAMS: Dictionary[String, Array] = {
+	"append": ["<T>"], "push_back": ["<T>"], "push_front": ["<T>"], "has": ["<T>"], "erase": ["<T>"], "fill": ["<T>"],
+	"find": ["<T>"], "rfind": ["<T>"], "count": ["<T>"], "bsearch": ["<T>"],
+	"insert": ["int", "<T>"], "set": ["int", "<T>"], "append_array": ["Array[<T>]"],
+}
+
+const DICTIONARY_RETURNS: Dictionary[String, String] = {
+	"get": "<V>", "get_or_add": "<V>", "find_key": "<K>", "keys": "Array[<K>]", "values": "Array[<V>]",
+	"duplicate": "Dictionary[<K>, <V>]", "duplicate_deep": "Dictionary[<K>, <V>]", "merged": "Dictionary[<K>, <V>]",
+}
+
+const DICTIONARY_PARAMS: Dictionary[String, Array] = {
+	"has": ["<K>"], "erase": ["<K>"], "get": ["<K>", "<V>"], "get_or_add": ["<K>", "<V>"], "set": ["<K>", "<V>"],
+	"find_key": ["<V>"], "has_all": ["Array[<K>]"], "merge": ["Dictionary[<K>, <V>]"], "merged": ["Dictionary[<K>, <V>]"],
+}
 
 const NON_CALL_KEYWORDS: Array[String] = [
 	"if", "elif", "else", "for", "while", "match", "when", "return", "and", "or", "not", "in", "is", "as",

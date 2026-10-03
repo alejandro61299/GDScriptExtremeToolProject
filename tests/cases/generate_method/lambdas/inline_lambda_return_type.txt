@@ -1,0 +1,24 @@
+action: generate_method
+=== input
+extends Node
+
+
+func test() -> void:
+	var pick = func(x: int) -> int: return x
+	var twice = func(text: String): return text + text
+	_use(pick.call(1), twice.call("a"))<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var pick = func(x: int) -> int: return x
+	var twice = func(text: String): return text + text
+	_use(pick.call(1), twice.call("a"))
+
+
+func _use(param_0: int, param_1: String) -> void:
+	<|pass|>
+
+=== end

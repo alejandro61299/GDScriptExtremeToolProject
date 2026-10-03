@@ -1,0 +1,34 @@
+action: generate_method
+=== input
+extends Node
+
+
+func extreme_nesting():
+	var level_1 = func():
+		var level_2 = func():
+			var level_3 = func():
+				return "¡Hello!"
+			return level_3.call()
+		return level_2.call()
+	hola(level_1.call())<|>
+	print(level_1.call())
+
+=== expected
+extends Node
+
+
+func extreme_nesting():
+	var level_1 = func():
+		var level_2 = func():
+			var level_3 = func():
+				return "¡Hello!"
+			return level_3.call()
+		return level_2.call()
+	hola(level_1.call())
+	print(level_1.call())
+
+
+func hola(param_0: String) -> void:
+	<|pass|>
+
+=== end
