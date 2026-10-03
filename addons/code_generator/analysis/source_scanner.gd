@@ -8,6 +8,8 @@ const COMMENT_START: String = "#"
 const FUNCTION_KEYWORD: String = "func"
 const BLOCK_OPENER: String = ":"
 const LINE_CONTINUATION: String = "\\"
+const CONTINUATION_STARTS: String = ")]},.+-*/%|&^=<>:"
+const CONTINUATION_WORDS: Array[String] = ["and", "or", "in", "is", "as"]
 
 
 class Block:
@@ -41,6 +43,12 @@ class Statement:
 			if piece.line == line:
 				return piece.offset + clampi(column - piece.column, 0, piece.length)
 		return -1
+
+	func position_at(offset: int) -> Vector2i:
+		for piece in pieces:
+			if offset >= piece.offset and offset <= piece.offset + piece.length:
+				return Vector2i(piece.line, piece.column + offset - piece.offset)
+		return Vector2i(-1, -1)
 
 
 class Frame:
@@ -109,8 +117,12 @@ static func skip_spaces(code: String, index: int) -> int:
 
 
 func _scan_line(raw: String, line_index: int) -> void:
+	var starts_inside_string := not _string_delimiter.is_empty()
 	var masked := _mask(raw)
 	var has_code := not masked.strip_edges().is_empty()
+	if _open_statement != null and has_code and not starts_inside_string and _abandons_open_brackets(raw, masked):
+		_open_statement = null
+		_depth = 0
 	if _open_statement != null:
 		if has_code:
 			_append_code(masked, line_index)
@@ -149,6 +161,18 @@ func _scan_line(raw: String, line_index: int) -> void:
 	_open_statement = statement
 	_depth = 0
 	_append_code(masked, line_index)
+
+
+func _abandons_open_brackets(raw: String, masked: String) -> bool:
+	if _depth == 0 or _indent_length(raw) > _open_statement.indent_text.length():
+		return false
+	var text := masked.strip_edges()
+	if CONTINUATION_STARTS.contains(text[0]):
+		return false
+	var word_end := 0
+	while word_end < text.length() and is_identifier_character(text[word_end]):
+		word_end += 1
+	return not CONTINUATION_WORDS.has(text.substr(0, word_end))
 
 
 func _resume(frame: Frame, masked: String, line_index: int) -> void:

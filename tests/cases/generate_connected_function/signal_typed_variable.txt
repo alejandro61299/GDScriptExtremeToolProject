@@ -1,0 +1,20 @@
+action: generate_connected_function
+=== input
+extends Node
+
+
+func bind(source : Signal) -> void:
+	source<|>
+
+=== expected
+extends Node
+
+
+func bind(source : Signal) -> void:
+	source.connect(_on_source)
+
+
+func _on_source() -> void:
+	<|pass|>
+
+=== end

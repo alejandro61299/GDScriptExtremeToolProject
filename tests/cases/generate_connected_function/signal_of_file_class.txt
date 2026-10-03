@@ -1,0 +1,26 @@
+action: generate_connected_function
+=== input
+extends Node
+
+class Foo:
+	signal changed(data : Dictionary)
+
+
+func setup(foo : Foo) -> void:
+	foo.changed.connect(<|>)
+
+=== expected
+extends Node
+
+class Foo:
+	signal changed(data : Dictionary)
+
+
+func setup(foo : Foo) -> void:
+	foo.changed.connect(_on_changed)
+
+
+func _on_changed(p_data: Dictionary) -> void:
+	<|pass|>
+
+=== end

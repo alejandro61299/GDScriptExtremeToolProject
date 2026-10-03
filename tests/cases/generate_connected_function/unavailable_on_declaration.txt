@@ -1,0 +1,7 @@
+action: generate_connected_function
+=== input
+extends Node
+
+signal my_<|>signal(value : int)
+
+=== end

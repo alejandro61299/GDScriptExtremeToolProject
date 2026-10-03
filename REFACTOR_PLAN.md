@@ -11,6 +11,7 @@ Godot 4.7.2. Estado de partida: una única utilidad ("Generate Method Stub") con
 | 4 | Acciones y menú | Hecha |
 | 5 | Generate local variable y Generate class variable | Hecha |
 | 6 | Tipos compuestos, tipos inferidos e iteradores | Hecha |
+| 7 | Generate Connected Function | Hecha |
 
 ## Objetivo
 
@@ -47,7 +48,8 @@ addons/code_generator/
 │   ├── generate_method_action.gd
 │   ├── variable_action.gd
 │   ├── generate_local_variable_action.gd
-│   └── generate_class_variable_action.gd
+│   ├── generate_class_variable_action.gd
+│   └── generate_connected_function_action.gd
 ├── analysis/
 │   ├── builtin_types.gd
 │   ├── language.gd
@@ -213,6 +215,7 @@ Definidos en `code_generator_settings.gd`:
 ```gdscript
 const GENERATED_PARAM_FORMAT : String = "p_{name}"
 const FALLBACK_PARAM_FORMAT : String = "param_{index}"
+const GENERATED_SIGNAL_CALLBACK_FORMAT : String = "_on_{name}"
 ```
 
 - Si el argumento es un nombre simple (variable, constante, parámetro) o un parámetro de señal con nombre, se aplica `GENERATED_PARAM_FORMAT` al nombre en minúsculas y sin guiones bajos iniciales: `event` → `p_event`, `CONST_1` → `p_const_1`, `_item` → `p_item`.
@@ -406,6 +409,32 @@ Para regenerar `builtin_types.gd` con otra versión de Godot:
 
 El primer comando escribe `extension_api.json` en la carpeta actual; se puede borrar después.
 
+### Fase 7 — Generate Connected Function (hecha)
+
+Con el cursor sobre una expresión de tipo señal que ocupa toda la sentencia, completa la conexión y crea el método:
+
+```gdscript
+func _ready() -> void:
+	my_signal.connect(_on_my_signal)
+
+
+func _on_my_signal(p_value: int) -> void:
+	pass
+```
+
+- **Qué se reemplaza.** La expresión puede estar sola o a medio escribir: `my_signal`, `my_signal.`, `my_signal.conn`, `my_signal.connect(` o `my_signal.connect()`. La parte de la señal no se toca; lo que venga detrás se sustituye por `.connect(_on_...)`.
+- **Qué señales.** Propias (`my_signal`, `self.my_signal`), de una clase del archivo (`foo.changed`), del motor (`player.animation_changed`) y variables o parámetros de tipo `Signal` (sin parámetros conocidos).
+- **Nombre del método.** `GENERATED_SIGNAL_CALLBACK_FORMAT` aplicado al nombre de la señal sin guiones bajos iniciales (`String.lstrip("_")`): `_my_signal` da `_on_my_signal`. No incluye el nombre del objeto: `button.pressed` da `_on_pressed`.
+- **Parámetros.** Los de la señal, con el formato de `GENERATED_PARAM_FORMAT`.
+- **Si el método ya existe**, solo se completa la expresión y el cursor queda detrás.
+- **No se ofrece** en la declaración `signal ...`, si la conexión ya tiene argumento, con otro método (`emit`, `disconnect`) ni cuando la señal es parte de una expresión mayor (argumento, asignación, `await`).
+
+Lo que ha hecho falta en las capas comunes:
+
+- `EditPlan.replace(line, from_column, to_column, text)` y su aplicación en `EditApplier`, en el mismo undo que las inserciones. Sin selección de snippet, el cursor queda tras el texto reemplazado.
+- `Statement.position_at(offset)` para pasar de una posición de la sentencia a línea y columna.
+- **Recuperación ante paréntesis sin cerrar.** `my_signal.connect(` deja un paréntesis abierto, y el escáner unía las líneas siguientes a esa sentencia. Ahora una línea con indentación menor o igual que la de la sentencia, que no empieza por un cierre, una coma, un punto o un operador, empieza una sentencia nueva.
+
 ## Casos pendientes
 
 Todos bajo `tests/cases/`. La columna "Hoy" es lo que hace la versión actual.
@@ -420,5 +449,5 @@ Todos bajo `tests/cases/`. La columna "Hoy" es lo que hace la versión actual.
 - Generar código en otro archivo: un método sobre un objeto cuya clase está definida en otro script no se ofrece.
 - Rutas relativas en `extends "base.gd"`: solo se resuelven las rutas `res://`.
 - Atajos de teclado para las acciones.
-- Ediciones de reemplazo o borrado (por ejemplo, extraer una expresión a una variable).
+- Ediciones de borrado o reemplazos que abarquen varias líneas.
 - Scope propio para lambdas de una sola línea.

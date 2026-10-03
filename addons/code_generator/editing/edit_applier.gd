@@ -29,12 +29,19 @@ static func apply(editor: CodeEdit, plan: EditPlan) -> void:
 	var bottom_up: Array[ResolvedInsertion] = resolved.duplicate()
 	bottom_up.sort_custom(func(first: ResolvedInsertion, second: ResolvedInsertion) -> bool: return second.is_above(first))
 
+	var replacements: Array[EditPlan.Replacement] = plan.replacements.duplicate()
+	replacements.sort_custom(func(first: EditPlan.Replacement, second: EditPlan.Replacement) -> bool: return first.line > second.line or (first.line == second.line and first.from_column > second.from_column))
+
 	editor.begin_complex_operation()
+	for replacement in replacements:
+		editor.remove_text(replacement.line, replacement.from_column, replacement.line, replacement.to_column)
+		editor.insert_text(replacement.text, replacement.line, replacement.from_column)
 	for insertion in bottom_up:
 		_insert_block(editor, insertion)
 	editor.end_complex_operation()
 
-	_select_first_selection(editor, resolved)
+	if not _select_first_selection(editor, resolved) and not plan.replacements.is_empty():
+		_place_caret_after(editor, plan.replacements[plan.replacements.size() - 1], resolved)
 
 
 static func _resolve(editor: CodeEdit, insertion: EditPlan.Insertion, indent_unit: String, order: int) -> ResolvedInsertion:
@@ -90,7 +97,7 @@ static func _insert_block(editor: CodeEdit, insertion: ResolvedInsertion) -> voi
 	editor.insert_text("\n" + text, last_line, editor.get_line(last_line).length())
 
 
-static func _select_first_selection(editor: CodeEdit, resolved: Array[ResolvedInsertion]) -> void:
+static func _select_first_selection(editor: CodeEdit, resolved: Array[ResolvedInsertion]) -> bool:
 	for insertion in resolved:
 		if not insertion.has_selection:
 			continue
@@ -101,4 +108,16 @@ static func _select_first_selection(editor: CodeEdit, resolved: Array[ResolvedIn
 		editor.remove_secondary_carets()
 		editor.select(line, insertion.selection_from, line, insertion.selection_to)
 		editor.center_viewport_to_caret()
-		return
+		return true
+	return false
+
+
+static func _place_caret_after(editor: CodeEdit, replacement: EditPlan.Replacement, resolved: Array[ResolvedInsertion]) -> void:
+	var line := replacement.line
+	for insertion in resolved:
+		if insertion.line <= replacement.line:
+			line += insertion.block_lines.size()
+	editor.remove_secondary_carets()
+	editor.deselect()
+	editor.set_caret_line(line)
+	editor.set_caret_column(replacement.from_column + replacement.text.length())

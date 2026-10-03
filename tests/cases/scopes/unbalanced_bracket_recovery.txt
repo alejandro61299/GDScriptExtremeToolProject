@@ -1,0 +1,19 @@
+action: describe_scopes
+compile_check: skip
+=== input
+extends Node
+
+
+func first() -> void:
+	my_call(
+	print("next")
+
+
+func second() -> void:
+	pass
+
+=== expected
+class <root> 1-11
+  function first() -> void 4-6 body 5
+  function second() -> void 9-10 body 10
+=== end

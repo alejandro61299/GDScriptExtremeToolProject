@@ -1,0 +1,20 @@
+action: generate_connected_function
+=== input
+extends Node
+
+
+func setup(player : AnimationPlayer) -> void:
+	pla<|>yer.animation_changed
+
+=== expected
+extends Node
+
+
+func setup(player : AnimationPlayer) -> void:
+	player.animation_changed.connect(_on_animation_changed)
+
+
+func _on_animation_changed(p_old_name: StringName, p_new_name: StringName) -> void:
+	<|pass|>
+
+=== end

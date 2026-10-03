@@ -1,0 +1,18 @@
+action: apply_plan
+=== plan
+[{"replace": [4, 7, 12], "text": "\"new value\""}]
+=== input
+extends Node
+
+
+func a() -> void:
+	print("old")
+
+=== expected
+extends Node
+
+
+func a() -> void:
+	print("new value"<|>)
+
+=== end

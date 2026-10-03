@@ -16,7 +16,15 @@ class Insertion:
 	var snippet: Snippet
 
 
+class Replacement:
+	var line: int = 0
+	var from_column: int = 0
+	var to_column: int = 0
+	var text: String = ""
+
+
 var insertions: Array[Insertion] = []
+var replacements: Array[Replacement] = []
 
 
 func insert(point: InsertionPoint, snippet: Snippet) -> void:
@@ -26,5 +34,14 @@ func insert(point: InsertionPoint, snippet: Snippet) -> void:
 	insertions.append(insertion)
 
 
+func replace(line: int, from_column: int, to_column: int, text: String) -> void:
+	var replacement := Replacement.new()
+	replacement.line = line
+	replacement.from_column = from_column
+	replacement.to_column = to_column
+	replacement.text = text
+	replacements.append(replacement)
+
+
 func is_empty() -> bool:
-	return insertions.is_empty()
+	return insertions.is_empty() and replacements.is_empty()

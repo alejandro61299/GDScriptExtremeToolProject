@@ -184,6 +184,11 @@ static func is_name_defined(identifier: String, scope_info: SymbolIndex.ScopeInf
 		return true
 	if BuiltinTypes.GLOBAL_CONSTANTS.has(identifier) or Engine.has_singleton(identifier):
 		return true
+	var outer_class := scope_info.class_scope.parent
+	while outer_class is SymbolIndex.ClassScope:
+		if find_class_member(outer_class as SymbolIndex.ClassScope, identifier) != null:
+			return true
+		outer_class = outer_class.parent
 	return Language.is_project_global(identifier)
 
 

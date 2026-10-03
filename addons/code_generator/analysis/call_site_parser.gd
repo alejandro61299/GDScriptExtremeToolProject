@@ -84,7 +84,7 @@ static func _read_call(code: String, open_offset: int) -> CallSite:
 	call.close_offset = SourceScanner.find_matching_bracket(code, open_offset)
 	if call.close_offset == -1:
 		call.close_offset = code.length()
-	call.expression_offset = _receiver_start(code, name_start)
+	call.expression_offset = chain_start(code, name_start)
 	call.receiver = code.substr(call.expression_offset, name_start - call.expression_offset).strip_edges().trim_suffix(MEMBER_ACCESS).strip_edges()
 	call.arguments = split_arguments(code, open_offset + 1, call.close_offset)
 	return call
@@ -106,7 +106,7 @@ static func _link_parent(call: CallSite, calls: Array[CallSite]) -> void:
 			call.parent_argument_index = index
 
 
-static func _receiver_start(code: String, name_start: int) -> int:
+static func chain_start(code: String, name_start: int) -> int:
 	var start := name_start
 	while true:
 		var access_end := _skip_spaces_backwards(code, start)

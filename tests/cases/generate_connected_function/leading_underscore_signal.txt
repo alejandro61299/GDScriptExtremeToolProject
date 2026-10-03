@@ -1,0 +1,24 @@
+action: generate_connected_function
+=== input
+extends Node
+
+signal _my_signal
+
+
+func _ready() -> void:
+	_my_signal<|>
+
+=== expected
+extends Node
+
+signal _my_signal
+
+
+func _ready() -> void:
+	_my_signal.connect(_on_my_signal)
+
+
+func _on_my_signal() -> void:
+	<|pass|>
+
+=== end

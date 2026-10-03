@@ -1,0 +1,26 @@
+action: generate_connected_function
+=== input
+extends Node
+
+signal my_signal
+
+
+func _ready() -> void:
+    if is_inside_tree():
+        my_signal<|>
+
+=== expected
+extends Node
+
+signal my_signal
+
+
+func _ready() -> void:
+    if is_inside_tree():
+        my_signal.connect(_on_my_signal)
+
+
+func _on_my_signal() -> void:
+    <|pass|>
+
+=== end

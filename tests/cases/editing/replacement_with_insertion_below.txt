@@ -1,0 +1,25 @@
+action: apply_plan
+=== plan
+[
+	{"replace": [4, 1, 9], "text": "new_name"},
+	{"line": 5, "blank_lines_before": 2, "blank_lines_after": 2, "lines": [[0, "func new_name() -> void:"], [1, "pass"]], "select": [1, 0, 4]}
+]
+=== input
+extends Node
+
+
+func a() -> void:
+	old_name()
+
+=== expected
+extends Node
+
+
+func a() -> void:
+	new_name()
+
+
+func new_name() -> void:
+	<|pass|>
+
+=== end

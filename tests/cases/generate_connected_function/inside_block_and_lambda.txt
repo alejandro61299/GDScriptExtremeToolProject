@@ -1,0 +1,38 @@
+action: generate_connected_function
+=== input
+extends Node
+
+signal my_signal(value : int)
+
+
+func _ready() -> void:
+	if is_inside_tree():
+		var later = func():
+			my_signal<|>
+		later.call()
+
+
+func other() -> void:
+	pass
+
+=== expected
+extends Node
+
+signal my_signal(value : int)
+
+
+func _ready() -> void:
+	if is_inside_tree():
+		var later = func():
+			my_signal.connect(_on_my_signal)
+		later.call()
+
+
+func _on_my_signal(p_value: int) -> void:
+	<|pass|>
+
+
+func other() -> void:
+	pass
+
+=== end

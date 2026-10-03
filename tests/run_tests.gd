@@ -268,6 +268,10 @@ func _check_code_action(test_case: TestCase, action: CodeAction, editor: CodeEdi
 func _build_plan(description: String) -> EditPlan:
 	var plan := EditPlan.new()
 	for entry: Dictionary in JSON.parse_string(description):
+		if entry.has("replace"):
+			var range: Array = entry["replace"]
+			plan.replace(int(range[0]), int(range[1]), int(range[2]), entry.get("text", ""))
+			continue
 		var point := EditPlan.InsertionPoint.new()
 		point.line = int(entry.get("line", 0))
 		point.indent_text = entry.get("indent_text", "")

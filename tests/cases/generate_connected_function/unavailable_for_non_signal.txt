@@ -1,0 +1,11 @@
+action: generate_connected_function
+=== input
+extends Node
+
+var count : int = 0
+
+
+func _ready() -> void:
+	count<|>
+
+=== end
