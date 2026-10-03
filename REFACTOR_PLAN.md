@@ -58,6 +58,7 @@ addons/code_generator/
 ├── analysis/
 │   ├── builtin_types.gd
 │   ├── class_layout.gd
+│   ├── collection_layout.gd
 │   ├── language.gd
 │   ├── source_scanner.gd
 │   ├── symbol_index.gd
@@ -523,7 +524,7 @@ Reglas entre miembros:
 - **Dentro de una categoría se respeta la agrupación del usuario**: dos constantes seguidas siguen seguidas y las separadas por una línea siguen separadas; solo se recorta lo que pase de una.
 - **`#region` y `#endregion`** no forman un bloque indivisible como en la fase 9, porque también hay que dar formato dentro: `#endregion` va con el miembro de arriba y `#region` con el de abajo.
 - **`@export_group` y similares** tampoco agrupan: cuentan como un miembro de la categoría de exports.
-- **No se toca el interior de los miembros**: cuerpos de métodos, arrays y enums multilínea, ni los comentarios con más indentación que el miembro.
+- **No se toca el interior de los miembros**: cuerpos de métodos, enums multilínea, ni los comentarios con más indentación que el miembro. La excepción son los diccionarios y arrays multilínea de las variables y constantes de clase (ver más abajo).
 - Una línea que solo tiene espacios o tabuladores cuenta como línea en blanco y queda vacía.
 
 Reglas de los comentarios. Hay dos clases de comentario: los del scope (su descripción al principio y lo que haya tras el último miembro) y los de un miembro.
@@ -534,6 +535,23 @@ Reglas de los comentarios. Hay dos clases de comentario: los del scope (su descr
 - **Tras la cabecera**, el primer miembro lleva una línea en blanco delante, dos si es un método o una clase. Sin cabecera, lleva las que hubiera con un máximo de una.
 - **Al final del scope**: entre el último miembro y los comentarios que le siguen, y entre esos comentarios, una línea en blanco como máximo. Las líneas en blanco sobrantes al final del archivo se quitan. En una clase interna, los comentarios finales son los que tienen la indentación de su cuerpo.
 
+Diccionarios y arrays multilínea (`analysis/collection_layout.gd`). En las variables y constantes de la clase, cada `{...}` o `[...]` que se abre en una línea y se cierra en otra queda así:
+
+```gdscript
+var sizes : Dictionary = {
+	"alpha" : 2,
+	"beta" : 3,
+}
+```
+
+- **El cierre va en su propia línea**, con la indentación de la línea donde se abrió. Lo que haya detrás del cierre (`.keys()`, `)`, `+ [`) baja con él.
+- **Coma tras el último elemento**, antes del comentario de final de línea si lo hay. Una colección vacía no la lleva.
+- Vale para colecciones anidadas, cada una alineada con la línea donde se abre.
+- **No se toca**: las colecciones de una sola línea, el reparto de elementos por línea, su indentación, el espaciado de `clave : valor`, ni un primer elemento escrito en la misma línea que la apertura.
+- **Fuera de alcance**: las colecciones dentro de los métodos, los `enum`, las declaraciones que contienen una lambda o `get`/`set`, y un `[` que es un índice (`TABLE[...]`) y no un array.
+- No hacen falta scopes: una colección no declara nombres. Se trabaja sobre la sentencia del árbol de `SourceScanner`, que ya trae el código con cadenas y comentarios enmascarados y la posición de cada trozo en su línea.
+- El cursor se queda en su línea y columna; si la línea se parte, en la primera mitad.
+
 Cómo se aplica: `ClassLayout.format` usa los mismos bloques y el mismo compositor que `ClassLayout.reorder`, con el orden original y las separaciones normalizadas. El tramo que se procesa va desde el principio del scope hasta su último comentario, mientras que el reordenado empieza tras la cabecera. El reemplazo, el undo único y la restauración de cursor, breakpoints, marcadores, plegados y scroll son los de la fase 9. Las líneas en blanco también entran en el mapa de líneas, así que el cursor situado en un hueco se queda en el hueco.
 
 `EditApplier` necesitó dos casos que el reordenado nunca producía: un reemplazo que solo quita líneas (también al final del documento, donde el cursor se recoloca en la última línea que queda) y uno que solo las añade.
@@ -541,7 +559,7 @@ Cómo se aplica: `ClassLayout.format` usa los mismos bloques y el mismo composit
 Tests:
 
 - Casos de texto en `tests/cases/format_class_members/` y `tests/cases/view/formatting_keeps_the_caret_on_the_same_row.txt`.
-- `action: check_format_project_scripts` da formato a la raíz y a todas las clases internas de cada script del proyecto y comprueba que las líneas de código quedan idénticas y en el mismo orden, que el resultado compila, que el motor ve los mismos miembros y que repetir la acción no cambia nada. La acción modifica 7 de los 27 scripts que revisa.
+- `action: check_format_project_scripts` da formato a la raíz y a todas las clases internas de cada script del proyecto y comprueba que el código queda idéntico salvo espacios, saltos de línea y comas finales, que el resultado compila, que el motor ve los mismos miembros y las constantes conservan su valor, y que repetir la acción no cambia nada. La acción modifica 7 de los 27 scripts que revisa.
 
 ## Casos pendientes
 

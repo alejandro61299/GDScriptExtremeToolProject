@@ -1,0 +1,12 @@
+action: format_class_members
+=== input
+extends Node
+
+const TABLE : Array[int] = [1, 2, 3]
+
+var picked : int = TABLE[
+	0]
+var named : int = {"alpha" : 2}[
+	"alpha"]<|>
+
+=== end

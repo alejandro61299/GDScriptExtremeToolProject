@@ -1,0 +1,32 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var config : Dictionary = {
+	"sizes" : [
+		1,
+		2],
+	"names" : {
+		"alpha" : [1, 2],
+		"beta" : [
+			3,
+			4]}}
+
+=== expected
+extends Node<|>
+
+var config : Dictionary = {
+	"sizes" : [
+		1,
+		2,
+	],
+	"names" : {
+		"alpha" : [1, 2],
+		"beta" : [
+			3,
+			4,
+		],
+	},
+}
+
+=== end

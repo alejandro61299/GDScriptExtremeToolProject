@@ -12,6 +12,25 @@ var b : int  = 2
 # CCCC
 var c : int = a + b
 
+var _one_line_dict : Dictionary = {"Dictionaru" : 2, "Hello" : 3}
+
+# Dictionaryyyy
+# With several keys
+var _multiline_1 : Dictionary = {
+	"Dictionaru" : 2,
+	"Hello" : 3,
+}
+
+var _multiline_2 : Dictionary = {
+	"Dictionaru" : 2,
+	"Hello" : 3,
+}
+
+var _multiline_3 : Dictionary = {
+	"Dictionaru" : 2,
+	"Hello" : 3,
+}
+
 
 class Propietario extends  RefCounted:
 	func _init() -> void:

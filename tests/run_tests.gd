@@ -36,6 +36,8 @@ const VIEW_TEXT_VISIBLE: String = "text_visible"
 const VIEW_CARET_ROW_UNCHANGED: String = "caret_row_unchanged"
 const REORDER_ACTION: String = "reorder_class_members"
 const FORMAT_ACTION: String = "format_class_members"
+const BLANK_CHARACTERS: Array[String] = [" ", "\t", "\n"]
+const COLLECTION_CLOSINGS: Array[String] = ["]", "}"]
 const PLAN_ACTION: String = "apply_plan"
 const DESCRIPTION_INDENT: String = "  "
 
@@ -514,8 +516,9 @@ func _check_layout_of_project_scripts(action_name: String, keeps_line_order: boo
 		var class_names := _inner_class_names(SymbolIndexBuilder.build(original.split("\n")).root)
 		_apply_to_every_class(editor, action, class_names)
 		var changed := editor.text
-		if _code_lines(changed, keeps_line_order) != _code_lines(original, keeps_line_order):
-			problems.append("%s: %s lost, duplicated or misplaced lines." % [path, action_name])
+		var keeps_code := _compact_code(changed) == _compact_code(original) if keeps_line_order else _code_lines(changed) == _code_lines(original)
+		if not keeps_code:
+			problems.append("%s: %s lost, duplicated or misplaced code." % [path, action_name])
 		var script := GDScript.new()
 		script.source_code = changed
 		if script.reload() != OK:
@@ -547,14 +550,22 @@ func _inner_class_names(class_scope: SymbolIndex.ClassScope) -> PackedStringArra
 	return names
 
 
-func _code_lines(text: String, keeps_line_order: bool) -> PackedStringArray:
+func _code_lines(text: String) -> PackedStringArray:
 	var code_lines := PackedStringArray()
 	for line in text.split("\n"):
 		if not line.strip_edges().is_empty():
 			code_lines.append(line)
-	if not keeps_line_order:
-		code_lines.sort()
+	code_lines.sort()
 	return code_lines
+
+
+func _compact_code(text: String) -> String:
+	var compact := text
+	for blank in BLANK_CHARACTERS:
+		compact = compact.replace(blank, "")
+	for closing in COLLECTION_CLOSINGS:
+		compact = compact.replace("," + closing, closing)
+	return compact
 
 
 func _compare_scripts(path: String, original: GDScript, changed: GDScript) -> PackedStringArray:
@@ -568,6 +579,12 @@ func _compare_scripts(path: String, original: GDScript, changed: GDScript) -> Pa
 		after.sort()
 		if before != after:
 			problems.append("%s: the engine sees different members afterwards.\n  before: %s\n  after:  %s" % [path, before, after])
+	var original_constants := original.get_script_constant_map()
+	var changed_constants := changed.get_script_constant_map()
+	for constant_name: String in original_constants:
+		var value: Variant = original_constants[constant_name]
+		if typeof(value) != TYPE_OBJECT and changed_constants.has(constant_name) and changed_constants[constant_name] != value:
+			problems.append("%s: the constant %s has a different value afterwards." % [path, constant_name])
 	return problems
 
 

@@ -1,0 +1,30 @@
+action: format_class_members
+=== input
+extends Node
+
+
+class Inner:
+	var sizes : Dictionary = {
+		"alpha" : 2,
+		"beta" : 3}
+	const NAMES : Array[String] = [
+		"alpha",
+		"beta"
+		]<|>
+
+=== expected
+extends Node
+
+
+class Inner:
+	var sizes : Dictionary = {
+		"alpha" : 2,
+		"beta" : 3,
+	}
+
+	const NAMES : Array[String] = [
+		"alpha",
+		"beta",
+	]<|>
+
+=== end

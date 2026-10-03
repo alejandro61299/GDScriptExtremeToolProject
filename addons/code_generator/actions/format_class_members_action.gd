@@ -11,7 +11,7 @@ func get_label() -> String:
 
 
 func build_plan(context: CodeContext) -> EditPlan:
-	var layout := ClassLayout.format(context.scope_info.class_scope, context.lines)
+	var layout := ClassLayout.format(context.scope_info.class_scope, context.index.statements, context.lines)
 	if layout == null:
 		return null
 	var plan := EditPlan.new()

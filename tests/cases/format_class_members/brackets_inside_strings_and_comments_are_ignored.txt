@@ -1,0 +1,17 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var texts : Array[String] = [
+	"closing ] and }", # Not a closing bracket: ]
+	'opening [ and {']
+
+=== expected
+extends Node<|>
+
+var texts : Array[String] = [
+	"closing ] and }", # Not a closing bracket: ]
+	'opening [ and {',
+]
+
+=== end

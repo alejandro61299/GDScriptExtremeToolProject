@@ -2,6 +2,8 @@
 extends RefCounted
 
 const SymbolIndex = preload("res://addons/code_generator/analysis/symbol_index.gd")
+const SourceScanner = preload("res://addons/code_generator/analysis/source_scanner.gd")
+const CollectionLayout = preload("res://addons/code_generator/analysis/collection_layout.gd")
 const TypeResolver = preload("res://addons/code_generator/analysis/type_resolver.gd")
 const Settings = preload("res://addons/code_generator/code_generator_settings.gd")
 
@@ -47,6 +49,7 @@ class Draft:
 	var first_line: int = 0
 	var lines: PackedStringArray = []
 	var line_map: PackedInt32Array = []
+	var rewrites: Dictionary[int, PackedStringArray] = {}
 
 
 	func _init(source_lines: PackedStringArray, source_first_line: int, source_last_line: int) -> void:
@@ -89,7 +92,10 @@ class Draft:
 
 	func _copy_line(line: int, text: String) -> void:
 		line_map[line - first_line] = first_line + lines.size()
-		lines.append(text)
+		if rewrites.has(line):
+			lines.append_array(rewrites[line])
+		else:
+			lines.append(text)
 
 
 	func _is_blank_line(line: int) -> bool:
@@ -109,10 +115,10 @@ static func reorder(class_scope: SymbolIndex.ClassScope, lines: PackedStringArra
 	var ordered := _order(blocks)
 	if ordered == blocks:
 		return null
-	return _compose(class_scope, blocks, ordered, lines, body_first, body_last, false)
+	return _compose(class_scope, blocks, ordered, Draft.new(lines, body_first, body_last), body_last, false)
 
 
-static func format(class_scope: SymbolIndex.ClassScope, lines: PackedStringArray) -> Layout:
+static func format(class_scope: SymbolIndex.ClassScope, statements: Array[SourceScanner.Statement], lines: PackedStringArray) -> Layout:
 	var blocks := _build_blocks(class_scope, false)
 	if blocks.is_empty():
 		return null
@@ -123,7 +129,18 @@ static func format(class_scope: SymbolIndex.ClassScope, lines: PackedStringArray
 	_attach_comments(blocks, lines, scope_first, scope_last)
 	if _has_header(class_scope):
 		_split_gap(_new_block(class_scope.header_end_line, class_scope.header_end_line, 0), blocks[0], lines)
-	return _compose(class_scope, blocks, blocks, lines, scope_first, scope_last, true)
+	var draft := Draft.new(lines, scope_first, scope_last)
+	draft.rewrites = _collection_rewrites(class_scope, statements, lines)
+	return _compose(class_scope, blocks, blocks, draft, scope_last, true)
+
+
+static func _collection_rewrites(class_scope: SymbolIndex.ClassScope, statements: Array[SourceScanner.Statement], lines: PackedStringArray) -> Dictionary[int, PackedStringArray]:
+	var rewrites: Dictionary[int, PackedStringArray] = {}
+	for member in class_scope.members:
+		var holds_value := member.kind == SymbolIndex.ClassMember.Kind.VARIABLE or member.kind == SymbolIndex.ClassMember.Kind.CONSTANT
+		if holds_value and member.end_line > member.start_line:
+			rewrites.merge(CollectionLayout.rewrite(SourceScanner.find_statement_at(statements, member.start_line), lines))
+	return rewrites
 
 
 static func _last_line_with_comments(class_scope: SymbolIndex.ClassScope, lines: PackedStringArray) -> int:
@@ -404,10 +421,10 @@ static func _is_ready(block: Block, declared: Dictionary[String, bool]) -> bool:
 	return true
 
 
-static func _compose(class_scope: SymbolIndex.ClassScope, blocks: Array[Block], ordered: Array[Block], lines: PackedStringArray, body_first: int, body_last: int, applies_format: bool) -> Layout:
-	var draft := Draft.new(lines, body_first, body_last)
+static func _compose(class_scope: SymbolIndex.ClassScope, blocks: Array[Block], ordered: Array[Block], draft: Draft, body_last: int, applies_format: bool) -> Layout:
+	var lines := draft.source
 	var first_block := blocks[0]
-	var head_first := body_first
+	var head_first := draft.first_line
 	if applies_format and class_scope.parent == null:
 		while head_first < first_block.first_line and _is_blank(lines[head_first]):
 			head_first += 1

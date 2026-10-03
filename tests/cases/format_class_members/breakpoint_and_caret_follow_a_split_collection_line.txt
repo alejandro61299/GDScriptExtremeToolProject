@@ -1,0 +1,29 @@
+action: format_class_members
+breakpoints: 9
+bookmarks: 5
+expect_breakpoints: 10
+expect_bookmarks: 5
+=== input
+extends Node
+
+var sizes : Dictionary = {
+	"alpha" : 2,
+	"beta" : 3}<|>
+
+
+func run() -> void:
+	print(sizes)
+
+=== expected
+extends Node
+
+var sizes : Dictionary = {
+	"alpha" : 2,
+	"beta" : 3,<|>
+}
+
+
+func run() -> void:
+	print(sizes)
+
+=== end

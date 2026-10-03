@@ -1,0 +1,30 @@
+action: format_class_members
+=== input
+extends Node
+
+var keys : Array = {
+	"alpha" : 2,
+	"beta" : 3}.keys()
+var merged : Array = Array([
+	1,
+	2]) + [
+	3,
+	4
+	]<|>
+
+=== expected
+extends Node
+
+var keys : Array = {
+	"alpha" : 2,
+	"beta" : 3,
+}.keys()
+var merged : Array = Array([
+	1,
+	2,
+]) + [
+	3,
+	4,
+]<|>
+
+=== end

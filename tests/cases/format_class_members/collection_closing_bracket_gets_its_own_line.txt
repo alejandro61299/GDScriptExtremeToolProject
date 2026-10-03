@@ -1,0 +1,24 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var first : Dictionary = {
+	"alpha" : 2,
+	"beta" : 3}
+var second : Array[int] = [
+	1,
+	2]
+
+=== expected
+extends Node<|>
+
+var first : Dictionary = {
+	"alpha" : 2,
+	"beta" : 3,
+}
+var second : Array[int] = [
+	1,
+	2,
+]
+
+=== end
