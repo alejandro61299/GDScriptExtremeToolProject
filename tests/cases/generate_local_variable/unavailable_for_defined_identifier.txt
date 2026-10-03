@@ -1,0 +1,10 @@
+action: generate_local_variable
+=== input
+extends Node
+
+
+func test() -> void:
+	var count : int = 1
+	print(<|count|>)
+
+=== end

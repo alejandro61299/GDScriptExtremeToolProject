@@ -1,0 +1,13 @@
+action: generate_class_variable
+=== input
+func test() -> void:
+	print(<|value|>)
+
+=== expected
+var value
+
+
+func test() -> void:
+	print(<|value|>)
+
+=== end

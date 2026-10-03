@@ -1,0 +1,23 @@
+action: generate_local_variable
+=== input
+extends Node
+
+class Foo:
+	var value : int = 0
+
+
+func test(foos : Array[Foo]) -> void:
+	foos.append(<|foo|>)
+
+=== expected
+extends Node
+
+class Foo:
+	var value : int = 0
+
+
+func test(foos : Array[Foo]) -> void:
+	var foo: Foo = <|null|>
+	foos.append(foo)
+
+=== end

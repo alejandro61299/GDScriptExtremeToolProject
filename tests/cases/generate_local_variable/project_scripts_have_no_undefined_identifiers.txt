@@ -1,0 +1,4 @@
+action: check_no_undefined_identifiers
+=== input
+extends Node
+=== end

@@ -9,7 +9,7 @@ Godot 4.7.2. Estado de partida: una única utilidad ("Generate Method Stub") con
 | 2 | Índice fiable: sentencias, bloques y lambdas como scopes | Hecha |
 | 3 | Resolución e inferencia compartidas | Hecha |
 | 4 | Acciones y menú | Hecha |
-| 5 | Generate local variable y Generate class variable | Pendiente |
+| 5 | Generate local variable y Generate class variable | Hecha |
 | 6 | Tipos compuestos, tipos inferidos e iteradores | Hecha |
 
 ## Objetivo
@@ -45,6 +45,7 @@ addons/code_generator/
 │   ├── code_action.gd
 │   ├── code_context.gd
 │   ├── generate_method_action.gd
+│   ├── variable_action.gd
 │   ├── generate_local_variable_action.gd
 │   └── generate_class_variable_action.gd
 ├── analysis/
@@ -367,11 +368,16 @@ indent: spaces
 - La comprobación de scripts del proyecto falla ahora si alguno no compila, incluido el del plugin.
 - No verificable en headless: que el menú contextual del editor llame a `_popup_menu` con la ruta del `CodeEdit` y pase el `CodeEdit` al callback. Es lo que dice la documentación de Godot y lo que hacía la versión anterior; si falla, el plugin recurre al editor de scripts activo.
 
-### Fase 5 — Utilidades nuevas
+### Fase 5 — Utilidades nuevas (hecha)
 
-- `Placement.scope_start` y `Placement.member_variable`.
-- `generate_local_variable_action.gd` y `generate_class_variable_action.gd`.
-- Hecho cuando: pasan `generate_local_variable/` y `generate_class_variable/`, ampliados con: lambdas anidadas, ramas de `match`, cuerpos de una línea, espacios, última línea sin salto final, y tipo inferido por asignación y por `return`.
+- `actions/variable_action.gd` (base común), `generate_local_variable_action.gd` y `generate_class_variable_action.gd`, registradas en `action_registry.gd`.
+- `Placement.scope_start` y `Placement.member_variable`. El índice guarda ahora el fin de la cabecera de cada clase, sus miembros en orden y los `enum`.
+- Las dos acciones se ofrecen cuando el cursor o la selección están sobre un identificador sin definir que se usa como valor. No se ofrecen sobre el nombre de una llamada, tras un punto, en una declaración ni sobre nada ya definido: variables del scope, miembros propios o heredados, clases, tipos, singletons, funciones y constantes globales, y parámetros de una lambda de una línea.
+- El tipo sale del contexto, igual que el retorno de un método: argumento, declaración tipada, `return`, condición. Además, si el identificador es el destino de una asignación (`total = 3 * 2`, `total += 1`), toma el tipo del valor asignado.
+- **Local:** va a la primera línea del cuerpo del scope más interno que admite declaraciones, con el valor por defecto seleccionado (`null` para objetos y cuando no hay tipo).
+- **De clase:** `static var` si el uso está en una función estática. Tras la línea `class Foo:` de una clase interna no se deja línea en blanco.
+- **Miembros heredados de otro archivo.** Hacía falta para no ofrecer como indefinido lo que viene de un script base: `extends "res://..."` y `extends NombreGlobal` se resuelven cargando el script y leyendo sus métodos, variables, señales y constantes con la reflexión del motor. Lo mismo para una variable cuyo tipo es una clase global. Esto arregla también un falso positivo de Generate Method Stub en scripts que heredan de otro script.
+- Comprobación nueva: ningún identificador de los scripts del proyecto se toma por indefinido.
 
 ### Fase 6 — Tipos compuestos, tipos inferidos e iteradores (hecha)
 
@@ -411,7 +417,8 @@ Todos bajo `tests/cases/`. La columna "Hoy" es lo que hace la versión actual.
 
 ## Fuera de alcance
 
-- Resolver clases con `class_name` definidas en otros archivos. `TypeResolver` queda preparado para añadir esa fuente.
+- Generar código en otro archivo: un método sobre un objeto cuya clase está definida en otro script no se ofrece.
+- Rutas relativas en `extends "base.gd"`: solo se resuelven las rutas `res://`.
 - Atajos de teclado para las acciones.
 - Ediciones de reemplazo o borrado (por ejemplo, extraer una expresión a una variable).
 - Scope propio para lambdas de una sola línea.

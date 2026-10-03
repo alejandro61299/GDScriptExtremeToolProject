@@ -1,5 +1,4 @@
 action: generate_class_variable
-status: pending
 === input
 extends Node
 

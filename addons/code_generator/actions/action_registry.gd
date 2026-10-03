@@ -4,11 +4,15 @@ extends RefCounted
 const CodeAction = preload("res://addons/code_generator/actions/code_action.gd")
 const CodeContext = preload("res://addons/code_generator/actions/code_context.gd")
 const GenerateMethodAction = preload("res://addons/code_generator/actions/generate_method_action.gd")
+const GenerateLocalVariableAction = preload("res://addons/code_generator/actions/generate_local_variable_action.gd")
+const GenerateClassVariableAction = preload("res://addons/code_generator/actions/generate_class_variable_action.gd")
 
 
 static func create_actions() -> Array[CodeAction]:
 	var actions: Array[CodeAction] = []
 	actions.append(GenerateMethodAction.new())
+	actions.append(GenerateLocalVariableAction.new())
+	actions.append(GenerateClassVariableAction.new())
 	return actions
 
 

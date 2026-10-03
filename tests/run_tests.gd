@@ -4,6 +4,7 @@ const ActionRegistry = preload("res://addons/code_generator/actions/action_regis
 const CodeAction = preload("res://addons/code_generator/actions/code_action.gd")
 const CodeContext = preload("res://addons/code_generator/actions/code_context.gd")
 const GenerateMethodAction = preload("res://addons/code_generator/actions/generate_method_action.gd")
+const VariableAction = preload("res://addons/code_generator/actions/variable_action.gd")
 const SymbolIndex = preload("res://addons/code_generator/analysis/symbol_index.gd")
 const SymbolIndexBuilder = preload("res://addons/code_generator/analysis/symbol_index_builder.gd")
 const SourceScanner = preload("res://addons/code_generator/analysis/source_scanner.gd")
@@ -23,7 +24,8 @@ const MEMORY_CHECK_BUILDS: int = 100
 const DETAILS_ARGUMENT: String = "--details"
 const SCOPES_ACTION: String = "describe_scopes"
 const SCRIPT_EXTENSION: String = "gd"
-const PROJECT_SCRIPT_ROOTS: Array[String] = ["res://addons", "res://tests", "res://tools"]
+const PROJECT_SCRIPT_ROOTS: Array[String] = ["res://addons", "res://tools"]
+const PROJECT_SCRIPTS: Array[String] = ["res://tests/run_tests.gd"]
 const INTERNAL_METHOD_PREFIX: String = "@"
 const ACTION_SCRIPT_SUFFIX: String = "_action"
 const DESCRIPTION_INDENT: String = "  "
@@ -231,6 +233,8 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_project_scripts()
 		"check_no_false_targets":
 			return _check_no_false_targets()
+		"check_no_undefined_identifiers":
+			return _check_no_undefined_identifiers()
 		"check_index_memory":
 			return _check_index_memory(editor)
 	var action := _find_code_action(test_case.action)
@@ -359,28 +363,51 @@ func _typed_label(symbol_name: String, type: SymbolIndex.TypeData) -> String:
 
 func _check_project_scripts() -> PackedStringArray:
 	var problems := PackedStringArray()
-	for root_directory in PROJECT_SCRIPT_ROOTS:
-		for path in _collect_paths(root_directory, SCRIPT_EXTENSION):
-			var script := load(path) as GDScript
-			if script == null or not script.can_instantiate():
-				problems.append("%s does not compile." % path)
-				continue
-			var index := SymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
-			problems.append_array(_compare_with_engine(path, index.root, script))
+	for path in _project_script_paths():
+		var script := load(path) as GDScript
+		if script == null or not script.can_instantiate():
+			problems.append("%s does not compile." % path)
+			continue
+		var index := SymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
+		problems.append_array(_compare_with_engine(path, index.root, script))
 	return problems
+
+
+func _project_script_paths() -> PackedStringArray:
+	var paths := PackedStringArray(PROJECT_SCRIPTS)
+	for root_directory in PROJECT_SCRIPT_ROOTS:
+		paths.append_array(_collect_paths(root_directory, SCRIPT_EXTENSION))
+	return paths
 
 
 func _check_no_false_targets() -> PackedStringArray:
 	var problems := PackedStringArray()
 	var generator := GenerateMethodAction.new()
-	for root_directory in PROJECT_SCRIPT_ROOTS:
-		for path in _collect_paths(root_directory, SCRIPT_EXTENSION):
-			var script := load(path) as GDScript
-			if script == null or not script.can_instantiate():
-				continue
-			var index := SymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
-			_collect_false_targets(path, index, index.statements, generator, problems)
+	for path in _project_script_paths():
+		var index := SymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
+		_collect_false_targets(path, index, index.statements, generator, problems)
 	return problems
+
+
+func _check_no_undefined_identifiers() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var action := VariableAction.new()
+	var identifier_pattern := RegEx.create_from_string("[A-Za-z_]\\w*")
+	for path in _project_script_paths():
+		var index := SymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
+		_collect_undefined_identifiers(path, index, index.statements, action, identifier_pattern, problems)
+	return problems
+
+
+func _collect_undefined_identifiers(path: String, index: SymbolIndex.SymbolIndexData, statements: Array[SourceScanner.Statement], action: VariableAction, identifier_pattern: RegEx, problems: PackedStringArray) -> void:
+	for statement in statements:
+		var scope_info := SymbolIndex.get_scope_info_for_line(index, statement.first_line)
+		for occurrence in identifier_pattern.search_all(statement.code):
+			var identifier := action.find_undefined_identifier_at(statement.code, occurrence.get_start(), occurrence.get_end(), scope_info)
+			if identifier != null:
+				problems.append("%s:%d: '%s' is defined but was taken for an undefined identifier." % [path, statement.first_line + 1, identifier.name])
+		for block in statement.blocks:
+			_collect_undefined_identifiers(path, index, block.statements, action, identifier_pattern, problems)
 
 
 func _collect_false_targets(path: String, index: SymbolIndex.SymbolIndexData, statements: Array[SourceScanner.Statement], generator: GenerateMethodAction, problems: PackedStringArray) -> void:

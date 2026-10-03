@@ -1,0 +1,9 @@
+action: generate_method
+=== input
+extends "res://addons/code_generator/actions/code_action.gd"
+
+
+func test() -> void:
+	print(get_label())<|>
+
+=== end

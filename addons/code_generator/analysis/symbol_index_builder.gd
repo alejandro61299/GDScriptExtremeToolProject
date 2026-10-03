@@ -27,6 +27,9 @@ static var _return_pattern := RegEx.create_from_string("^return\\b(.*)$")
 static var _setter_pattern := RegEx.create_from_string("^set\\s*\\(\\s*(\\w+)\\s*\\)\\s*:")
 static var _getter_pattern := RegEx.create_from_string("^get\\s*(?:\\(\\s*\\))?\\s*:")
 static var _static_function_pattern := RegEx.create_from_string("\\bstatic\\s+func\\b")
+static var _enum_pattern := RegEx.create_from_string("^enum\\b\\s*(\\w*)\\s*\\{(.*)\\}")
+static var _annotation_pattern := RegEx.create_from_string("^@\\w+")
+static var _extends_path_pattern := RegEx.create_from_string("\\bextends\\s+[\"']([^\"']+)[\"']")
 
 
 class FunctionHeader:
@@ -43,53 +46,110 @@ static func build(lines: PackedStringArray) -> SymbolIndex.SymbolIndexData:
 	var data := SymbolIndex.SymbolIndexData.new()
 	data.root = root
 	data.statements = SourceScanner.new().scan(lines)
-	_add_class_members(root, data.statements)
+	_add_class_members(root, data.statements, lines)
 	return data
 
 
-static func _add_class_members(class_scope: SymbolIndex.ClassScope, statements: Array[SourceScanner.Statement]) -> void:
+static func _add_class_members(class_scope: SymbolIndex.ClassScope, statements: Array[SourceScanner.Statement], lines: PackedStringArray) -> void:
+	var is_in_header := true
 	for statement in statements:
 		var code := _strip_modifiers(statement.code)
 		var class_name_match := _class_name_pattern.search(code)
+		var is_header_statement := true
 		if class_name_match != null:
 			class_scope.name = class_name_match.get_string(1)
-			_read_extends(class_scope, statement, code)
+			_read_extends(class_scope, statement, code, lines)
 		elif code.begins_with("extends"):
-			_read_extends(class_scope, statement, code)
-		elif _class_pattern.search(code) != null:
-			_add_inner_class(class_scope, statement, code)
-		elif _starts_with_function(code):
-			_add_method(class_scope, statement, code)
-		elif _signal_pattern.search(code) != null:
-			_add_signal(class_scope, code)
-		elif _variable_pattern.search(code) != null:
-			_add_member_variable(class_scope, statement, code)
+			_read_extends(class_scope, statement, code, lines)
+		elif _is_header_annotation(code):
+			pass
 		else:
-			_add_lambdas(class_scope, statement, null)
+			is_header_statement = false
+			_add_class_member(class_scope, statement, code, lines)
+		is_in_header = is_in_header and is_header_statement
+		if is_in_header:
+			class_scope.header_end_line = statement.last_line
 
 
-static func _read_extends(class_scope: SymbolIndex.ClassScope, statement: SourceScanner.Statement, code: String) -> void:
+static func _add_class_member(class_scope: SymbolIndex.ClassScope, statement: SourceScanner.Statement, code: String, lines: PackedStringArray) -> void:
+	if _class_pattern.search(code) != null:
+		_add_inner_class(class_scope, statement, code, lines)
+		_record_member(class_scope, SymbolIndex.ClassMember.Kind.CLASS, statement)
+	elif _starts_with_function(code):
+		_add_method(class_scope, statement, code)
+		_record_member(class_scope, SymbolIndex.ClassMember.Kind.METHOD, statement)
+	elif _signal_pattern.search(code) != null:
+		_add_signal(class_scope, code)
+		_record_member(class_scope, SymbolIndex.ClassMember.Kind.SIGNAL, statement)
+	elif _enum_pattern.search(code) != null:
+		_add_enum(class_scope, statement, code)
+		_record_member(class_scope, SymbolIndex.ClassMember.Kind.ENUM, statement)
+	elif _variable_pattern.search(code) != null:
+		var variable := _add_member_variable(class_scope, statement, code)
+		_record_member(class_scope, SymbolIndex.ClassMember.Kind.CONSTANT if variable.is_const else SymbolIndex.ClassMember.Kind.VARIABLE, statement)
+	else:
+		_add_lambdas(class_scope, statement, null)
+
+
+static func _record_member(class_scope: SymbolIndex.ClassScope, kind: SymbolIndex.ClassMember.Kind, statement: SourceScanner.Statement) -> void:
+	var member := SymbolIndex.ClassMember.new()
+	member.kind = kind
+	member.start_line = statement.first_line
+	member.end_line = statement.last_line
+	class_scope.members.append(member)
+
+
+static func _is_header_annotation(code: String) -> bool:
+	var annotation_match := _annotation_pattern.search(code)
+	return annotation_match != null and Language.HEADER_ANNOTATIONS.has(annotation_match.get_string(0))
+
+
+static func _add_enum(class_scope: SymbolIndex.ClassScope, statement: SourceScanner.Statement, code: String) -> void:
+	var enum_match := _enum_pattern.search(code)
+	var names := PackedStringArray([enum_match.get_string(1)])
+	if names[0].is_empty():
+		names.clear()
+		for value in SymbolIndex.split_top_level(enum_match.get_string(2), SymbolIndex.TYPE_SEPARATOR):
+			names.append(value.get_slice(SymbolIndex.ASSIGNMENT, 0).strip_edges())
+	for constant_name in names:
+		var constant := SymbolIndex.VariableSymbol.new()
+		constant.name = constant_name
+		constant.is_const = true
+		constant.start_line = statement.first_line
+		constant.end_line = statement.last_line
+		if enum_match.get_string(1).is_empty():
+			constant.type = SymbolIndex.make_type(Language.INTEGER_TYPE_NAME)
+		class_scope.vars[constant_name] = constant
+
+
+static func _read_extends(class_scope: SymbolIndex.ClassScope, statement: SourceScanner.Statement, code: String, lines: PackedStringArray) -> void:
 	var extends_match := _extends_pattern.search(code)
 	if extends_match == null:
 		return
 	class_scope.extends_line = statement.first_line
 	if not extends_match.get_string(1).is_empty():
 		class_scope.inherit_type = SymbolIndex.parse_type(extends_match.get_string(1))
+		return
+	var path_match := _extends_path_pattern.search(lines[statement.first_line])
+	if path_match != null:
+		class_scope.base_script_path = path_match.get_string(1)
 
 
-static func _add_inner_class(parent: SymbolIndex.ClassScope, statement: SourceScanner.Statement, code: String) -> void:
+static func _add_inner_class(parent: SymbolIndex.ClassScope, statement: SourceScanner.Statement, code: String, lines: PackedStringArray) -> void:
 	var inner := SymbolIndex.ClassScope.new()
 	inner.name = _class_pattern.search(code).get_string(1)
 	inner.start_line = statement.first_line
 	inner.end_line = statement.last_line
+	inner.header_end_line = statement.first_line
 	inner.attach_to(parent)
 	parent.inner_classes[inner.name] = inner
-	_read_extends(inner, statement, code)
+	_read_extends(inner, statement, code, lines)
 	var body := _own_block(statement, false)
 	if body != null:
+		inner.header_end_line = body.header_line
 		inner.body_start_line = body.header_line + 1
 		inner.body_indent_text = body.indent_text
-		_add_class_members(inner, body.statements)
+		_add_class_members(inner, body.statements, lines)
 
 
 static func _add_method(class_scope: SymbolIndex.ClassScope, statement: SourceScanner.Statement, code: String) -> void:
@@ -116,13 +176,14 @@ static func _add_signal(class_scope: SymbolIndex.ClassScope, code: String) -> vo
 	class_scope.signals[symbol.name] = symbol
 
 
-static func _add_member_variable(class_scope: SymbolIndex.ClassScope, statement: SourceScanner.Statement, code: String) -> void:
+static func _add_member_variable(class_scope: SymbolIndex.ClassScope, statement: SourceScanner.Statement, code: String) -> SymbolIndex.VariableSymbol:
 	var accessors := _own_block(statement, false)
 	var variable := _parse_variable(code, statement, accessors != null)
 	class_scope.vars[variable.name] = variable
 	if accessors != null:
 		_add_property(class_scope, statement, accessors, variable)
 	_link_function(variable, _add_lambdas(class_scope, statement, accessors), class_scope, statement)
+	return variable
 
 
 static func _add_property(class_scope: SymbolIndex.ClassScope, statement: SourceScanner.Statement, accessors: SourceScanner.Block, variable: SymbolIndex.VariableSymbol) -> void:

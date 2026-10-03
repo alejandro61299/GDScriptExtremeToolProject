@@ -1,0 +1,19 @@
+action: generate_class_variable
+=== input
+extends Node
+
+class Counter:
+	func bump() -> void:
+		<|total|> += 1
+
+=== expected
+extends Node
+
+class Counter:
+	var total: int
+
+
+	func bump() -> void:
+		<|total|> += 1
+
+=== end

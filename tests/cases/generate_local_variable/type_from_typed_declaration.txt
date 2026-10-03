@@ -1,0 +1,19 @@
+action: generate_local_variable
+=== input
+extends Node
+
+
+func test() -> void:
+	var copy : Vector2 = <|origin|>
+	print(copy)
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var origin: Vector2 = <|Vector2(0, 0)|>
+	var copy : Vector2 = origin
+	print(copy)
+
+=== end

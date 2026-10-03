@@ -1,0 +1,9 @@
+action: generate_local_variable
+=== input
+extends Node
+
+
+func test(node : Node) -> void:
+	print(node.<|unknown_property|>)
+
+=== end

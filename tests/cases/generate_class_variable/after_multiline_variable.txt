@@ -1,0 +1,25 @@
+action: generate_class_variable
+=== input
+extends Node
+
+var table : Dictionary = {
+	"a": 1,
+}
+
+
+func test() -> void:
+	print(<|value|>)
+
+=== expected
+extends Node
+
+var table : Dictionary = {
+	"a": 1,
+}
+var value
+
+
+func test() -> void:
+	print(<|value|>)
+
+=== end

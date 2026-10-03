@@ -8,6 +8,7 @@ const ENTRY_TEMPLATE: String = "\t\t\"%s\": \"%s\","
 const GROUP_OPEN_TEMPLATE: String = "\t\"%s\": {"
 const GROUP_CLOSE: String = "\t},"
 const FLAT_ENTRY_TEMPLATE: String = "\t\"%s\": \"%s\","
+const GLOBAL_CONSTANT_TYPE: String = "int"
 
 
 func _initialize() -> void:
@@ -28,6 +29,13 @@ func _initialize() -> void:
 		if builtin_class.has("indexing_return_type"):
 			indexing.append(FLAT_ENTRY_TEMPLATE % [type_name, builtin_class["indexing_return_type"]])
 
+	var constants := PackedStringArray()
+	for constant: Dictionary in api["global_constants"]:
+		constants.append(FLAT_ENTRY_TEMPLATE % [constant["name"], GLOBAL_CONSTANT_TYPE])
+	for global_enum: Dictionary in api["global_enums"]:
+		for value: Dictionary in global_enum["values"]:
+			constants.append(FLAT_ENTRY_TEMPLATE % [value["name"], global_enum["name"]])
+
 	var output := PackedStringArray([
 		"@tool",
 		"extends RefCounted",
@@ -44,6 +52,8 @@ func _initialize() -> void:
 	output.append_array(members)
 	output.append_array(["}", "", "const INDEXING: Dictionary[String, String] = {"])
 	output.append_array(indexing)
+	output.append_array(["}", "", "const GLOBAL_CONSTANTS: Dictionary[String, String] = {"])
+	output.append_array(constants)
 	output.append_array(["}", ""])
 
 	var file := FileAccess.open(OUTPUT_PATH, FileAccess.WRITE)

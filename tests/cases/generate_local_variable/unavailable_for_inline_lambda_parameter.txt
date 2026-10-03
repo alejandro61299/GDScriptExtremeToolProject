@@ -1,0 +1,10 @@
+action: generate_local_variable
+=== input
+extends Node
+
+
+func test() -> void:
+	var twice = func(x): return <|x|> * 2
+	print(twice)
+
+=== end

@@ -1,0 +1,13 @@
+action: generate_class_variable
+=== input
+extends Node
+
+var total = <|base_value|> * 2
+
+=== expected
+extends Node
+
+var total = <|base_value|> * 2
+var base_value
+
+=== end

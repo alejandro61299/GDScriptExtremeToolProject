@@ -21,6 +21,12 @@ const ELEMENT_PLACEHOLDER: String = "<T>"
 const KEY_PLACEHOLDER: String = "<K>"
 const VALUE_PLACEHOLDER: String = "<V>"
 const CALLABLE_INVOCATIONS: Array[String] = ["call", "callv"]
+const LITERAL_KEYWORDS: Array[String] = ["true", "false", "null", "self", "super"]
+const DECLARATION_KEYWORDS: Array[String] = ["var", "const", "func", "for", "signal", "class", "class_name", "enum", "extends", "as", "is"]
+const DECLARATION_STATEMENTS: Array[String] = ["signal", "enum", "class", "class_name", "extends"]
+const HEADER_ANNOTATIONS: Array[String] = ["@tool", "@icon", "@static_unload", "@abstract"]
+const MATH_CONSTANTS: Dictionary[String, String] = {"PI": "float", "TAU": "float", "INF": "float", "NAN": "float"}
+const AUTOLOAD_SETTING_PREFIX: String = "autoload/"
 const CALLABLE_BINDINGS: Array[String] = ["bind", "bindv", "unbind"]
 
 const ARRAY_RETURNS: Dictionary[String, String] = {
@@ -195,4 +201,15 @@ static func is_builtin_type(type_name: String) -> bool:
 
 
 static func is_known_type(type_name: String) -> bool:
-	return is_builtin_type(type_name) or ClassDB.class_exists(type_name)
+	return type_name == VARIANT_TYPE_NAME or is_builtin_type(type_name) or ClassDB.class_exists(type_name)
+
+
+static func global_class_path(global_name: String) -> String:
+	for global_class in ProjectSettings.get_global_class_list():
+		if global_class["class"] == global_name:
+			return global_class["path"]
+	return ""
+
+
+static func is_project_global(global_name: String) -> bool:
+	return ProjectSettings.has_setting(AUTOLOAD_SETTING_PREFIX + global_name) or not global_class_path(global_name).is_empty()

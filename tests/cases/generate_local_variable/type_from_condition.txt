@@ -1,0 +1,19 @@
+action: generate_local_variable
+=== input
+extends Node
+
+
+func test() -> void:
+	if <|is_ready|>:
+		print("ready")
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var is_ready: bool = <|false|>
+	if is_ready:
+		print("ready")
+
+=== end

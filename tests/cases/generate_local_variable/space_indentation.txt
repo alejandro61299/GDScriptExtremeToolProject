@@ -1,0 +1,29 @@
+action: generate_local_variable
+=== input
+extends Node
+
+
+func _add_to_list(item : Object) -> void:
+    pass
+
+
+func test(flag : bool) -> void:
+    if flag:
+        print("inside")
+        _add_to_list(<|my_item|>)
+
+=== expected
+extends Node
+
+
+func _add_to_list(item : Object) -> void:
+    pass
+
+
+func test(flag : bool) -> void:
+    if flag:
+        var my_item: Object = <|null|>
+        print("inside")
+        _add_to_list(my_item)
+
+=== end

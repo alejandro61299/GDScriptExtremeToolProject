@@ -1,0 +1,8 @@
+action: generate_local_variable
+compile_check: skip
+=== input
+extends Node
+
+var total := <|base_value|> * 2
+
+=== end

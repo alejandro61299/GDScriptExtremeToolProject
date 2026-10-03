@@ -7,9 +7,8 @@ func _add_to_list(item : Object) -> void:
 	pass
 
 
-func _ready() -> void:
-	print("ready")
-	_add_to_list(<|my_item|>)
+func test() -> void:
+	_add_to_list(my_<|>item)
 
 === expected
 extends Node
@@ -19,9 +18,8 @@ func _add_to_list(item : Object) -> void:
 	pass
 
 
-func _ready() -> void:
+func test() -> void:
 	var my_item: Object = <|null|>
-	print("ready")
 	_add_to_list(my_item)
 
 === end

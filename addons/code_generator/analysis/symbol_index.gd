@@ -108,14 +108,25 @@ class BlockScope extends ScopeBase:
 		return kind != Kind.MATCH and kind != Kind.PROPERTY
 
 
+class ClassMember:
+	enum Kind { VARIABLE, CONSTANT, SIGNAL, ENUM, METHOD, CLASS }
+
+	var kind: Kind = Kind.VARIABLE
+	var start_line: int = 0
+	var end_line: int = 0
+
+
 class ClassScope extends ScopeBase:
 	var name: String = ""
+	var header_end_line: int = -1
+	var members: Array[ClassMember] = []
 	var vars: Dictionary = {}
 	var methods: Dictionary = {}
 	var signals: Dictionary = {}
 	var inner_classes: Dictionary = {}
 	var extends_line: int = -1
 	var inherit_type: TypeData
+	var base_script_path: String = ""
 
 	func accepts_declarations() -> bool:
 		return false

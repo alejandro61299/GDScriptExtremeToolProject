@@ -1,0 +1,11 @@
+action: generate_class_variable
+=== input
+extends Node
+
+var count : int = 1
+
+
+func test() -> void:
+	print(<|count|>)
+
+=== end

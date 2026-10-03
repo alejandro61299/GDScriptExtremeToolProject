@@ -29,6 +29,8 @@ const NODE_PATH_PREFIXES: String = "$%"
 const NODE_PATH_SEPARATOR: String = "/"
 const POWER_OPERATOR_CHARACTER: String = "*"
 const NON_ASSIGNMENT_NEIGHBOURS: String = "=!<>:+-*/%&|^~"
+const COMPARISON_NEIGHBOURS: String = "=!<>:"
+const COMPOUND_ASSIGNMENT_OPERATORS: String = "+-*/%&|^~ "
 const MAX_INHERITANCE_DEPTH: int = 32
 const MAX_DEFERRED_DEPTH: int = 16
 const NULL_LITERAL: String = "null"
@@ -104,6 +106,9 @@ static func find_member(owner: Resolved, member_name: String) -> Member:
 		return null
 	if Language.is_builtin_type(owner.type.name):
 		return _find_builtin_member(owner.type, member_name)
+	var global_script := _load_script(Language.global_class_path(owner.type.name))
+	if global_script != null:
+		return _find_script_member(global_script, member_name)
 	return _find_engine_member(owner.type.name, member_name)
 
 
@@ -118,8 +123,11 @@ static func find_class_member(class_scope: SymbolIndex.ClassScope, member_name: 
 		if current.signals.has(member_name):
 			return _signal_member(current.signals[member_name])
 		var base_name := _base_class_name(current)
-		var base_class := SymbolIndex.find_class(root, base_name)
+		var base_class := SymbolIndex.find_class(root, base_name) if current.base_script_path.is_empty() else null
 		if base_class == null or base_class == current:
+			var base_script := _load_script(current.base_script_path if base_class == null and not current.base_script_path.is_empty() else Language.global_class_path(base_name))
+			if base_script != null:
+				return _find_script_member(base_script, member_name)
 			return _find_engine_member(base_name, member_name)
 		current = base_class
 	return null
@@ -169,10 +177,48 @@ static func function_return_type(function: SymbolIndex.FunctionScope, scope_info
 	return common
 
 
+static func is_name_defined(identifier: String, scope_info: SymbolIndex.ScopeInfo) -> bool:
+	if Language.LITERAL_KEYWORDS.has(identifier) or Language.NON_CALL_KEYWORDS.has(identifier) or Language.MATH_CONSTANTS.has(identifier):
+		return true
+	if SymbolIndex.find_variable(identifier, scope_info).is_defined or is_function_defined(identifier, scope_info):
+		return true
+	if BuiltinTypes.GLOBAL_CONSTANTS.has(identifier) or Engine.has_singleton(identifier):
+		return true
+	return Language.is_project_global(identifier)
+
+
 static func expected_type(statement_code: String, call: CallSiteParser.CallSite, scope_info: SymbolIndex.ScopeInfo) -> SymbolIndex.TypeData:
 	var expression := statement_code.substr(call.expression_offset, call.expression_end() - call.expression_offset)
-	var known_type := _expected_argument_type(call, expression, scope_info) if call.parent != null else _expected_statement_type(statement_code, expression, scope_info)
+	var known_type := _expected_type(statement_code, expression, call.parent, call.parent_argument_index, scope_info)
 	return known_type if known_type != null else SymbolIndex.make_type(Language.VARIANT_TYPE_NAME)
+
+
+static func expected_value_type(statement_code: String, start: int, end: int, scope_info: SymbolIndex.ScopeInfo) -> SymbolIndex.TypeData:
+	var expression := statement_code.substr(start, end - start)
+	var parent: CallSiteParser.CallSite = null
+	for call in CallSiteParser.parse(statement_code):
+		if start > call.open_offset and end <= call.close_offset and (parent == null or call.open_offset > parent.open_offset):
+			parent = call
+	var argument_index := -1
+	if parent != null:
+		for index in parent.arguments.size():
+			var argument := parent.arguments[index]
+			if start >= argument.offset and start < argument.offset + argument.length:
+				argument_index = index
+	var known_type := _expected_type(statement_code, expression, parent, argument_index, scope_info)
+	if known_type == null and parent == null:
+		known_type = _assigned_type(statement_code, expression, scope_info)
+	if known_type == null or known_type.name == Language.VOID_TYPE_NAME or known_type.name == Language.VARIANT_TYPE_NAME:
+		return null
+	return known_type
+
+
+static func default_variable_value(type: SymbolIndex.TypeData) -> String:
+	var type_name := SymbolIndex.get_base_type_name(type)
+	if type_name == Language.OBJECT_TYPE_NAME or not Language.is_builtin_type(type_name):
+		return NULL_LITERAL
+	var value := default_value_text(type)
+	return NULL_LITERAL if value.is_empty() else value
 
 
 static func default_value_text(type: SymbolIndex.TypeData) -> String:
@@ -194,9 +240,29 @@ static func default_value_text(type: SymbolIndex.TypeData) -> String:
 	return CONSTRUCTOR_TEMPLATE % type_name
 
 
-static func _expected_argument_type(call: CallSiteParser.CallSite, expression: String, scope_info: SymbolIndex.ScopeInfo) -> SymbolIndex.TypeData:
-	var parent := call.parent
-	var index := call.parent_argument_index
+static func _expected_type(statement_code: String, expression: String, parent: CallSiteParser.CallSite, argument_index: int, scope_info: SymbolIndex.ScopeInfo) -> SymbolIndex.TypeData:
+	if parent != null:
+		return _expected_argument_type(parent, argument_index, expression, scope_info)
+	return _expected_statement_type(statement_code, expression, scope_info)
+
+
+static func _assigned_type(statement_code: String, expression: String, scope_info: SymbolIndex.ScopeInfo) -> SymbolIndex.TypeData:
+	var code := _modifiers_pattern.sub(statement_code, "")
+	var from := 0
+	while true:
+		var index := SymbolIndex.find_top_level(code, SymbolIndex.ASSIGNMENT, from)
+		if index <= 0:
+			return null
+		var is_followed := index + 1 < code.length() and code[index + 1] == SymbolIndex.ASSIGNMENT
+		if not is_followed and not COMPARISON_NEIGHBOURS.contains(code[index - 1]):
+			if code.substr(0, index).rstrip(COMPOUND_ASSIGNMENT_OPERATORS) != expression:
+				return null
+			return resolve_expression_type(code.substr(index + 1), scope_info)
+		from = index + (2 if is_followed else 1)
+	return null
+
+
+static func _expected_argument_type(parent: CallSiteParser.CallSite, index: int, expression: String, scope_info: SymbolIndex.ScopeInfo) -> SymbolIndex.TypeData:
 	if index == -1 or not _is_whole(parent.arguments[index].text, expression):
 		return null
 	if not parent.receiver.is_empty() and (parent.name == CONNECT_METHOD or parent.name == EMIT_METHOD):
@@ -685,6 +751,37 @@ static func _substitute_generics(template: String, type: SymbolIndex.TypeData) -
 	return SymbolIndex.parse_type(text)
 
 
+static func _load_script(path: String) -> Script:
+	if path.is_empty() or not ResourceLoader.exists(path):
+		return null
+	return load(path) as Script
+
+
+static func _find_script_member(script: Script, member_name: String) -> Member:
+	for method in script.get_script_method_list():
+		if method["name"] == member_name:
+			return _engine_callable_member(Member.Kind.METHOD, method)
+	for signal_info in script.get_script_signal_list():
+		if signal_info["name"] == member_name:
+			return _engine_callable_member(Member.Kind.SIGNAL, signal_info)
+	for property in script.get_script_property_list():
+		if property["name"] == member_name and property["usage"] & PROPERTY_USAGE_SCRIPT_VARIABLE != 0:
+			return _variable_member(_type_from_info(property, false))
+	var current := script
+	while current != null:
+		var constants := current.get_script_constant_map()
+		if constants.has(member_name):
+			return _variable_member(_type_of_value(constants[member_name]))
+		current = current.get_base_script()
+	return _find_engine_member(script.get_instance_base_type(), member_name)
+
+
+static func _type_of_value(value: Variant) -> SymbolIndex.TypeData:
+	if value is Object:
+		return SymbolIndex.make_type((value as Object).get_class())
+	return SymbolIndex.make_type(type_string(typeof(value)))
+
+
 static func _find_engine_member(type_name: String, member_name: String) -> Member:
 	if not ClassDB.class_exists(type_name):
 		return null
@@ -696,7 +793,7 @@ static func _find_engine_member(type_name: String, member_name: String) -> Membe
 	for property in ClassDB.class_get_property_list(type_name):
 		if property["name"] == member_name:
 			return _variable_member(_type_from_info(property, false))
-	if ClassDB.class_has_integer_constant(type_name, member_name):
+	if ClassDB.class_has_integer_constant(type_name, member_name) or ClassDB.class_has_enum(type_name, member_name):
 		return _variable_member(SymbolIndex.make_type(Language.INTEGER_TYPE_NAME))
 	return null
 

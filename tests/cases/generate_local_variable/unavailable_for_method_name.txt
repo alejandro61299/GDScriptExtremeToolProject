@@ -1,0 +1,10 @@
+action: generate_local_variable
+compile_check: skip
+=== input
+extends Node
+
+
+func test() -> void:
+	<|_undefined_call|>()
+
+=== end

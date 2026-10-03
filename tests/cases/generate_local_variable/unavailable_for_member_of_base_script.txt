@@ -1,0 +1,9 @@
+action: generate_local_variable
+=== input
+extends "res://addons/code_generator/actions/code_action.gd"
+
+
+func test() -> void:
+	print(<|EditPlan|>)
+
+=== end

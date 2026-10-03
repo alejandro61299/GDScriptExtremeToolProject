@@ -1,0 +1,19 @@
+action: generate_local_variable
+=== input
+extends Node
+
+
+func test() -> void:
+	print("start")
+	<|total|> = 3 * 2
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var total: int = <|0|>
+	print("start")
+	total = 3 * 2
+
+=== end

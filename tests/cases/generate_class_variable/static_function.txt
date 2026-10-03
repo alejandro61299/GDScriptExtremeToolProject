@@ -1,0 +1,26 @@
+action: generate_class_variable
+=== input
+extends Node
+
+
+static func test() -> void:
+	_use(<|counter|>)
+
+
+static func _use(value : int) -> void:
+	print(value)
+
+=== expected
+extends Node
+
+static var counter: int
+
+
+static func test() -> void:
+	_use(<|counter|>)
+
+
+static func _use(value : int) -> void:
+	print(value)
+
+=== end

@@ -15,8 +15,9 @@ func _test_methods() -> void:
 	_add_method(nested_method)
 
 
-func _add_method(value : Callable) -> void:
-	print(value)
+func _add_method(p_nested_method: Callable) -> void:
+	pass
+
 
 func extreme_nesting():
 	var level_1 = func():
@@ -27,7 +28,3 @@ func extreme_nesting():
 		return level_2.call()
 	hola(level_1.call())
 	print(level_1.call())
-
-
-func hola(param_0) -> void:
-	pass
