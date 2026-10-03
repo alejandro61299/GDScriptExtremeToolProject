@@ -1,6 +1,9 @@
 extends SceneTree
 
-const Generator = preload("res://addons/code_generator/stub_generator.gd")
+const ActionRegistry = preload("res://addons/code_generator/actions/action_registry.gd")
+const CodeAction = preload("res://addons/code_generator/actions/code_action.gd")
+const CodeContext = preload("res://addons/code_generator/actions/code_context.gd")
+const GenerateMethodAction = preload("res://addons/code_generator/actions/generate_method_action.gd")
 const SymbolIndex = preload("res://addons/code_generator/analysis/symbol_index.gd")
 const SymbolIndexBuilder = preload("res://addons/code_generator/analysis/symbol_index_builder.gd")
 const SourceScanner = preload("res://addons/code_generator/analysis/source_scanner.gd")
@@ -22,6 +25,7 @@ const SCOPES_ACTION: String = "describe_scopes"
 const SCRIPT_EXTENSION: String = "gd"
 const PROJECT_SCRIPT_ROOTS: Array[String] = ["res://addons", "res://tests"]
 const INTERNAL_METHOD_PREFIX: String = "@"
+const ACTION_SCRIPT_SUFFIX: String = "_action"
 const DESCRIPTION_INDENT: String = "  "
 
 var _error_collector: ErrorCollector = ErrorCollector.new()
@@ -218,9 +222,6 @@ func _create_editor(test_case: TestCase) -> CodeEdit:
 
 func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 	match test_case.action:
-		"generate_method":
-			Generator.new().generate_stub(editor)
-			return _check_edit(test_case, editor)
 		"apply_plan":
 			EditApplier.apply(editor, _build_plan(test_case.plan_description))
 			return _check_edit(test_case, editor)
@@ -232,7 +233,32 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_no_false_targets()
 		"check_index_memory":
 			return _check_index_memory(editor)
-	return PackedStringArray(["Unknown action '%s'." % test_case.action])
+	var action := _find_code_action(test_case.action)
+	if action == null:
+		return PackedStringArray(["Unknown action '%s'." % test_case.action])
+	return _check_code_action(test_case, action, editor)
+
+
+func _find_code_action(action_name: String) -> CodeAction:
+	for action in ActionRegistry.create_actions():
+		var script_path: String = (action.get_script() as Script).resource_path
+		if script_path.get_file().get_basename().trim_suffix(ACTION_SCRIPT_SUFFIX) == action_name:
+			return action
+	return null
+
+
+func _check_code_action(test_case: TestCase, action: CodeAction, editor: CodeEdit) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var actions: Array[CodeAction] = [action]
+	var is_offered := not ActionRegistry.find_available(actions, CodeContext.new(editor)).is_empty()
+	var expects_change := test_case.expected.text != test_case.input.text
+	if is_offered and not expects_change:
+		problems.append("The action is offered in the menu but nothing should change.")
+	if not is_offered and expects_change:
+		problems.append("The action is not offered in the menu.")
+	EditApplier.apply(editor, action.build_plan(CodeContext.new(editor)))
+	problems.append_array(_check_edit(test_case, editor))
+	return problems
 
 
 func _build_plan(description: String) -> EditPlan:
@@ -337,7 +363,7 @@ func _check_project_scripts() -> PackedStringArray:
 		for path in _collect_paths(root_directory, SCRIPT_EXTENSION):
 			var script := load(path) as GDScript
 			if script == null or not script.can_instantiate():
-				_error_collector.take()
+				problems.append("%s does not compile." % path)
 				continue
 			var index := SymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
 			problems.append_array(_compare_with_engine(path, index.root, script))
@@ -346,22 +372,21 @@ func _check_project_scripts() -> PackedStringArray:
 
 func _check_no_false_targets() -> PackedStringArray:
 	var problems := PackedStringArray()
-	var generator := Generator.new()
+	var generator := GenerateMethodAction.new()
 	for root_directory in PROJECT_SCRIPT_ROOTS:
 		for path in _collect_paths(root_directory, SCRIPT_EXTENSION):
 			var script := load(path) as GDScript
 			if script == null or not script.can_instantiate():
-				_error_collector.take()
 				continue
 			var index := SymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
 			_collect_false_targets(path, index, index.statements, generator, problems)
 	return problems
 
 
-func _collect_false_targets(path: String, index: SymbolIndex.SymbolIndexData, statements: Array[SourceScanner.Statement], generator: Generator, problems: PackedStringArray) -> void:
+func _collect_false_targets(path: String, index: SymbolIndex.SymbolIndexData, statements: Array[SourceScanner.Statement], generator: GenerateMethodAction, problems: PackedStringArray) -> void:
 	for statement in statements:
 		var scope_info := SymbolIndex.get_scope_info_for_line(index, statement.first_line)
-		for target in generator._find_targets(statement.code, scope_info):
+		for target in generator.find_targets(statement.code, scope_info):
 			problems.append("%s:%d: '%s' is defined but was taken for an undefined method." % [path, statement.first_line + 1, target.name])
 		for block in statement.blocks:
 			_collect_false_targets(path, index, block.statements, generator, problems)
@@ -369,8 +394,11 @@ func _collect_false_targets(path: String, index: SymbolIndex.SymbolIndexData, st
 
 func _compare_with_engine(path: String, root_class: SymbolIndex.ClassScope, script: GDScript) -> PackedStringArray:
 	var problems := PackedStringArray()
-	var engine_methods := _names_of(script.get_script_method_list(), 0).filter(func(method_name: String) -> bool: return not method_name.begins_with(INTERNAL_METHOD_PREFIX))
-	var indexed_methods: Array = root_class.methods.keys()
+	var base_script := script.get_base_script() as GDScript
+	var inherited_methods: Array = [] if base_script == null else _names_of(base_script.get_script_method_list(), 0)
+	var inherited_variables: Array = [] if base_script == null else _names_of(base_script.get_script_property_list(), PROPERTY_USAGE_SCRIPT_VARIABLE)
+	var engine_methods := _unique(_names_of(script.get_script_method_list(), 0).filter(func(method_name: String) -> bool: return not method_name.begins_with(INTERNAL_METHOD_PREFIX)))
+	var indexed_methods := _unique(root_class.methods.keys() + inherited_methods.filter(func(method_name: String) -> bool: return not method_name.begins_with(INTERNAL_METHOD_PREFIX)))
 	engine_methods.sort()
 	indexed_methods.sort()
 	if engine_methods != indexed_methods:
@@ -392,9 +420,17 @@ func _compare_with_engine(path: String, root_class: SymbolIndex.ClassScope, scri
 		if not constants.has(inner_class_name):
 			problems.append("%s: inner class '%s' is unknown to the engine." % [path, inner_class_name])
 	for variable_name: String in _names_of(script.get_script_property_list(), PROPERTY_USAGE_SCRIPT_VARIABLE):
-		if not root_class.vars.has(variable_name):
+		if not root_class.vars.has(variable_name) and not inherited_variables.has(variable_name):
 			problems.append("%s: variable '%s' is missing from the index." % [path, variable_name])
 	return problems
+
+
+func _unique(names: Array) -> Array:
+	var unique_names: Array = []
+	for entry: String in names:
+		if not unique_names.has(entry):
+			unique_names.append(entry)
+	return unique_names
 
 
 func _names_of(entries: Array[Dictionary], required_usage: int) -> Array:

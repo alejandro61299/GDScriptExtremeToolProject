@@ -8,7 +8,7 @@ Godot 4.7.2. Estado de partida: una única utilidad ("Generate Method Stub") con
 | 1 | Capa de edición genérica | Hecha |
 | 2 | Índice fiable: sentencias, bloques y lambdas como scopes | Hecha |
 | 3 | Resolución e inferencia compartidas | Hecha |
-| 4 | Acciones y menú | Pendiente |
+| 4 | Acciones y menú | Hecha |
 | 5 | Generate local variable y Generate class variable | Pendiente |
 | 6 | Tipos compuestos, tipos inferidos e iteradores | Pendiente |
 
@@ -41,6 +41,7 @@ addons/code_generator/
 ├── code_generator_plugin.gd
 ├── code_generator_settings.gd
 ├── actions/
+│   ├── action_registry.gd
 │   ├── code_action.gd
 │   ├── code_context.gd
 │   ├── generate_method_action.gd
@@ -65,7 +66,7 @@ tests/
 └── cases/
 ```
 
-`code_inserter.gd` y `code_generator_unit_tests.gd` ya están borrados; `stub_generator.gd` desaparece en la fase 4.
+`code_inserter.gd`, `code_generator_unit_tests.gd` y `stub_generator.gd` ya están borrados.
 
 ## Piezas clave
 
@@ -185,8 +186,10 @@ func get_label() -> String
 func build_plan(context: CodeContext) -> EditPlan
 ```
 
-- `CodeContext` se construye una vez por clic derecho: líneas, cursor, selección, índice, scope de la posición y estilo de indentación.
-- El plugin tiene una lista de acciones. En `_popup_menu` pide el plan a cada una, añade al menú las que devuelven plan y lo aplica al pulsar.
+- `CodeContext` se construye a partir del `CodeEdit`: líneas, índice, scope y sentencia de la posición del cursor, selección (como posiciones dentro de la sentencia) y unidad de indentación.
+- `action_registry.gd` crea la lista de acciones y decide cuáles están disponibles para un contexto.
+- En `_popup_menu`, el plugin añade al menú las acciones disponibles. Al pulsar una, vuelve a construir el contexto y el plan y lo aplica, de modo que nunca se usa un plan calculado sobre un texto anterior.
+- Añadir una utilidad es crear `actions/<nombre>_action.gd` y añadir una línea en el registro. Sus casos de test usan `action: <nombre>`.
 
 ## Nombres de los parámetros generados
 
@@ -276,6 +279,7 @@ func _add_to_list(item : Object) -> void:
 - El runner usa un `CodeEdit` real. Un caso falla si el texto o la selección no coinciden, si el motor registra algún error o si un solo undo no restaura el texto original.
 - El texto esperado de cada caso se compila antes de ejecutarlo: si no es GDScript válido, el caso falla aunque esté pendiente. `compile_check: skip` lo desactiva para los casos que dejan otra llamada sin definir a propósito.
 - El código de salida es distinto de 0 si algo falla. Un caso pendiente que pasa a funcionar también cuenta como fallo hasta que se le quita `status: pending`.
+- El nombre de `action:` es el del archivo de la acción sin `_action.gd`, y la acción se busca en el registro.
 
 Cada caso es un `.txt` en `tests/cases/`:
 
@@ -341,12 +345,13 @@ indent: spaces
 - Comprobación nueva sobre los scripts del proyecto: como compilan, cualquier llamada que el generador tome por indefinida es un falso positivo. No hay ninguno en 1.203 llamadas.
 - La variable de un `for` sobre un array tipado sigue sin tipo; pasa a la fase 6.
 
-### Fase 4 — Acciones y menú
+### Fase 4 — Acciones y menú (hecha)
 
-- `code_context.gd`, `code_action.gd` y `generate_method_action.gd` (el contenido actual de `stub_generator.gd`, que ya solo orquesta).
-- Registro de acciones en `code_generator_plugin.gd`; el menú muestra solo las disponibles.
-- Borrar `stub_generator.gd`.
-- Hecho cuando: todos los casos anteriores pasan a través de la acción.
+- `actions/code_context.gd`, `code_action.gd`, `action_registry.gd` y `generate_method_action.gd`. `stub_generator.gd` está borrado.
+- `code_generator_plugin.gd` ya no conoce ninguna utilidad concreta: pide las acciones al registro y solo muestra las disponibles.
+- Los tests pasan por el registro, igual que el menú. Además comprueban la disponibilidad: si el caso espera un cambio, la acción tiene que ofrecerse; si no espera ninguno, no.
+- La comprobación de scripts del proyecto falla ahora si alguno no compila, incluido el del plugin.
+- No verificable en headless: que el menú contextual del editor llame a `_popup_menu` con la ruta del `CodeEdit` y pase el `CodeEdit` al callback. Es lo que dice la documentación de Godot y lo que hacía la versión anterior; si falla, el plugin recurre al editor de scripts activo.
 
 ### Fase 5 — Utilidades nuevas
 

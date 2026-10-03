@@ -1,19 +1,15 @@
 @tool
-extends RefCounted
+extends "res://addons/code_generator/actions/code_action.gd"
 
 const SymbolIndex = preload("res://addons/code_generator/analysis/symbol_index.gd")
-const SymbolIndexBuilder = preload("res://addons/code_generator/analysis/symbol_index_builder.gd")
-const SourceScanner = preload("res://addons/code_generator/analysis/source_scanner.gd")
 const CallSiteParser = preload("res://addons/code_generator/analysis/call_site_parser.gd")
 const TypeResolver = preload("res://addons/code_generator/analysis/type_resolver.gd")
 const Language = preload("res://addons/code_generator/analysis/language.gd")
 const Settings = preload("res://addons/code_generator/code_generator_settings.gd")
 const Snippet = preload("res://addons/code_generator/editing/snippet.gd")
-const EditPlan = preload("res://addons/code_generator/editing/edit_plan.gd")
 const Placement = preload("res://addons/code_generator/editing/placement.gd")
-const EditApplier = preload("res://addons/code_generator/editing/edit_applier.gd")
-const Indentation = preload("res://addons/code_generator/editing/indentation.gd")
 
+const LABEL : String = "Generate Method Stub"
 const UNNAMED_ARGUMENT_KEYWORDS : Array[String] = ["null", "true", "false", "self"]
 const SELF_ACCESS : String = "self."
 const NAME_PLACEHOLDER : String = "{name}"
@@ -47,38 +43,24 @@ class MethodSignature:
 	var return_type: SymbolIndex.TypeData
 
 
-func generate_stub(editor: CodeEdit) -> void:
-	if editor == null:
-		return
-	var lines := editor.text.split("\n")
-	var index := SymbolIndexBuilder.build(lines)
-	var caret_line := editor.get_caret_line()
-	var statement := SourceScanner.find_statement_at(index.statements, caret_line)
-	if statement == null:
-		return
-	var scope_info := SymbolIndex.get_scope_info_for_line(index, caret_line)
-	var target := _choose_target(_find_targets(statement.code, scope_info), _selection_range(editor, statement))
+func get_label() -> String:
+	return LABEL
+
+
+func build_plan(context: CodeContext) -> EditPlan:
+	if context.statement == null:
+		return null
+	var code := context.statement.code
+	var target := _choose_target(find_targets(code, context.scope_info), context.selection_from, context.selection_to)
 	if target == null:
-		return
-	var signature := _build_signature(target, statement.code, scope_info)
-	var indent_unit := Indentation.detect_unit(lines, Indentation.editor_unit(editor))
+		return null
+	var signature := _build_signature(target, code, context.scope_info)
 	var plan := EditPlan.new()
-	plan.insert(Placement.new_method(target.target_class, scope_info, lines, indent_unit), _build_snippet(signature))
-	EditApplier.apply(editor, plan)
+	plan.insert(Placement.new_method(target.target_class, context.scope_info, context.lines, context.indent_unit), _build_snippet(signature))
+	return plan
 
 
-func _selection_range(editor: CodeEdit, statement: SourceScanner.Statement) -> Vector2i:
-	var caret := statement.offset_at(editor.get_caret_line(), editor.get_caret_column())
-	if not editor.has_selection():
-		return Vector2i(caret, caret)
-	var from := statement.offset_at(editor.get_selection_from_line(), editor.get_selection_from_column())
-	var to := statement.offset_at(editor.get_selection_to_line(), editor.get_selection_to_column())
-	if from == -1 or to == -1:
-		return Vector2i(caret, caret)
-	return Vector2i(from, to)
-
-
-func _find_targets(code: String, scope_info: SymbolIndex.ScopeInfo) -> Array[Target]:
+func find_targets(code: String, scope_info: SymbolIndex.ScopeInfo) -> Array[Target]:
 	var targets: Array[Target] = []
 	for call in CallSiteParser.parse(code):
 		var call_target := _call_target(call, scope_info)
@@ -136,18 +118,18 @@ func _callback_target(call: CallSiteParser.CallSite, scope_info: SymbolIndex.Sco
 	return target
 
 
-func _choose_target(targets: Array[Target], selection: Vector2i) -> Target:
-	if selection.x != selection.y:
-		var selected := targets.filter(func(target: Target) -> bool: return target.name_offset < selection.y and target.name_end() > selection.x)
+func _choose_target(targets: Array[Target], selection_from: int, selection_to: int) -> Target:
+	if selection_from != selection_to:
+		var selected := targets.filter(func(target: Target) -> bool: return target.name_offset < selection_to and target.name_end() > selection_from)
 		return selected[0] if selected.size() == 1 else null
 	for target in targets:
-		if selection.x >= target.name_offset and selection.x <= target.name_end():
+		if selection_from >= target.name_offset and selection_from <= target.name_end():
 			return target
 	if targets.size() == 1:
 		return targets[0]
 	var enclosing: Target = null
 	for target in targets:
-		if selection.x < target.range_start or selection.x > target.range_end:
+		if selection_from < target.range_start or selection_from > target.range_end:
 			continue
 		if enclosing == null or target.range_start > enclosing.range_start:
 			enclosing = target
