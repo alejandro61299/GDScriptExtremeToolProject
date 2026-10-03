@@ -1,0 +1,15 @@
+action: apply_plan
+=== plan
+[
+	{"line": 99, "blank_lines_before": 0, "blank_lines_after": 2, "lines": [[0, "var second: int"]]}
+]
+=== input
+extends Node
+
+var first: int
+=== expected
+extends Node
+
+var first: int
+var second: int
+=== end

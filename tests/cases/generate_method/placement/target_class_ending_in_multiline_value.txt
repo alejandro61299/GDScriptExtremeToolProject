@@ -1,0 +1,33 @@
+action: generate_method
+status: pending
+=== input
+extends Node
+
+class Foo:
+	var data: Dictionary = {
+		"a": 1,
+	}
+
+
+func test() -> void:
+	var f: Foo = Foo.new()
+	f.bar()<|>
+
+=== expected
+extends Node
+
+class Foo:
+	var data: Dictionary = {
+		"a": 1,
+	}
+
+
+	func bar() -> void:
+		<|pass|>
+
+
+func test() -> void:
+	var f: Foo = Foo.new()
+	f.bar()
+
+=== end

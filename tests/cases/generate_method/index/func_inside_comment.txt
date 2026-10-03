@@ -1,0 +1,25 @@
+action: generate_method
+status: pending
+=== input
+extends Node
+
+# Remember to call func foo() later.
+
+
+func test() -> void:
+	foo()<|>
+
+=== expected
+extends Node
+
+# Remember to call func foo() later.
+
+
+func test() -> void:
+	foo()
+
+
+func foo() -> void:
+	<|pass|>
+
+=== end

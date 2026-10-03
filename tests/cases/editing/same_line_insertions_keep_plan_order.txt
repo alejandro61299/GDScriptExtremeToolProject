@@ -1,0 +1,19 @@
+action: apply_plan
+=== plan
+[
+	{"line": 3, "lines": [[0, "var second: int"]]},
+	{"line": 3, "lines": [[0, "var third: int"]], "select": [0, 4, 9]}
+]
+=== input
+extends Node
+
+var first: int
+
+=== expected
+extends Node
+
+var first: int
+var second: int
+var <|third|>: int
+
+=== end

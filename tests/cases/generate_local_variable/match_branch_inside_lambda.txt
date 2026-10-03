@@ -1,0 +1,50 @@
+action: generate_local_variable
+status: pending
+=== input
+extends Node
+
+
+func _add_to_list(item : Object) -> void:
+	pass
+
+
+func _schedule(callback : Callable) -> void:
+	callback.call()
+
+
+func combined_nesting(items: Array[int]) -> void:
+	for item in items:
+		_schedule(func():
+			match item:
+				1:
+					print("one")
+					_add_to_list(<|my_item|>)
+				_:
+					pass
+		)
+
+=== expected
+extends Node
+
+
+func _add_to_list(item : Object) -> void:
+	pass
+
+
+func _schedule(callback : Callable) -> void:
+	callback.call()
+
+
+func combined_nesting(items: Array[int]) -> void:
+	for item in items:
+		_schedule(func():
+			match item:
+				1:
+					var my_item: Object = <|null|>
+					print("one")
+					_add_to_list(my_item)
+				_:
+					pass
+		)
+
+=== end

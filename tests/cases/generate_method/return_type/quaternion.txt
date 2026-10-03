@@ -1,0 +1,24 @@
+action: generate_method
+=== input
+extends Node
+
+const CONST_1 : Node = null
+
+
+func test() -> void:
+	var rotation : Quaternion = get_quaternion(CONST_1)<|>
+
+=== expected
+extends Node
+
+const CONST_1 : Node = null
+
+
+func test() -> void:
+	var rotation : Quaternion = get_quaternion(CONST_1)
+
+
+func get_quaternion(p_const_1: Node) -> Quaternion:
+	<|return Quaternion(0, 0, 0, 1)|>
+
+=== end

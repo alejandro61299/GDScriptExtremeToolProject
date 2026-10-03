@@ -1,0 +1,36 @@
+action: generate_class_variable
+status: pending
+=== input
+extends Node
+
+class Worker:
+	var jobs : Array[Callable] = []
+
+	func run() -> void:
+		var outer = func():
+			jobs.append(func():
+				_store(<|slot|>)
+			)
+		outer.call()
+
+	func _store(index : int) -> void:
+		print(index)
+
+=== expected
+extends Node
+
+class Worker:
+	var jobs : Array[Callable] = []
+	var slot: int
+
+	func run() -> void:
+		var outer = func():
+			jobs.append(func():
+				_store(<|slot|>)
+			)
+		outer.call()
+
+	func _store(index : int) -> void:
+		print(index)
+
+=== end

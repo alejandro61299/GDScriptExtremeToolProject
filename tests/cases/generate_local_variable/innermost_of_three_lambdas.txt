@@ -1,0 +1,40 @@
+action: generate_local_variable
+status: pending
+=== input
+extends Node
+
+
+func _add_to_list(item : Object) -> void:
+	pass
+
+
+func extreme_nesting() -> void:
+	var level_1 = func():
+		var level_2 = func():
+			var level_3 = func():
+				print("level 3")
+				_add_to_list(<|my_item|>)
+			level_3.call()
+		level_2.call()
+	level_1.call()
+
+=== expected
+extends Node
+
+
+func _add_to_list(item : Object) -> void:
+	pass
+
+
+func extreme_nesting() -> void:
+	var level_1 = func():
+		var level_2 = func():
+			var level_3 = func():
+				var my_item: Object = <|null|>
+				print("level 3")
+				_add_to_list(my_item)
+			level_3.call()
+		level_2.call()
+	level_1.call()
+
+=== end

@@ -1,0 +1,22 @@
+action: generate_method
+=== input
+extends Node
+
+
+func test() -> void:
+	var node : Control = Control.new()
+	node.visibility_changed.connect(_get_callback())<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var node : Control = Control.new()
+	node.visibility_changed.connect(_get_callback())
+
+
+func _get_callback() -> Callable:
+	<|return Callable()|>
+
+=== end

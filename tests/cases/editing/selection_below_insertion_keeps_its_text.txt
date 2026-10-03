@@ -1,0 +1,22 @@
+action: apply_plan
+=== plan
+[
+	{"line": 1, "blank_lines_before": 1, "blank_lines_after": 2, "lines": [[0, "var speed: float"]]}
+]
+=== input
+extends Node
+
+
+func a() -> void:
+	print(<|"one"|>)
+
+=== expected
+extends Node
+
+var speed: float
+
+
+func a() -> void:
+	print(<|"one"|>)
+
+=== end

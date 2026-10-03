@@ -1,0 +1,13 @@
+action: apply_plan
+=== plan
+[
+	{"line": 0, "blank_lines_before": 2, "blank_lines_after": 0, "lines": [[0, "@tool"]]}
+]
+=== input
+extends Node
+
+=== expected
+@tool
+extends Node
+
+=== end

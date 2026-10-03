@@ -1,0 +1,28 @@
+action: generate_class_variable
+status: pending
+=== input
+extends Node
+
+class Inventory:
+	var items : Array = []
+
+	func add(item : Object) -> void:
+		_store(<|slot|>, item)
+
+	func _store(index : int, item : Object) -> void:
+		items.insert(index, item)
+
+=== expected
+extends Node
+
+class Inventory:
+	var items : Array = []
+	var slot: int
+
+	func add(item : Object) -> void:
+		_store(<|slot|>, item)
+
+	func _store(index : int, item : Object) -> void:
+		items.insert(index, item)
+
+=== end

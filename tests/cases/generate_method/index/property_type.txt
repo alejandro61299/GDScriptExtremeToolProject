@@ -1,0 +1,29 @@
+action: generate_method
+status: pending
+=== input
+extends Node
+
+var h: int:
+	set(value):
+		h = value
+
+
+func test() -> void:
+	_use(h)<|>
+
+=== expected
+extends Node
+
+var h: int:
+	set(value):
+		h = value
+
+
+func test() -> void:
+	_use(h)
+
+
+func _use(p_h: int) -> void:
+	<|pass|>
+
+=== end

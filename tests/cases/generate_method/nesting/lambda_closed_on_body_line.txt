@@ -1,0 +1,33 @@
+action: generate_method
+status: pending
+=== input
+extends Node
+
+
+func test() -> void:
+	_schedule(func():
+		_tick())<|>
+	print("done")
+
+
+func _schedule(callback : Callable) -> void:
+	callback.call()
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	_schedule(func():
+		_tick())
+	print("done")
+
+
+func _tick() -> void:
+	<|pass|>
+
+
+func _schedule(callback : Callable) -> void:
+	callback.call()
+
+=== end

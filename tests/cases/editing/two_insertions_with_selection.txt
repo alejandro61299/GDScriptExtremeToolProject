@@ -1,0 +1,26 @@
+action: apply_plan
+=== plan
+[
+	{"line": 1, "blank_lines_before": 1, "blank_lines_after": 2, "lines": [[0, "var speed: float"]]},
+	{"line": 4, "indent_text": "\t", "lines": [[0, "var count: int = 0"]], "select": [0, 17, 18]}
+]
+=== input
+extends Node
+
+
+func _ready() -> void:
+	print("ready")
+	print("start")
+
+=== expected
+extends Node
+
+var speed: float
+
+
+func _ready() -> void:
+	var count: int = <|0|>
+	print("ready")
+	print("start")
+
+=== end

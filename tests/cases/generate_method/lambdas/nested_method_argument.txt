@@ -1,0 +1,41 @@
+action: generate_method
+status: pending
+=== input
+extends Node
+
+
+func _test_methods() -> void:
+	var nested_method = func(value: bool) -> float:
+		value = !value
+		return value
+	# Add lambda / anonymous method.
+	_add_method(func():
+		var a = 10
+		var b = 20
+		return a + b
+	)
+	# Add nested method
+	_add_method(nested_method)<|>
+
+=== expected
+extends Node
+
+
+func _test_methods() -> void:
+	var nested_method = func(value: bool) -> float:
+		value = !value
+		return value
+	# Add lambda / anonymous method.
+	_add_method(func():
+		var a = 10
+		var b = 20
+		return a + b
+	)
+	# Add nested method
+	_add_method(nested_method)
+
+
+func _add_method(p_nested_method: Callable) -> void:
+	<|pass|>
+
+=== end

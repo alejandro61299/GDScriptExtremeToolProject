@@ -1,0 +1,27 @@
+action: generate_method
+status: pending
+=== input
+extends Node
+
+
+func test() -> void:
+	_build(<|>
+		1,
+		"two",
+	)
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	_build(
+		1,
+		"two",
+	)
+
+
+func _build(param_0: int, param_1: String) -> void:
+	<|pass|>
+
+=== end

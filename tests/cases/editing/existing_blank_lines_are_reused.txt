@@ -1,0 +1,31 @@
+action: apply_plan
+=== plan
+[
+	{"line": 6, "blank_lines_before": 2, "blank_lines_after": 2, "lines": [[0, "func c() -> void:"], [1, "pass"]]}
+]
+=== input
+extends Node
+
+
+func a() -> void:
+	pass
+
+func b() -> void:
+	pass
+
+=== expected
+extends Node
+
+
+func a() -> void:
+	pass
+
+
+func c() -> void:
+	pass
+
+
+func b() -> void:
+	pass
+
+=== end

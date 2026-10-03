@@ -1,0 +1,31 @@
+action: generate_method
+status: pending
+=== input
+extends Node
+
+
+func a() -> void:
+	_new_method()<|>
+	# trailing note about a
+
+
+func b() -> void:
+	pass
+
+=== expected
+extends Node
+
+
+func a() -> void:
+	_new_method()
+	# trailing note about a
+
+
+func _new_method() -> void:
+	<|pass|>
+
+
+func b() -> void:
+	pass
+
+=== end

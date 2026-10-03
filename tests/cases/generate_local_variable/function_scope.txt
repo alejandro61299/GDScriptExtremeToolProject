@@ -1,0 +1,28 @@
+action: generate_local_variable
+status: pending
+=== input
+extends Node
+
+
+func _add_to_list(item : Object) -> void:
+	pass
+
+
+func _ready() -> void:
+	print("ready")
+	_add_to_list(<|my_item|>)
+
+=== expected
+extends Node
+
+
+func _add_to_list(item : Object) -> void:
+	pass
+
+
+func _ready() -> void:
+	var my_item: Object = <|null|>
+	print("ready")
+	_add_to_list(my_item)
+
+=== end

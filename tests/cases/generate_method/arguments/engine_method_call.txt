@@ -1,0 +1,22 @@
+action: generate_method
+=== input
+extends Node
+
+
+func test() -> void:
+	var node : Control = Control.new()
+	_use(node.has_focus())<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var node : Control = Control.new()
+	_use(node.has_focus())
+
+
+func _use(param_0: bool) -> void:
+	<|pass|>
+
+=== end

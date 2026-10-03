@@ -1,0 +1,24 @@
+action: apply_plan
+=== plan
+[
+	{"line": 5, "indent_text": "    ", "lines": [[0, "if true:"], [1, "print(1)"], [0, ""], [0, "print(2)"]], "select": [1, 0, 8]}
+]
+=== input
+extends Node
+
+
+func a() -> void:
+    pass
+
+=== expected
+extends Node
+
+
+func a() -> void:
+    pass
+    if true:
+        <|print(1)|>
+
+    print(2)
+
+=== end

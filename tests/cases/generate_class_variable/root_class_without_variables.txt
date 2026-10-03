@@ -1,0 +1,27 @@
+action: generate_class_variable
+status: pending
+=== input
+extends Node
+
+
+func _add_to_list(item : Object) -> void:
+	pass
+
+
+func _ready() -> void:
+	_add_to_list(<|my_item|>)
+
+=== expected
+extends Node
+
+var my_item: Object
+
+
+func _add_to_list(item : Object) -> void:
+	pass
+
+
+func _ready() -> void:
+	_add_to_list(<|my_item|>)
+
+=== end

@@ -1,0 +1,32 @@
+action: generate_local_variable
+status: pending
+=== input
+extends Node
+
+
+func _add_to_list(item : Object) -> void:
+	pass
+
+
+func _process(_delta: float) -> void:
+	print("tick")
+	if is_inside_tree():
+		print("inside")
+		_add_to_list(<|my_item|>)
+
+=== expected
+extends Node
+
+
+func _add_to_list(item : Object) -> void:
+	pass
+
+
+func _process(_delta: float) -> void:
+	print("tick")
+	if is_inside_tree():
+		var my_item: Object = <|null|>
+		print("inside")
+		_add_to_list(my_item)
+
+=== end

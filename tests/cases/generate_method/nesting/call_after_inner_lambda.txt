@@ -1,0 +1,35 @@
+action: generate_method
+status: pending
+=== input
+extends Node
+
+
+func extreme_nesting() -> void:
+	var level_1 = func():
+		var level_2 = func():
+			var level_3 = func():
+				return "¡Hello!"
+			_register(level_3)<|>
+			return level_3.call()
+		return level_2.call()
+	print(level_1.call())
+
+=== expected
+extends Node
+
+
+func extreme_nesting() -> void:
+	var level_1 = func():
+		var level_2 = func():
+			var level_3 = func():
+				return "¡Hello!"
+			_register(level_3)
+			return level_3.call()
+		return level_2.call()
+	print(level_1.call())
+
+
+func _register(p_level_3: Callable) -> void:
+	<|pass|>
+
+=== end

@@ -1,0 +1,18 @@
+action: generate_method
+=== input
+extends Node
+
+
+func _input(event: InputEvent) -> void:
+	_add_event(event)<|>
+=== expected
+extends Node
+
+
+func _input(event: InputEvent) -> void:
+	_add_event(event)
+
+
+func _add_event(p_event: InputEvent) -> void:
+	<|pass|>
+=== end

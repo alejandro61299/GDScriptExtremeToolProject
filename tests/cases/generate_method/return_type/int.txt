@@ -1,0 +1,20 @@
+action: generate_method
+=== input
+extends Node
+
+
+func test() -> void:
+	var count : int = _get_count()<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var count : int = _get_count()
+
+
+func _get_count() -> int:
+	<|return 0|>
+
+=== end

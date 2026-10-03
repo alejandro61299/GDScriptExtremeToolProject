@@ -1,0 +1,22 @@
+action: generate_method
+=== input
+extends Node
+
+
+func test() -> void:
+	var node : Control = Control.new()
+	node.visibility_changed.connect(_on_visibility_<|>changed)
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var node : Control = Control.new()
+	node.visibility_changed.connect(_on_visibility_changed)
+
+
+func _on_visibility_changed() -> void:
+	<|pass|>
+
+=== end

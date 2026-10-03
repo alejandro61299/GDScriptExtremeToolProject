@@ -1,0 +1,23 @@
+action: generate_method
+compile_check: skip
+=== input
+extends Node
+
+
+func test() -> void:
+	var player : AnimationPlayer = AnimationPlayer.new()
+	player.animation_changed.emit(<|_get_old_name|>(), _get_new_name())
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var player : AnimationPlayer = AnimationPlayer.new()
+	player.animation_changed.emit(_get_old_name(), _get_new_name())
+
+
+func _get_old_name() -> StringName:
+	<|return &""|>
+
+=== end
