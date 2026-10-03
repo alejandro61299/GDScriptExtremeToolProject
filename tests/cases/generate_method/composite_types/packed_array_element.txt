@@ -1,0 +1,23 @@
+action: generate_method
+status: pending
+=== input
+extends Node
+
+
+func test() -> void:
+	var names : PackedStringArray = []
+	_use(names[0])<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var names : PackedStringArray = []
+	_use(names[0])
+
+
+func _use(param_0: String) -> void:
+	<|pass|>
+
+=== end

@@ -1,0 +1,29 @@
+action: generate_method
+status: pending
+=== input
+extends Node
+
+class Foo:
+	var value : int = 0
+
+
+func test() -> void:
+	var foo := Foo.new()
+	_use(foo)<|>
+
+=== expected
+extends Node
+
+class Foo:
+	var value : int = 0
+
+
+func test() -> void:
+	var foo := Foo.new()
+	_use(foo)
+
+
+func _use(p_foo: Foo) -> void:
+	<|pass|>
+
+=== end

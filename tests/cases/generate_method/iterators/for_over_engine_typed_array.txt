@@ -1,0 +1,23 @@
+action: generate_method
+status: pending
+=== input
+extends Node
+
+
+func test() -> void:
+	for child in get_children():
+		_use(child)<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	for child in get_children():
+		_use(child)
+
+
+func _use(p_child: Node) -> void:
+	<|pass|>
+
+=== end

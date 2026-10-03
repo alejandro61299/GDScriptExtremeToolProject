@@ -1,0 +1,23 @@
+action: generate_method
+status: pending
+=== input
+extends Node
+
+
+func test(names : Dictionary[int, StringName]) -> void:
+	for key in names:
+		_use(key)<|>
+
+=== expected
+extends Node
+
+
+func test(names : Dictionary[int, StringName]) -> void:
+	for key in names:
+		_use(key)
+
+
+func _use(p_key: int) -> void:
+	<|pass|>
+
+=== end

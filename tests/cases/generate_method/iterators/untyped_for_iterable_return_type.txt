@@ -1,0 +1,23 @@
+action: generate_method
+status: pending
+=== input
+extends Node
+
+
+func test() -> void:
+	for value in _values():<|>
+		print(value)
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	for value in _values():
+		print(value)
+
+
+func _values() -> Array:
+	<|return []|>
+
+=== end

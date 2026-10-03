@@ -1,0 +1,22 @@
+action: generate_method
+=== input
+extends Node
+
+
+func test() -> void:
+	var values : Array[int] = _load()<|>
+	print(values)
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var values : Array[int] = _load()
+	print(values)
+
+
+func _load() -> Array[int]:
+	<|return []|>
+
+=== end

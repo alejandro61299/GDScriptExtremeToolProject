@@ -1,0 +1,23 @@
+action: generate_method
+status: pending
+=== input
+extends Node
+
+
+func test() -> void:
+	var names : Dictionary[int, StringName] = {}
+	_use(names.keys(), names.values())<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var names : Dictionary[int, StringName] = {}
+	_use(names.keys(), names.values())
+
+
+func _use(param_0: Array[int], param_1: Array[StringName]) -> void:
+	<|pass|>
+
+=== end

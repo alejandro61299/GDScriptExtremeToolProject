@@ -1,0 +1,28 @@
+action: generate_method
+=== input
+extends Node
+
+class Foo:
+	var value : int = 0
+
+
+func test() -> void:
+	var foos : Array[Foo] = []
+	foos[0].reset()<|>
+
+=== expected
+extends Node
+
+class Foo:
+	var value : int = 0
+
+
+	func reset() -> void:
+		<|pass|>
+
+
+func test() -> void:
+	var foos : Array[Foo] = []
+	foos[0].reset()
+
+=== end
