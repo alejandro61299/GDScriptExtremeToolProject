@@ -4,23 +4,19 @@ extends Node
 
 
 func test() -> void:
-	_build(<|>
-		1,
-		"two",
-	)
+	var items : Array[int] = [1]
+	_use(items[0])<|>
 
 === expected
 extends Node
 
 
 func test() -> void:
-	_build(
-		1,
-		"two",
-	)
+	var items : Array[int] = [1]
+	_use(items[0])
 
 
-func _build(param_0: int, param_1: String) -> void:
+func _use(param_0: int) -> void:
 	<|pass|>
 
 === end

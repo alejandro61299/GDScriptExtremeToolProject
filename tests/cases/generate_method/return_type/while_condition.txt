@@ -4,23 +4,19 @@ extends Node
 
 
 func test() -> void:
-	_build(<|>
-		1,
-		"two",
-	)
+	while _has_more():<|>
+		pass
 
 === expected
 extends Node
 
 
 func test() -> void:
-	_build(
-		1,
-		"two",
-	)
+	while _has_more():
+		pass
 
 
-func _build(param_0: int, param_1: String) -> void:
-	<|pass|>
+func _has_more() -> bool:
+	<|return false|>
 
 === end

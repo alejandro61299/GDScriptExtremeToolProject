@@ -20,13 +20,27 @@ class Block:
 	var statements: Array[Statement] = []
 
 
+class Piece:
+	var line: int = 0
+	var column: int = 0
+	var offset: int = 0
+	var length: int = 0
+
+
 class Statement:
 	var first_line: int = 0
 	var own_last_line: int = 0
 	var last_line: int = 0
 	var indent_text: String = ""
 	var code: String = ""
+	var pieces: Array[Piece] = []
 	var blocks: Array[Block] = []
+
+	func offset_at(line: int, column: int) -> int:
+		for piece in pieces:
+			if piece.line == line:
+				return piece.offset + clampi(column - piece.column, 0, piece.length)
+		return -1
 
 
 class Frame:
@@ -56,6 +70,19 @@ func scan(lines: PackedStringArray) -> Array[Statement]:
 		_close_frame(_frames.pop_back())
 	_finish_block(root)
 	return root.statements
+
+
+static func find_statement_at(statements: Array[Statement], line: int) -> Statement:
+	for statement in statements:
+		if line < statement.first_line or line > statement.last_line:
+			continue
+		for block in statement.blocks:
+			if line > block.header_line and line <= block.last_line:
+				var inner := find_statement_at(block.statements, line)
+				if inner != null:
+					return inner
+		return statement if statement.offset_at(line, 0) != -1 else null
+	return null
 
 
 static func find_matching_bracket(code: String, open_index: int) -> int:
@@ -149,9 +176,11 @@ func _append_code(masked: String, line_index: int) -> void:
 	if _depth == 0 and first_top_level_comma != -1 and text.ends_with(",") and _split_at(masked, first_top_level_comma, line_index):
 		return
 
-	_add_text(text, line_index)
+	_add_fragment(masked, line_index)
 	if text.ends_with(LINE_CONTINUATION):
 		_open_statement.code = _open_statement.code.trim_suffix(LINE_CONTINUATION).strip_edges(false, true)
+		var last_piece: Piece = _open_statement.pieces.back()
+		last_piece.length = _open_statement.code.length() - last_piece.offset
 		return
 	if not _string_delimiter.is_empty():
 		return
@@ -168,7 +197,7 @@ func _split_at(masked: String, column: int, line_index: int) -> bool:
 	var frame_index := _find_resumable_frame_index()
 	if frame_index == -1:
 		return false
-	_add_text(masked.substr(0, column).strip_edges(), line_index)
+	_add_fragment(masked.substr(0, column), line_index)
 	if _open_statement.code.is_empty():
 		_frames.back().block.statements.erase(_open_statement)
 	_open_statement = null
@@ -187,10 +216,19 @@ func _find_resumable_frame_index() -> int:
 	return -1
 
 
-func _add_text(text: String, line_index: int) -> void:
+func _add_fragment(fragment: String, line_index: int) -> void:
+	var text := fragment.strip_edges()
 	if text.is_empty():
 		return
-	_open_statement.code = text if _open_statement.code.is_empty() else _open_statement.code + " " + text
+	if not _open_statement.code.is_empty():
+		_open_statement.code += " "
+	var piece := Piece.new()
+	piece.line = line_index
+	piece.column = fragment.length() - fragment.strip_edges(true, false).length()
+	piece.offset = _open_statement.code.length()
+	piece.length = text.length()
+	_open_statement.pieces.append(piece)
+	_open_statement.code += text
 	_open_statement.own_last_line = line_index
 
 

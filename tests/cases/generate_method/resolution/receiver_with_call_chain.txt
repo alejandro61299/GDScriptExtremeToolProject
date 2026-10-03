@@ -4,7 +4,6 @@ extends Node
 
 
 func test() -> void:
-	var n: Node = Node.new()
-	n.foo_bar()<|>
+	get_parent().foo_bar()<|>
 
 === end

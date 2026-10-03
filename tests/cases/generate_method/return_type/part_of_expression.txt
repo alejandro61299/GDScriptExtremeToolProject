@@ -4,17 +4,19 @@ extends Node
 
 
 func test() -> void:
-	print(_get_x())<|>
+	var total : int = _count() + 1<|>
+	print(total)
 
 === expected
 extends Node
 
 
 func test() -> void:
-	print(_get_x())
+	var total : int = _count() + 1
+	print(total)
 
 
-func _get_x() -> Variant:
+func _count() -> Variant:
 	<|return null|>
 
 === end

@@ -1,0 +1,26 @@
+action: generate_method
+=== input
+extends Node
+
+class Foo:
+	var value : int = 0
+
+
+func test() -> void:
+	var foo : Foo = Foo.create(3)<|>
+
+=== expected
+extends Node
+
+class Foo:
+	var value : int = 0
+
+
+	static func create(param_0: int) -> Foo:
+		<|return Foo.new()|>
+
+
+func test() -> void:
+	var foo : Foo = Foo.create(3)
+
+=== end

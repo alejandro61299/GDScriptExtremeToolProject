@@ -1,0 +1,4 @@
+action: check_no_false_targets
+=== input
+extends Node
+=== end

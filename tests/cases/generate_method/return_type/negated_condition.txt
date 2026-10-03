@@ -4,7 +4,7 @@ extends Node
 
 
 func test() -> void:
-	if (_is_ready()):<|>
+	if is_inside_tree() and not _is_done():<|>
 		pass
 
 === expected
@@ -12,11 +12,11 @@ extends Node
 
 
 func test() -> void:
-	if (_is_ready()):
+	if is_inside_tree() and not _is_done():
 		pass
 
 
-func _is_ready() -> bool:
+func _is_done() -> bool:
 	<|return false|>
 
 === end

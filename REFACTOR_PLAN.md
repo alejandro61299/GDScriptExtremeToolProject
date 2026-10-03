@@ -7,7 +7,7 @@ Godot 4.7.2. Estado de partida: una única utilidad ("Generate Method Stub") con
 | 0 | Git, tests headless, formato de parámetros | Hecha |
 | 1 | Capa de edición genérica | Hecha |
 | 2 | Índice fiable: sentencias, bloques y lambdas como scopes | Hecha |
-| 3 | Resolución e inferencia compartidas | Pendiente |
+| 3 | Resolución e inferencia compartidas | Hecha |
 | 4 | Acciones y menú | Pendiente |
 | 5 | Generate local variable y Generate class variable | Pendiente |
 
@@ -46,6 +46,7 @@ addons/code_generator/
 │   ├── generate_local_variable_action.gd
 │   └── generate_class_variable_action.gd
 ├── analysis/
+│   ├── language.gd
 │   ├── source_scanner.gd
 │   ├── symbol_index.gd
 │   ├── symbol_index_builder.gd
@@ -152,18 +153,29 @@ El builder recorre el árbol de sentencias y crea los scopes:
 - Una sola expresión para `var`/`const` que cubre `:=`, tipos con genéricos y propiedades. Un valor que empieza por `func` es `Callable`.
 - `parent` pasa a ser referencia débil (hoy cada construcción deja objetos sin liberar).
 
-### Resolución (`analysis/type_resolver.gd`)
+### Resolución (`analysis/`)
 
-Un único punto de entrada que sustituye a `_resolve_receiver_class`, `_resolve_type_from_tokens`, `_infer_type_from_expr` y las búsquedas en ClassDB repetidas:
+- **`language.gd`**: palabras clave que no son llamadas y las 130 funciones de `@GlobalScope` y `@GDScript` con su tipo de retorno, extraídas de la documentación del motor.
+- **`call_site_parser.gd`**: encuentra las llamadas de una sentencia completa (no de la línea del cursor), con su receptor, sus argumentos y la llamada que las contiene. El receptor puede incluir llamadas, índices, strings y rutas de nodo (`get_parent().foo()`, `$Sprite/Child.hide()`).
+- **`type_resolver.gd`**: un único punto de entrada para tipos y miembros.
+  - `resolve_expression(expression, scope_info)`: tipo de una expresión encadenada. Empieza por literales, variables del scope, miembros propios o heredados, clases del archivo, tipos y singletons del motor, y funciones globales.
+  - `find_member(owner, name)`: variable, método o señal de una clase del archivo o del motor, subiendo por la herencia (clases internas primero, luego ClassDB).
+  - `is_function_defined(name, scope_info)`: métodos propios y heredados, funciones globales, constructores de tipos y clases del archivo.
+  - `resolve_signal(expression, scope_info)`: la señal a la que apunta `x.signal_name`, con sus parámetros.
+  - `expected_type(statement_code, call, scope_info)`: el tipo que el contexto espera de una llamada.
+  - `default_value_text(type)`: el literal por defecto de un tipo.
 
-- `resolve_expression_type(expression, scope_info)`
-- `find_method(type, name)` y `find_signal(type, name)`, sobre clases del archivo y, por herencia, ClassDB.
-- `is_defined(name, scope_info)`: locales, parámetros, miembros, heredados y funciones globales (lista estática de las 130 funciones de `@GlobalScope` y `@GDScript`).
-- `expected_type_at(statement, offset, scope_info)`: el tipo que el contexto espera en una posición. Se extrae de `_infer_return_type` y lo usan tanto el método generado (tipo de retorno) como las variables nuevas.
+`expected_type` decide así:
 
-`expected_type_at` cubre: argumento de una llamada, de `emit` o de `connect`; lado derecho de una declaración o asignación tipada; `return` en una función o lambda con tipo; y condición de `if`, `elif` o `while` (`bool`). Si el valor se usa pero el tipo no se puede inferir, el método generado devuelve `Variant` con `return null`.
-
-`call_site_parser.gd` trabaja sobre sentencias completas, no sobre la línea del cursor, y no trata `func`, `if`, `while` ni otras palabras clave como llamadas.
+| Contexto de la llamada | Tipo |
+|---|---|
+| Es la sentencia entera (con o sin `await`) | `void` |
+| Es un argumento completo de un método, de `emit` o de `connect` | El del parámetro |
+| Es el valor completo de un `var`/`const` tipado | El declarado |
+| Es el valor completo de una asignación a algo tipado | El del destino |
+| Es la expresión completa de un `return` en una función o lambda con tipo | El de retorno |
+| Es un operando de la condición de `if`, `elif` o `while` (con `and`, `or`, `not`) | `bool` |
+| Cualquier otro caso en que el valor se usa | `Variant`, con `return null` |
 
 ### Acciones (`actions/`)
 
@@ -284,6 +296,7 @@ indent: spaces
 - Una línea vacía antes del separador significa que el texto acaba en salto de línea.
 - `action: describe_scopes` compara el árbol de scopes del script de entrada con una descripción en texto (líneas en base 1).
 - `action: check_project_scripts` construye el índice de cada script de `addons/` y `tests/` y lo compara con la reflexión del motor.
+- `action: check_no_false_targets` comprueba que el generador no encuentra ninguna llamada indefinida en esos mismos scripts.
 - `action: apply_plan` prueba la capa de edición sin pasar por ninguna utilidad: la sección `=== plan` describe las inserciones en JSON (`line`, `indent_text`, `blank_lines_before`, `blank_lines_after`, `lines` y `select`).
 
 ## Fases
@@ -313,15 +326,23 @@ indent: spaces
 - Ocho casos en `tests/cases/scopes/` comprueban el árbol de scopes directamente. Uno de ellos compara el índice de cada script del proyecto con lo que devuelve el propio motor (métodos, señales, constantes, variables y clases internas).
 - Coste medido: 8 ms para un script de 600 líneas y 79 ms para uno de 4.800.
 
-### Fase 3 — Resolución e inferencia compartidas
+### Fase 3 — Resolución e inferencia compartidas (hecha)
 
-- `type_resolver.gd` y `call_site_parser.gd`.
-- Descomponer `_infer_return_type` (130 líneas) en `expected_type_at`.
-- Hecho cuando: pasan todo `resolution/` y `lambdas/lambda_argument`.
+- `language.gd`, `call_site_parser.gd` y `type_resolver.gd`.
+- El generador de métodos está reescrito sobre ellos: 218 líneas en vez de 603, sin la función de 130 líneas que infería el retorno.
+- Qué se genera ahora:
+  - Solo llamadas realmente sin definir. Se descartan los métodos heredados del motor o de una clase interna, las funciones globales, los constructores, las palabras clave y las llamadas sobre objetos cuyo tipo no es una clase del archivo.
+  - El callback de un `connect`, esté donde esté el cursor en la sentencia.
+  - Con varias candidatas en la misma sentencia: la que tiene el cursor en el nombre; si no, la llamada más interna que contiene el cursor.
+  - `static func` cuando la llamada se hace desde una función estática o sobre el nombre de una clase.
+- Cuando no hay nada que generar, la acción no hace nada. Los mensajes de error de la versión anterior han desaparecido; en la fase 4 la acción dejará de aparecer en el menú.
+- Arreglado de paso: el valor por defecto de `String` era `"<null>"`.
+- Comprobación nueva sobre los scripts del proyecto: como compilan, cualquier llamada que el generador tome por indefinida es un falso positivo. No hay ninguno en 1.203 llamadas.
+- La variable de un `for` sobre un array tipado sigue sin tipo; queda pendiente.
 
 ### Fase 4 — Acciones y menú
 
-- `code_context.gd`, `code_action.gd` y `generate_method_action.gd`.
+- `code_context.gd`, `code_action.gd` y `generate_method_action.gd` (el contenido actual de `stub_generator.gd`, que ya solo orquesta).
 - Registro de acciones en `code_generator_plugin.gd`; el menú muestra solo las disponibles.
 - Borrar `stub_generator.gd`.
 - Hecho cuando: todos los casos anteriores pasan a través de la acción.
@@ -338,13 +359,6 @@ Todos bajo `tests/cases/`. La columna "Hoy" es lo que hace la versión actual.
 
 | Caso | Hoy | Fase |
 |---|---|---|
-| `generate_method/lambdas/lambda_argument` | "More than one undefined function call" | 3 |
-| `generate_method/resolution/wrapped_by_global_function` | "More than one undefined function call" | 3 |
-| `generate_method/resolution/inherited_engine_method` | Genera `queue_free` en la clase actual | 3 |
-| `generate_method/resolution/receiver_of_engine_type` | Genera el método en la clase actual | 3 |
-| `generate_method/resolution/multiline_call` | "Cannot parse arguments" | 3 |
-| `generate_method/resolution/keyword_before_parenthesis` | `if (` cuenta como llamada | 3 |
-| `generate_method/resolution/connect_with_caret_outside_callback` | Genera `func connect(...)` | 3 |
 | `generate_local_variable/*` (6 casos) | La acción no existe | 5 |
 | `generate_class_variable/*` (4 casos) | La acción no existe | 5 |
 

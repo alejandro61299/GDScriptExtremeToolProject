@@ -4,23 +4,17 @@ extends Node
 
 
 func test() -> void:
-	_build(<|>
-		1,
-		"two",
-	)
+	self._helper(1)<|>
 
 === expected
 extends Node
 
 
 func test() -> void:
-	_build(
-		1,
-		"two",
-	)
+	self._helper(1)
 
 
-func _build(param_0: int, param_1: String) -> void:
+func _helper(param_0: int) -> void:
 	<|pass|>
 
 === end

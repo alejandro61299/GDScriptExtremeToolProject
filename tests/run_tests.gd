@@ -3,6 +3,7 @@ extends SceneTree
 const Generator = preload("res://addons/code_generator/stub_generator.gd")
 const SymbolIndex = preload("res://addons/code_generator/analysis/symbol_index.gd")
 const SymbolIndexBuilder = preload("res://addons/code_generator/analysis/symbol_index_builder.gd")
+const SourceScanner = preload("res://addons/code_generator/analysis/source_scanner.gd")
 const Snippet = preload("res://addons/code_generator/editing/snippet.gd")
 const EditPlan = preload("res://addons/code_generator/editing/edit_plan.gd")
 const EditApplier = preload("res://addons/code_generator/editing/edit_applier.gd")
@@ -227,6 +228,8 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_scopes(test_case, editor)
 		"check_project_scripts":
 			return _check_project_scripts()
+		"check_no_false_targets":
+			return _check_no_false_targets()
 		"check_index_memory":
 			return _check_index_memory(editor)
 	return PackedStringArray(["Unknown action '%s'." % test_case.action])
@@ -339,6 +342,29 @@ func _check_project_scripts() -> PackedStringArray:
 			var index := SymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
 			problems.append_array(_compare_with_engine(path, index.root, script))
 	return problems
+
+
+func _check_no_false_targets() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var generator := Generator.new()
+	for root_directory in PROJECT_SCRIPT_ROOTS:
+		for path in _collect_paths(root_directory, SCRIPT_EXTENSION):
+			var script := load(path) as GDScript
+			if script == null or not script.can_instantiate():
+				_error_collector.take()
+				continue
+			var index := SymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
+			_collect_false_targets(path, index, index.statements, generator, problems)
+	return problems
+
+
+func _collect_false_targets(path: String, index: SymbolIndex.SymbolIndexData, statements: Array[SourceScanner.Statement], generator: Generator, problems: PackedStringArray) -> void:
+	for statement in statements:
+		var scope_info := SymbolIndex.get_scope_info_for_line(index, statement.first_line)
+		for target in generator._find_targets(statement.code, scope_info):
+			problems.append("%s:%d: '%s' is defined but was taken for an undefined method." % [path, statement.first_line + 1, target.name])
+		for block in statement.blocks:
+			_collect_false_targets(path, index, block.statements, generator, problems)
 
 
 func _compare_with_engine(path: String, root_class: SymbolIndex.ClassScope, script: GDScript) -> PackedStringArray:

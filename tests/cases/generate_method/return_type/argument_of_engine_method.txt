@@ -4,23 +4,17 @@ extends Node
 
 
 func test() -> void:
-	_build(<|>
-		1,
-		"two",
-	)
+	add_child(_make_node())<|>
 
 === expected
 extends Node
 
 
 func test() -> void:
-	_build(
-		1,
-		"two",
-	)
+	add_child(_make_node())
 
 
-func _build(param_0: int, param_1: String) -> void:
-	<|pass|>
+func _make_node() -> Node:
+	<|return Node.new()|>
 
 === end

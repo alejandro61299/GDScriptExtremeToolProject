@@ -21,7 +21,7 @@ static var _block_pattern := RegEx.create_from_string("^(if|elif|else|for|while|
 static var _for_pattern := RegEx.create_from_string("^for\\s+(\\w+)\\s*(?::\\s*(.+?))?\\s+in\\s+(.+):$")
 static var _setter_pattern := RegEx.create_from_string("^set\\s*\\(\\s*(\\w+)\\s*\\)\\s*:")
 static var _getter_pattern := RegEx.create_from_string("^get\\s*(?:\\(\\s*\\))?\\s*:")
-static var _return_pattern := RegEx.create_from_string("^return\\b")
+static var _static_function_pattern := RegEx.create_from_string("\\bstatic\\s+func\\b")
 
 
 class FunctionHeader:
@@ -34,9 +34,10 @@ static func build(lines: PackedStringArray) -> SymbolIndex.SymbolIndexData:
 	var root := SymbolIndex.ClassScope.new()
 	root.body_start_line = 0
 	root.end_line = maxi(0, lines.size() - 1)
-	_add_class_members(root, SourceScanner.new().scan(lines))
 	var data := SymbolIndex.SymbolIndexData.new()
 	data.root = root
+	data.statements = SourceScanner.new().scan(lines)
+	_add_class_members(root, data.statements)
 	return data
 
 
@@ -88,6 +89,7 @@ static func _add_inner_class(parent: SymbolIndex.ClassScope, statement: SourceSc
 static func _add_method(class_scope: SymbolIndex.ClassScope, statement: SourceScanner.Statement, code: String) -> void:
 	var body := _own_block(statement, true)
 	var method := _create_function_scope(code, false, statement.first_line, statement.last_line, body)
+	method.is_static = _static_function_pattern.search(statement.code) != null
 	method.attach_to(class_scope)
 	if not method.name.is_empty():
 		if not class_scope.methods.has(method.name):
@@ -143,8 +145,6 @@ static func _add_body_statements(scope: SymbolIndex.ScopeBase, statements: Array
 		var body := _own_block(statement, false)
 		if _variable_pattern.search(code) != null:
 			scope.locals.append(_parse_variable(code, statement, false))
-		elif _return_pattern.search(code) != null:
-			_record_return(scope, statement.first_line)
 		if body != null:
 			_add_block(scope, statement, body, code)
 		_add_lambdas(scope, statement, body)
@@ -235,7 +235,6 @@ static func _parse_variable(code: String, statement: SourceScanner.Statement, ha
 	variable.name = variable_match.get_string(2)
 	variable.is_const = variable_match.get_string(1) == CONSTANT_KEYWORD
 	variable.type = declaration.type
-	variable.value = declaration.value
 	variable.start_line = statement.first_line
 	variable.end_line = statement.last_line
 	return variable
@@ -261,14 +260,6 @@ static func _parse_function_header(code: String) -> FunctionHeader:
 		var return_end := rest.length() if colon == -1 else colon
 		header.return_text = rest.substr(2, return_end - 2).strip_edges()
 	return header
-
-
-static func _record_return(scope: SymbolIndex.ScopeBase, line: int) -> void:
-	var current := scope
-	while current != null and not current is SymbolIndex.FunctionScope:
-		current = current.parent
-	if current != null:
-		(current as SymbolIndex.FunctionScope).return_lines.append(line)
 
 
 static func _block_kind(code: String) -> SymbolIndex.BlockScope.Kind:

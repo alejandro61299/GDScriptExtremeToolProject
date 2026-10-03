@@ -2,25 +2,23 @@ action: generate_method
 === input
 extends Node
 
+signal done(value : int)
+
 
 func test() -> void:
-	_build(<|>
-		1,
-		"two",
-	)
+	done.connect(_on_done)<|>
 
 === expected
 extends Node
 
+signal done(value : int)
+
 
 func test() -> void:
-	_build(
-		1,
-		"two",
-	)
+	done.connect(_on_done)
 
 
-func _build(param_0: int, param_1: String) -> void:
+func _on_done(p_value: int) -> void:
 	<|pass|>
 
 === end

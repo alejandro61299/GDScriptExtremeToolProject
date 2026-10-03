@@ -4,23 +4,17 @@ extends Node
 
 
 func test() -> void:
-	_build(<|>
-		1,
-		"two",
-	)
+	await _load()<|>
 
 === expected
 extends Node
 
 
 func test() -> void:
-	_build(
-		1,
-		"two",
-	)
+	await _load()
 
 
-func _build(param_0: int, param_1: String) -> void:
+func _load() -> void:
 	<|pass|>
 
 === end

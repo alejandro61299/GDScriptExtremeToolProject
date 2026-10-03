@@ -1,26 +1,21 @@
 action: generate_method
+compile_check: skip
 === input
 extends Node
 
 
 func test() -> void:
-	_build(<|>
-		1,
-		"two",
-	)
+	_first(_sec<|>ond())
 
 === expected
 extends Node
 
 
 func test() -> void:
-	_build(
-		1,
-		"two",
-	)
+	_first(_second())
 
 
-func _build(param_0: int, param_1: String) -> void:
-	<|pass|>
+func _second() -> Variant:
+	<|return null|>
 
 === end
