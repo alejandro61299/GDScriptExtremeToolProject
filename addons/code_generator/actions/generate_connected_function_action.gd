@@ -46,7 +46,7 @@ func build_plan(context: CodeContext) -> EditPlan:
 		target.target_class = context.scope_info.class_scope
 		target.signal_member = connection.signal_member
 		var snippet := _build_snippet(_build_signature(target, code, context.scope_info))
-		plan.insert(Placement.new_method(target.target_class, context.scope_info, context.lines, context.indent_unit), snippet)
+		plan.reveal(plan.insert(Placement.new_method(target.target_class, context.scope_info, context.lines, context.indent_unit), snippet))
 	return plan
 
 

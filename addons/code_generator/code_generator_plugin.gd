@@ -34,8 +34,19 @@ class CodeActionsMenuPlugin extends EditorContextMenuPlugin:
 
 	func _run_action(target : Variant, action : CodeAction) -> void:
 		var editor : CodeEdit = target if target is CodeEdit else _current_editor()
-		if editor != null:
-			EditApplier.apply(editor, action.build_plan(CodeContext.new(editor)))
+		if editor == null:
+			return
+		var plan := action.build_plan(CodeContext.new(editor))
+		if plan != null and plan.leaves_current_position():
+			_save_navigation_history(editor)
+		EditApplier.apply(editor, plan)
+
+
+	func _save_navigation_history(editor : CodeEdit) -> void:
+		for script_editor in EditorInterface.get_script_editor().get_open_script_editors():
+			if script_editor.get_base_editor() == editor:
+				script_editor.request_save_history.emit()
+				return
 
 
 	func _find_editor(paths : PackedStringArray) -> CodeEdit:

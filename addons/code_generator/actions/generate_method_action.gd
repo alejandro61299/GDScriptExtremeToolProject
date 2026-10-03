@@ -56,7 +56,7 @@ func build_plan(context: CodeContext) -> EditPlan:
 		return null
 	var signature := _build_signature(target, code, context.scope_info)
 	var plan := EditPlan.new()
-	plan.insert(Placement.new_method(target.target_class, context.scope_info, context.lines, context.indent_unit), _build_snippet(signature))
+	plan.reveal(plan.insert(Placement.new_method(target.target_class, context.scope_info, context.lines, context.indent_unit), _build_snippet(signature)))
 	return plan
 
 

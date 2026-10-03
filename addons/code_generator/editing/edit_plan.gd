@@ -25,13 +25,19 @@ class Replacement:
 
 var insertions: Array[Insertion] = []
 var replacements: Array[Replacement] = []
+var revealed_insertion: Insertion
 
 
-func insert(point: InsertionPoint, snippet: Snippet) -> void:
+func insert(point: InsertionPoint, snippet: Snippet) -> Insertion:
 	var insertion := Insertion.new()
 	insertion.point = point
 	insertion.snippet = snippet
 	insertions.append(insertion)
+	return insertion
+
+
+func reveal(insertion: Insertion) -> void:
+	revealed_insertion = insertion
 
 
 func replace(line: int, from_column: int, to_column: int, text: String) -> void:
@@ -45,3 +51,12 @@ func replace(line: int, from_column: int, to_column: int, text: String) -> void:
 
 func is_empty() -> bool:
 	return insertions.is_empty() and replacements.is_empty()
+
+
+func leaves_current_position() -> bool:
+	if revealed_insertion != null:
+		return true
+	for insertion in insertions:
+		if insertion.snippet.has_selection():
+			return true
+	return false

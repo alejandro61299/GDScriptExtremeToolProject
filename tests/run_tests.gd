@@ -28,6 +28,12 @@ const PROJECT_SCRIPT_ROOTS: Array[String] = ["res://addons", "res://tools"]
 const PROJECT_SCRIPTS: Array[String] = ["res://tests/run_tests.gd"]
 const INTERNAL_METHOD_PREFIX: String = "@"
 const ACTION_SCRIPT_SUFFIX: String = "_action"
+const VIEW_WIDTH: float = 900.0
+const VIEW_CARET_VISIBLE: String = "caret_visible"
+const VIEW_UNCHANGED: String = "unchanged"
+const VIEW_SAME_TOP_TEXT: String = "same_top_text"
+const VIEW_TEXT_VISIBLE: String = "text_visible"
+const PLAN_ACTION: String = "apply_plan"
 const DESCRIPTION_INDENT: String = "  "
 
 var _error_collector: ErrorCollector = ErrorCollector.new()
@@ -87,6 +93,10 @@ class TestCase:
 	var expected: MarkedText
 	var expected_raw: String = ""
 	var plan_description: String = ""
+	var viewport_lines: int = 0
+	var scroll_to_line: int = 0
+	var expected_view: String = ""
+	var view_text: String = ""
 
 
 class ErrorCollector extends Logger:
@@ -119,7 +129,7 @@ func _run() -> void:
 	filters.erase(DETAILS_ARGUMENT)
 	for path in _collect_paths(CASES_ROOT, CASE_EXTENSION):
 		if _matches_filters(path, filters):
-			_run_case(path)
+			await _run_case(path)
 	OS.remove_logger(_error_collector)
 	print("\n%d passed, %d pending, %d failed" % [_passed.size(), _pending.size(), _failed.size()])
 	quit(0 if _failed.is_empty() else 1)
@@ -154,10 +164,54 @@ func _run_case(path: String) -> void:
 	var editor := _create_editor(test_case)
 	_error_collector.take()
 	var problems := _run_action(test_case, editor)
+	editor.free()
+	if test_case.viewport_lines > 0 and problems.is_empty():
+		problems.append_array(await _check_view(test_case))
 	for error in _error_collector.take():
 		problems.append("Engine error: %s" % error)
-	editor.free()
 	_report(test_case, problems)
+
+
+func _check_view(test_case: TestCase) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var action := _find_code_action(test_case.action)
+	var editor := _create_editor(test_case)
+	editor.size = Vector2(VIEW_WIDTH, editor.get_line_height() * (test_case.viewport_lines + 0.5))
+	await process_frame
+	if test_case.scroll_to_line > 0:
+		editor.set_line_as_first_visible(test_case.scroll_to_line - 1)
+		await process_frame
+	var top_line := editor.get_first_visible_line()
+	var top_text := editor.get_line(top_line)
+	if test_case.expected_view == VIEW_SAME_TOP_TEXT and top_text.strip_edges().is_empty():
+		problems.append("The view starts on an empty line; scroll to a line with code.")
+	EditApplier.apply(editor, _build_plan(test_case.plan_description) if test_case.action == PLAN_ACTION else action.build_plan(CodeContext.new(editor)))
+	await process_frame
+	await process_frame
+	var first_line := editor.get_first_visible_line()
+	var last_line := editor.get_last_full_visible_line()
+	var caret_line := editor.get_caret_line()
+	match test_case.expected_view:
+		VIEW_CARET_VISIBLE:
+			if caret_line < first_line or caret_line > last_line:
+				problems.append("The caret is on line %d, outside the visible lines %d..%d." % [caret_line + 1, first_line + 1, last_line + 1])
+		VIEW_UNCHANGED:
+			if first_line != top_line:
+				problems.append("The view moved: its first line went from %d to %d." % [top_line + 1, first_line + 1])
+		VIEW_SAME_TOP_TEXT:
+			if editor.get_line(first_line) != top_text:
+				problems.append("The view shows different code: its first line was '%s' and now is '%s'." % [top_text, editor.get_line(first_line)])
+		VIEW_TEXT_VISIBLE:
+			var text_line := -1
+			for line in editor.get_line_count():
+				if editor.get_line(line).strip_edges() == test_case.view_text:
+					text_line = line
+			if text_line < first_line or text_line > last_line:
+				problems.append("'%s' is on line %d, outside the visible lines %d..%d." % [test_case.view_text, text_line + 1, first_line + 1, last_line + 1])
+		_:
+			problems.append("Unknown expect_view '%s'." % test_case.expected_view)
+	editor.free()
+	return problems
 
 
 func _parse_case(path: String) -> TestCase:
@@ -190,6 +244,10 @@ func _parse_case(path: String) -> TestCase:
 	test_case.expected_raw = sections.get("expected", test_case.input.text)
 	test_case.expected = MarkedText.parse(test_case.expected_raw)
 	test_case.plan_description = sections.get("plan", "")
+	test_case.viewport_lines = int(headers.get("viewport_lines", "0"))
+	test_case.scroll_to_line = int(headers.get("scroll_to_line", "0"))
+	test_case.expected_view = headers.get("expect_view", "")
+	test_case.view_text = headers.get("view_text", "")
 	return test_case
 
 
@@ -283,7 +341,9 @@ func _build_plan(description: String) -> EditPlan:
 		if entry.has("select"):
 			var selection: Array = entry["select"]
 			snippet.select(int(selection[0]), int(selection[1]), int(selection[2]))
-		plan.insert(point, snippet)
+		var insertion := plan.insert(point, snippet)
+		if entry.get("reveal", false):
+			plan.reveal(insertion)
 	return plan
 
 

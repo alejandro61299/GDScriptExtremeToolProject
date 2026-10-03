@@ -25,4 +25,8 @@ class Panchito extends RefCounted:
 	signal panchito_debasted(data : Dictionary[Propietario, int])
 	
 	func _init() -> void:
-		panchito_debasted
+		panchito_debasted.connect(_on_panchito_debasted)
+
+
+	func _on_panchito_debasted(p_data: Dictionary[Propietario, int]) -> void:
+		pass

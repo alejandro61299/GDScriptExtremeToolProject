@@ -1,0 +1,250 @@
+action: generate_local_variable
+viewport_lines: 8
+scroll_to_line: 119
+expect_view: caret_visible
+=== input
+extends Node
+
+
+func filler_0() -> void:
+	pass
+
+
+func filler_1() -> void:
+	pass
+
+
+func filler_2() -> void:
+	pass
+
+
+func filler_3() -> void:
+	pass
+
+
+func filler_4() -> void:
+	pass
+
+
+func filler_5() -> void:
+	pass
+
+
+func filler_6() -> void:
+	pass
+
+
+func filler_7() -> void:
+	pass
+
+
+func filler_8() -> void:
+	pass
+
+
+func filler_9() -> void:
+	pass
+
+
+func filler_10() -> void:
+	pass
+
+
+func filler_11() -> void:
+	pass
+
+
+func filler_12() -> void:
+	pass
+
+
+func filler_13() -> void:
+	pass
+
+
+func filler_14() -> void:
+	pass
+
+
+func filler_15() -> void:
+	pass
+
+
+func filler_16() -> void:
+	pass
+
+
+func filler_17() -> void:
+	pass
+
+
+func filler_18() -> void:
+	pass
+
+
+func filler_19() -> void:
+	pass
+
+
+func _add_to_list(item : Object) -> void:
+	pass
+
+
+func test() -> void:
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print("target")
+	_add_to_list(<|my_item|>)
+
+=== expected
+extends Node
+
+
+func filler_0() -> void:
+	pass
+
+
+func filler_1() -> void:
+	pass
+
+
+func filler_2() -> void:
+	pass
+
+
+func filler_3() -> void:
+	pass
+
+
+func filler_4() -> void:
+	pass
+
+
+func filler_5() -> void:
+	pass
+
+
+func filler_6() -> void:
+	pass
+
+
+func filler_7() -> void:
+	pass
+
+
+func filler_8() -> void:
+	pass
+
+
+func filler_9() -> void:
+	pass
+
+
+func filler_10() -> void:
+	pass
+
+
+func filler_11() -> void:
+	pass
+
+
+func filler_12() -> void:
+	pass
+
+
+func filler_13() -> void:
+	pass
+
+
+func filler_14() -> void:
+	pass
+
+
+func filler_15() -> void:
+	pass
+
+
+func filler_16() -> void:
+	pass
+
+
+func filler_17() -> void:
+	pass
+
+
+func filler_18() -> void:
+	pass
+
+
+func filler_19() -> void:
+	pass
+
+
+func _add_to_list(item : Object) -> void:
+	pass
+
+
+func test() -> void:
+	var my_item: Object = <|null|>
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print(2)
+	print("target")
+	_add_to_list(my_item)
+
+=== end

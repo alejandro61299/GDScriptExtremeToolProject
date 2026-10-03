@@ -14,6 +14,7 @@ const NODE_PATH_PREFIXES : String = "$%"
 const ANNOTATION_PREFIX : String = "@"
 const NODE_PATH_SEPARATOR : String = "/"
 const SPACE : String = " "
+const WILDCARD : String = "_"
 const VARIABLE_TEMPLATE : String = "var %s"
 const TYPED_VARIABLE_TEMPLATE : String = "var %s: %s"
 
@@ -48,7 +49,7 @@ func find_undefined_identifier(context: CodeContext) -> UndefinedIdentifier:
 
 func find_undefined_identifier_at(code: String, start: int, end: int, scope_info: SymbolIndex.ScopeInfo) -> UndefinedIdentifier:
 	var identifier := code.substr(start, end - start)
-	if not TypeResolver.is_identifier(identifier) or not _is_value(code, start, end):
+	if identifier == WILDCARD or not TypeResolver.is_identifier(identifier) or not _is_value(code, start, end):
 		return null
 	if _declared_names(code).has(identifier) or TypeResolver.is_name_defined(identifier, scope_info):
 		return null

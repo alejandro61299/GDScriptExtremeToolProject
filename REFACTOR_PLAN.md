@@ -12,6 +12,7 @@ Godot 4.7.2. Estado de partida: una única utilidad ("Generate Method Stub") con
 | 5 | Generate local variable y Generate class variable | Hecha |
 | 6 | Tipos compuestos, tipos inferidos e iteradores | Hecha |
 | 7 | Generate Connected Function | Hecha |
+| 8 | Vista y navegación tras generar | Hecha |
 
 ## Objetivo
 
@@ -435,6 +436,23 @@ Lo que ha hecho falta en las capas comunes:
 - `EditPlan.replace(line, from_column, to_column, text)` y su aplicación en `EditApplier`, en el mismo undo que las inserciones. Sin selección de snippet, el cursor queda tras el texto reemplazado.
 - `Statement.position_at(offset)` para pasar de una posición de la sentencia a línea y columna.
 - **Recuperación ante paréntesis sin cerrar.** `my_signal.connect(` deja un paréntesis abierto, y el escáner unía las líneas siguientes a esa sentencia. Ahora una línea con indentación menor o igual que la de la sentencia, que no empieza por un cierre, una coma, un punto o un operador, empieza una sentencia nueva.
+
+### Fase 8 — Vista y navegación tras generar (hecha)
+
+- **Mostrar lo insertado es una petición explícita de la acción**, separada de dónde queda el cursor. `plan.insert(...)` devuelve la inserción y `plan.reveal(insertion)` indica cuál hay que enseñar. Una acción que inserte varios bloques elige el que le parezca más adecuado, o ninguno.
+- **Qué acciones lo piden hoy:** método, función conectada (cuando crea el método) y variable local. Si el bloque ya se ve entero, la vista no se mueve; si no, se centra en él.
+- **La selección no mueve la vista.** Un fragmento puede dejar el cursor seleccionando algo sin que se muestre, y se puede mostrar un bloque sin tocar el cursor.
+- **El ajuste se repite en el frame siguiente.** Al insertar al final del archivo, el editor aún no ha ampliado su rango de scroll y el primer intento se queda corto. Era el motivo de que los métodos generados al final no se vieran.
+- **Si la acción no pide mostrar nada, la vista no se mueve** (variable de clase, o completar una conexión cuyo método ya existe). Si se insertan líneas por encima de lo visible, el scroll se compensa para que el mismo código siga en el mismo sitio de la pantalla.
+- **Se puede volver atrás.** Antes de saltar, el plugin emite `request_save_history` en el editor del script, de modo que el botón de historial "anterior" del editor de scripts devuelve el cursor a donde estaba. Comprobado en un editor headless: tras emitirla y saltar, el botón se activa y al pulsarlo el cursor vuelve a la línea original.
+- La capa de edición no sabe nada del editor de scripts: el historial lo guarda `code_generator_plugin.gd`, y `EditPlan.leaves_current_position()` le dice cuándo (hay un bloque que mostrar o una selección en lo insertado).
+
+Casos en `tests/cases/view/`, con tres cabeceras nuevas:
+
+- `viewport_lines`: alto del editor en líneas.
+- `scroll_to_line`: línea (en base 1) que se coloca arriba antes de ejecutar la acción.
+- `expect_view`: `caret_visible`, `unchanged` (la primera línea visible no cambia), `same_top_text` (se sigue viendo el mismo código arriba) o `text_visible` (la línea indicada en `view_text` queda a la vista).
+- En los casos `apply_plan`, una inserción lleva `"reveal": true` para pedir que se muestre.
 
 ## Casos pendientes
 

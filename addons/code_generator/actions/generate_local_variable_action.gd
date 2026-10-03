@@ -22,7 +22,7 @@ func build_plan(context: CodeContext) -> EditPlan:
 	snippet.add_line(0, declaration + value)
 	snippet.select(0, declaration.length(), declaration.length() + value.length())
 	var plan := EditPlan.new()
-	plan.insert(Placement.scope_start(scope), snippet)
+	plan.reveal(plan.insert(Placement.scope_start(scope), snippet))
 	return plan
 
 

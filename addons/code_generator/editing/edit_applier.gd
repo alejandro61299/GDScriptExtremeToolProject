@@ -9,6 +9,9 @@ class ResolvedInsertion:
 	var order: int = 0
 	var line: int = 0
 	var block_lines: PackedStringArray = []
+	var snippet_offset: int = 0
+	var snippet_size: int = 0
+	var is_revealed: bool = false
 	var has_selection: bool = false
 	var selection_line: int = 0
 	var selection_from: int = 0
@@ -24,13 +27,18 @@ static func apply(editor: CodeEdit, plan: EditPlan) -> void:
 	var indent_unit := Indentation.detect_unit(editor.text.split("\n"), Indentation.editor_unit(editor))
 	var resolved: Array[ResolvedInsertion] = []
 	for insertion in plan.insertions:
-		resolved.append(_resolve(editor, insertion, indent_unit, resolved.size()))
+		var resolved_insertion := _resolve(editor, insertion, indent_unit, resolved.size())
+		resolved_insertion.is_revealed = insertion == plan.revealed_insertion
+		resolved.append(resolved_insertion)
 
 	var bottom_up: Array[ResolvedInsertion] = resolved.duplicate()
 	bottom_up.sort_custom(func(first: ResolvedInsertion, second: ResolvedInsertion) -> bool: return second.is_above(first))
 
 	var replacements: Array[EditPlan.Replacement] = plan.replacements.duplicate()
 	replacements.sort_custom(func(first: EditPlan.Replacement, second: EditPlan.Replacement) -> bool: return first.line > second.line or (first.line == second.line and first.from_column > second.from_column))
+
+	var scroll_before := editor.scroll_vertical
+	var first_visible_line := editor.get_first_visible_line()
 
 	editor.begin_complex_operation()
 	for replacement in replacements:
@@ -42,6 +50,17 @@ static func apply(editor: CodeEdit, plan: EditPlan) -> void:
 
 	if not _select_first_selection(editor, resolved) and not plan.replacements.is_empty():
 		_place_caret_after(editor, plan.replacements[plan.replacements.size() - 1], resolved)
+
+	for insertion in resolved:
+		if insertion.is_revealed:
+			var first_line := _final_line(insertion, resolved) + insertion.snippet_offset
+			_now_and_next_frame(editor, _reveal_lines.bind(first_line, first_line + insertion.snippet_size - 1))
+			return
+	var lines_inserted_above := 0
+	for insertion in resolved:
+		if insertion.line <= first_visible_line:
+			lines_inserted_above += insertion.block_lines.size()
+	_now_and_next_frame(editor, _restore_scroll.bind(scroll_before + lines_inserted_above))
 
 
 static func _resolve(editor: CodeEdit, insertion: EditPlan.Insertion, indent_unit: String, order: int) -> ResolvedInsertion:
@@ -63,6 +82,8 @@ static func _resolve(editor: CodeEdit, insertion: EditPlan.Insertion, indent_uni
 	resolved.line = line
 	for i in missing_before:
 		resolved.block_lines.append("")
+	resolved.snippet_offset = missing_before
+	resolved.snippet_size = snippet.lines.size()
 	for index in snippet.lines.size():
 		var snippet_line := snippet.lines[index]
 		var prefix := ""
@@ -101,15 +122,41 @@ static func _select_first_selection(editor: CodeEdit, resolved: Array[ResolvedIn
 	for insertion in resolved:
 		if not insertion.has_selection:
 			continue
-		var line := insertion.line + insertion.selection_line
-		for other in resolved:
-			if other != insertion and other.is_above(insertion):
-				line += other.block_lines.size()
+		var line := _final_line(insertion, resolved) + insertion.selection_line
 		editor.remove_secondary_carets()
 		editor.select(line, insertion.selection_from, line, insertion.selection_to)
-		editor.center_viewport_to_caret()
 		return true
 	return false
+
+
+static func _final_line(insertion: ResolvedInsertion, resolved: Array[ResolvedInsertion]) -> int:
+	var line := insertion.line
+	for other in resolved:
+		if other != insertion and other.is_above(insertion):
+			line += other.block_lines.size()
+	return line
+
+
+static func _reveal_lines(editor: CodeEdit, first_line: int, last_line: int) -> void:
+	if first_line >= editor.get_first_visible_line() and last_line <= editor.get_last_full_visible_line():
+		return
+	editor.set_line_as_center_visible((first_line + last_line) / 2)
+
+
+static func _restore_scroll(editor: CodeEdit, scroll: float) -> void:
+	editor.scroll_vertical = scroll
+
+
+static func _now_and_next_frame(editor: CodeEdit, view_action: Callable) -> void:
+	view_action.call(editor)
+	if not editor.is_inside_tree():
+		return
+	var editor_id := editor.get_instance_id()
+	editor.get_tree().process_frame.connect(func() -> void:
+		var live_editor := instance_from_id(editor_id) as CodeEdit
+		if live_editor != null:
+			view_action.call(live_editor)
+	, CONNECT_ONE_SHOT)
 
 
 static func _place_caret_after(editor: CodeEdit, replacement: EditPlan.Replacement, resolved: Array[ResolvedInsertion]) -> void:
