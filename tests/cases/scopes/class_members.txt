@@ -1,0 +1,55 @@
+action: describe_scopes
+=== input
+@tool
+extends Node
+
+signal changed(value : int, source)
+
+const LIMIT : int = 10
+
+@export var speed := 5.0
+var lookup: Dictionary[String, int]
+var health: int = 3:
+	set(value):
+		health = clampi(value, 0, LIMIT)
+	get:
+		return health
+var table: Dictionary = {
+	"a": 1,
+}
+
+class Inner:
+	extends RefCounted
+
+	var count: int = 0
+
+	static func create() -> Inner:
+		return Inner.new()
+
+
+func multi(
+	first: int,
+	second := "text",
+	third = null,
+) -> void:
+	print(first, second, third)
+
+
+func one_liner() -> int: return 1
+=== expected
+class <root> 1-36
+  signal changed(value: int, source)
+  const LIMIT: int 6
+  var speed: float 8
+  var lookup: Dictionary[String, int] 9
+  var health: int 10-14
+  property 10-14 body 11
+    function set(value: int) 11-12 body 12
+    function get() 13-14 body 14
+  var table: Dictionary 15-17
+  class Inner 19-25 body 20
+    var count: int 22
+    function create() -> Inner 24-25 body 25
+  function multi(first: int, second: String, third: Object) -> void 28-33 body 33
+  function one_liner() -> int 36-36
+=== end

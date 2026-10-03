@@ -1,0 +1,43 @@
+action: describe_scopes
+=== input
+extends Node
+
+
+func combined_nesting(items: Array[int]) -> void:
+	for item in items:
+		if item > 0:
+			_schedule(func():
+				var doubled: int = item * 2
+				match doubled:
+					2:
+						_schedule(func():
+							var label: String = str(doubled)
+							print(label)
+						)
+					_:
+						pass
+			)
+		else:
+			while false:
+				pass
+
+
+func _schedule(callback : Callable) -> void:
+	callback.call()
+=== expected
+class <root> 1-24
+  function combined_nesting(items: Array[int]) -> void 4-20 body 5
+    for 5-20 body 6
+      var item 5
+      if 6-17 body 7
+        lambda() 7-16 body 8
+          var doubled: int 8
+          match 9-16 body 10
+            match_branch 10-14 body 11
+              lambda() 11-13 body 12
+                var label: String 12
+            match_branch 15-16 body 16
+      else 18-20 body 19
+        while 19-20 body 20
+  function _schedule(callback: Callable) -> void 23-24 body 24
+=== end

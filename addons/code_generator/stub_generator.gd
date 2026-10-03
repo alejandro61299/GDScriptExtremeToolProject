@@ -1,7 +1,8 @@
 @tool
 extends RefCounted
 
-const SymbolApi = preload("res://addons/code_generator/symbol_index.gd")
+const SymbolApi = preload("res://addons/code_generator/analysis/symbol_index.gd")
+const SymbolIndexBuilder = preload("res://addons/code_generator/analysis/symbol_index_builder.gd")
 const Snippet = preload("res://addons/code_generator/editing/snippet.gd")
 const EditPlan = preload("res://addons/code_generator/editing/edit_plan.gd")
 const Placement = preload("res://addons/code_generator/editing/placement.gd")
@@ -36,7 +37,7 @@ func generate_stub(editor: CodeEdit) -> void:
 		return
 		
 	var lines = doc_text.split("\n")
-	var symbol_index = SymbolApi.build_symbol_index(lines)
+	var symbol_index = SymbolIndexBuilder.build(lines)
 	
 	var selection_text = editor.get_selected_text()
 	var current_line_idx = editor.get_caret_line()
@@ -391,7 +392,7 @@ func _resolve_receiver_class(receiver_expr: String, scope_info: SymbolApi.ScopeI
 		current_class = next_class
 	return current_class
 
-func _resolve_signal_or_class_signal(expr: String, scope_info: SymbolApi.ScopeInfo) -> SymbolApi.SignalScope:
+func _resolve_signal_or_class_signal(expr: String, scope_info: SymbolApi.ScopeInfo) -> SymbolApi.SignalSymbol:
 	var receiver_obj = "self"
 	var signal_name = expr
 	if "." in expr:
@@ -433,10 +434,9 @@ func _infer_return_type(signature: SymbolApi.FunctionSignature, scope_info: Symb
 	var func_name = signature.name
 	var call_line = signature.line
 	var call_line_text = signature.line_text
-	var ms = scope_info.method_scope
-	var cs = scope_info.class_scope
+	var ms = scope_info.function_scope
 	
-	if ms and ms.return_type and ms.return_line != -1 and ms.return_line == call_line:
+	if ms and ms.return_type and ms.return_lines.has(call_line):
 		var r_ret = RegEx.new(); r_ret.compile("^\\s*return\\s+.*\\b" + func_name + "\\s*\\(")
 		if r_ret.search(call_line_text): signature.return_type = ms.return_type; return
 			
@@ -548,17 +548,9 @@ func _infer_return_type(signature: SymbolApi.FunctionSignature, scope_info: Symb
 									signature.return_type = t_new
 									return
 	
-	var _try_match = func(vars: Dictionary) -> SymbolApi.TypeData:
-		for name in vars:
-			var vs = vars[name]
-			if call_line >= vs.start_line and call_line <= vs.end_line:
-				if vs.type and vs.value and vs.value.contains(func_name + "("):
-					return vs.type
-		return null
-	if ms:
-		var t = _try_match.call(ms.locals); if t: signature.return_type = t; return
-	if cs:
-		var t = _try_match.call(cs.vars); if t: signature.return_type = t; return
+	var declaration := SymbolApi.find_variable_declared_at(scope_info, call_line)
+	if declaration != null and declaration.type != null and declaration.value.contains(func_name + "("):
+		signature.return_type = declaration.type
 
 func _normalize_argument_names(signature: SymbolApi.FunctionSignature) -> void:
 	var used_names: Array[String] = []

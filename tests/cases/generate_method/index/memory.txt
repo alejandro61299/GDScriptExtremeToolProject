@@ -1,5 +1,4 @@
 action: check_index_memory
-status: pending
 === input
 extends Node
 

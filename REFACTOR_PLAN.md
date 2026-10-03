@@ -6,7 +6,7 @@ Godot 4.7.2. Estado de partida: una única utilidad ("Generate Method Stub") con
 |---|---|---|
 | 0 | Git, tests headless, formato de parámetros | Hecha |
 | 1 | Capa de edición genérica | Hecha |
-| 2 | Índice fiable: sentencias, bloques y lambdas como scopes | Pendiente |
+| 2 | Índice fiable: sentencias, bloques y lambdas como scopes | Hecha |
 | 3 | Resolución e inferencia compartidas | Pendiente |
 | 4 | Acciones y menú | Pendiente |
 | 5 | Generate local variable y Generate class variable | Pendiente |
@@ -63,7 +63,7 @@ tests/
 └── cases/
 ```
 
-Desaparecen `code_inserter.gd`, `stub_generator.gd` y `code_generator_unit_tests.gd`.
+`code_inserter.gd` y `code_generator_unit_tests.gd` ya están borrados; `stub_generator.gd` desaparece en la fase 4.
 
 ## Piezas clave
 
@@ -99,7 +99,7 @@ Traduce una intención a un `InsertionPoint` usando el índice:
 
 | Función | Dónde | Blancos antes / después |
 |---|---|---|
-| `after_method(function_scope)` | Tras el método de primer nivel que contiene la posición, por muy anidada que esté | 2 / 2 |
+| `after_member(scope)` | Tras el miembro de la clase destino que contiene la posición (método, propiedad o clase interna), por muy anidada que esté | 2 / 2 |
 | `end_of_class(class_scope)` | Tras el último miembro de la clase | 2 / 2 |
 | `class_header(class_scope)` | Tras la cabecera, si la clase está vacía | 1 / 2 |
 | `member_variable(class_scope)` | Sección de variables de la clase (ver utilidades) | 0 o 1 / 2 antes de un método |
@@ -147,7 +147,8 @@ El builder recorre el árbol de sentencias y crea los scopes:
 - Todo scope guarda su línea de cabecera, la primera línea de su cuerpo, su última línea, el texto de indentación de su cuerpo, sus hijos y sus locales en orden de declaración.
 - El scope de una posición es el bloque que contiene su sentencia. La condición de un `if` pertenece al scope exterior, no al bloque que abre.
 - La búsqueda de un nombre sube de scope en scope y solo considera declaraciones anteriores a la línea de uso. La variable de un `for` es un local de su bloque.
-- Cada `ClassScope` guarda el fin de su cabecera y sus miembros en orden de aparición, con tipo de miembro y rango real. Una propiedad con `set`/`get` y un valor multilínea ocupan todas sus líneas.
+- Una propiedad con `set`/`get` y un valor multilínea ocupan todas sus líneas. El bloque de la propiedad es un scope propio, y `set` y `get` son funciones dentro de él.
+- El fin de la cabecera de cada clase y sus miembros en orden de aparición se añaden en la fase 5, que es la primera que los necesita.
 - Una sola expresión para `var`/`const` que cubre `:=`, tipos con genéricos y propiedades. Un valor que empieza por `func` es `Callable`.
 - `parent` pasa a ser referencia débil (hoy cada construcción deja objetos sin liberar).
 
@@ -281,6 +282,8 @@ indent: spaces
 - `<|>` marca el cursor y `<|...|>` una selección, tanto en la entrada como en el resultado esperado.
 - Sin sección `expected`, se espera que el texto no cambie.
 - Una línea vacía antes del separador significa que el texto acaba en salto de línea.
+- `action: describe_scopes` compara el árbol de scopes del script de entrada con una descripción en texto (líneas en base 1).
+- `action: check_project_scripts` construye el índice de cada script de `addons/` y `tests/` y lo compara con la reflexión del motor.
 - `action: apply_plan` prueba la capa de edición sin pasar por ninguna utilidad: la sección `=== plan` describe las inserciones en JSON (`line`, `indent_text`, `blank_lines_before`, `blank_lines_after`, `lines` y `select`).
 
 ## Fases
@@ -289,7 +292,7 @@ indent: spaces
 
 - Repositorio git inicializado en la raíz, rama `main`, sin commits todavía.
 - `tests/run_tests.gd` y los casos de `tests/cases/`.
-- Los 17 stubs de `code_generator_unit_tests.gd` están cubiertos por casos. El archivo se borra después del primer commit, para que quede en el historial.
+- Los 17 stubs de `code_generator_unit_tests.gd` están cubiertos por casos y el archivo está borrado.
 - Formato de nombres de parámetros implementado en `stub_generator.gd`.
 
 ### Fase 1 — Capa de edición genérica (hecha)
@@ -298,15 +301,17 @@ indent: spaces
 - El generador de métodos produce un `Snippet` con indentación relativa y lo inserta a través de `EditPlan` y `EditApplier`.
 - Arreglados: la inserción al final de un archivo sin salto de línea y los stubs con tabs en archivos indentados con espacios.
 - Siete casos en `tests/cases/editing/` prueban la capa directamente: varias inserciones en un plan, principio y final del archivo, reutilización de líneas en blanco, indentación relativa y conservación de la selección.
-- `code_inserter.gd` ya no se usa. Se borra después del primer commit, igual que `code_generator_unit_tests.gd`.
-- Mientras el índice no dé la indentación real del cuerpo de cada clase, `Placement` usa la de la línea `class` más una unidad.
+- `code_inserter.gd` está borrado.
 
-### Fase 2 — Índice fiable
+### Fase 2 — Índice fiable (hecha)
 
-- `source_scanner.gd` con el árbol de sentencias.
-- `symbol_index_builder.gd` con los tres tipos de scope; `symbol_index.gd` se queda con los datos y las consultas.
-- `Placement` usa los rangos reales.
-- Hecho cuando: pasan el resto de `placement/`, todo `index/`, todo `nesting/` y los tres casos de `lambdas/` que no dependen del parser de llamadas.
+- `analysis/source_scanner.gd` produce el árbol de sentencias con las reglas de arriba.
+- `analysis/symbol_index_builder.gd` crea los scopes de clase, función (métodos, lambdas y accesores de propiedad) y bloque. `symbol_index.gd` se ha movido a `analysis/` y se queda con los datos, las consultas y los ayudantes de tipos que la fase 3 pasará a `type_resolver.gd`.
+- `Placement` inserta tras el miembro de la clase destino que contiene la posición, usando su rango real, y copia la indentación del cuerpo de la clase.
+- El generador de métodos sigue siendo el antiguo, adaptado al índice nuevo: busca los locales por scope y admite varios `return` por función.
+- Arreglados: stubs insertados en medio de lambdas, propiedades y valores multilínea; tipos perdidos en lambdas anidadas; `:=`, genéricos sin valor inicial, firmas multilínea, `func` en comentarios y strings, locales con el mismo nombre en bloques distintos, y la fuga de memoria.
+- Ocho casos en `tests/cases/scopes/` comprueban el árbol de scopes directamente. Uno de ellos compara el índice de cada script del proyecto con lo que devuelve el propio motor (métodos, señales, constantes, variables y clases internas).
+- Coste medido: 8 ms para un script de 600 líneas y 79 ms para uno de 4.800.
 
 ### Fase 3 — Resolución e inferencia compartidas
 
@@ -333,29 +338,6 @@ Todos bajo `tests/cases/`. La columna "Hoy" es lo que hace la versión actual.
 
 | Caso | Hoy | Fase |
 |---|---|---|
-| `generate_method/placement/method_ending_in_lambda` | El stub parte la lambda | 2 |
-| `generate_method/placement/line_after_inline_lambda` | El stub parte el método | 2 |
-| `generate_method/placement/target_class_ending_in_property` | El stub parte la propiedad | 2 |
-| `generate_method/placement/target_class_ending_in_multiline_value` | El stub parte el diccionario | 2 |
-| `generate_method/placement/body_ending_in_comment` | El comentario queda tras el método nuevo | 2 |
-| `generate_method/index/inferred_variable_type` | `var a := 5` no se indexa | 2 |
-| `generate_method/index/generic_type_without_initializer` | Tipo truncado en `Dictionary[String,` | 2 |
-| `generate_method/index/property_type` | Tipo `int:` | 2 |
-| `generate_method/index/func_inside_comment` | El comentario se indexa como método | 2 |
-| `generate_method/index/multiline_signature` | El método no se indexa | 2 |
-| `generate_method/index/same_local_name_in_two_blocks` | Gana la última declaración | 2 |
-| `generate_method/index/memory` | 11 objetos sin liberar por construcción | 2 |
-| `generate_method/lambdas/nested_method_argument` | Parámetro sin tipo en vez de `Callable` | 2 |
-| `generate_method/lambdas/call_inside_lambda_argument` | Stub al final del archivo y sin tipos | 2 |
-| `generate_method/lambdas/call_inside_nested_method` | El stub parte la lambda y pierde los tipos | 2 |
-| `generate_method/nesting/three_lambda_levels` | El stub parte `level_1` | 2 |
-| `generate_method/nesting/arguments_from_every_level` | El stub parte `level_1` y pierde los cuatro tipos | 2 |
-| `generate_method/nesting/call_after_inner_lambda` | El stub parte `level_1` y pierde el tipo | 2 |
-| `generate_method/nesting/blocks_and_lambda_arguments` | Stub al final del archivo y sin tipos | 2 |
-| `generate_method/nesting/inner_class_with_nested_lambdas` | El stub parte la lambda y pierde los tipos | 2 |
-| `generate_method/nesting/two_lambdas_in_one_call` | Stub al final del archivo | 2 |
-| `generate_method/nesting/lambda_closed_on_body_line` | Stub al final del archivo | 2 |
-| `generate_method/nesting/inline_lambda_inside_lambda` | El stub parte la lambda y pierde el tipo | 2 |
 | `generate_method/lambdas/lambda_argument` | "More than one undefined function call" | 3 |
 | `generate_method/resolution/wrapped_by_global_function` | "More than one undefined function call" | 3 |
 | `generate_method/resolution/inherited_engine_method` | Genera `queue_free` en la clase actual | 3 |

@@ -1,0 +1,46 @@
+action: describe_scopes
+=== input
+extends Node
+
+
+func test(values: Array[int], mode: String) -> int:
+	for index in range(3):
+		print(index)
+	for value: int in values:
+		if value > 2:
+			return value
+		elif value == 0:
+			continue
+		else:
+			print(value)
+	for raw in values:
+		print(raw)
+	var counter := 0
+	while counter < 3:
+		counter += 1
+	match mode:
+		"a", "b":
+			var found := true
+			print(found)
+		_:
+			pass
+	return counter
+=== expected
+class <root> 1-25
+  function test(values: Array[int], mode: String) -> int 4-25 body 5
+    for 5-6 body 6
+      var index: int 5
+    for 7-13 body 8
+      var value: int 7
+      if 8-9 body 9
+      elif 10-11 body 11
+      else 12-13 body 13
+    for 14-15 body 15
+      var raw 14
+    var counter: int 16
+    while 17-18 body 18
+    match 19-24 body 20
+      match_branch 20-22 body 21
+        var found: bool 21
+      match_branch 23-24 body 24
+=== end

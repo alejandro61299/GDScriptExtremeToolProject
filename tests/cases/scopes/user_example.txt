@@ -1,0 +1,31 @@
+action: describe_scopes
+=== input
+extends Node
+
+
+func _test_methods() -> void:
+	var nested_method = func(value: bool) -> float:
+		value = !value
+		return value
+	# Add lambda / anonymous method.
+	_add_method(func():
+		var a = 10
+		var b = 20
+		return a + b
+	)
+	# Add nested method
+	_add_method(nested_method)
+
+
+func _add_method(value : Callable) -> void:
+	print(value)
+=== expected
+class <root> 1-19
+  function _test_methods() -> void 4-15 body 5
+    var nested_method: Callable 5-7
+    lambda(value: bool) -> float 5-7 body 6
+    lambda() 9-12 body 10
+      var a: int 10
+      var b: int 11
+  function _add_method(value: Callable) -> void 18-19 body 19
+=== end

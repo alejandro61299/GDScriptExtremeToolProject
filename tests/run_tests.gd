@@ -1,7 +1,8 @@
 extends SceneTree
 
 const Generator = preload("res://addons/code_generator/stub_generator.gd")
-const SymbolApi = preload("res://addons/code_generator/symbol_index.gd")
+const SymbolIndex = preload("res://addons/code_generator/analysis/symbol_index.gd")
+const SymbolIndexBuilder = preload("res://addons/code_generator/analysis/symbol_index_builder.gd")
 const Snippet = preload("res://addons/code_generator/editing/snippet.gd")
 const EditPlan = preload("res://addons/code_generator/editing/edit_plan.gd")
 const EditApplier = preload("res://addons/code_generator/editing/edit_applier.gd")
@@ -16,6 +17,11 @@ const SELECTION_CLOSE: String = "|>"
 const DEFAULT_INDENT_SIZE: int = 4
 const MEMORY_CHECK_BUILDS: int = 100
 const DETAILS_ARGUMENT: String = "--details"
+const SCOPES_ACTION: String = "describe_scopes"
+const SCRIPT_EXTENSION: String = "gd"
+const PROJECT_SCRIPT_ROOTS: Array[String] = ["res://addons", "res://tests"]
+const INTERNAL_METHOD_PREFIX: String = "@"
+const DESCRIPTION_INDENT: String = "  "
 
 var _error_collector: ErrorCollector = ErrorCollector.new()
 var _shows_pending_details: bool = false
@@ -104,7 +110,7 @@ func _run() -> void:
 	var filters := OS.get_cmdline_user_args()
 	_shows_pending_details = filters.has(DETAILS_ARGUMENT)
 	filters.erase(DETAILS_ARGUMENT)
-	for path in _collect_case_paths(CASES_ROOT):
+	for path in _collect_paths(CASES_ROOT, CASE_EXTENSION):
 		if _matches_filters(path, filters):
 			_run_case(path)
 	OS.remove_logger(_error_collector)
@@ -121,12 +127,12 @@ func _matches_filters(path: String, filters: PackedStringArray) -> bool:
 	return false
 
 
-func _collect_case_paths(directory: String) -> PackedStringArray:
+func _collect_paths(directory: String, extension: String) -> PackedStringArray:
 	var paths := PackedStringArray()
 	for subdirectory in DirAccess.get_directories_at(directory):
-		paths.append_array(_collect_case_paths(directory.path_join(subdirectory)))
+		paths.append_array(_collect_paths(directory.path_join(subdirectory), extension))
 	for file in DirAccess.get_files_at(directory):
-		if file.get_extension() == CASE_EXTENSION:
+		if file.get_extension() == extension:
 			paths.append(directory.path_join(file))
 	paths.sort()
 	return paths
@@ -185,10 +191,10 @@ func _check_expected_compiles(test_case: TestCase) -> PackedStringArray:
 	if test_case.skips_compile_check:
 		return problems
 	var script := GDScript.new()
-	script.source_code = test_case.expected.text
+	script.source_code = test_case.input.text if test_case.action == SCOPES_ACTION else test_case.expected.text
 	_error_collector.take()
 	if script.reload() != OK:
-		problems.append("The expected text is not valid GDScript.")
+		problems.append("The script of the case is not valid GDScript.")
 		problems.append_array(_error_collector.take())
 	return problems
 
@@ -217,6 +223,10 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 		"apply_plan":
 			EditApplier.apply(editor, _build_plan(test_case.plan_description))
 			return _check_edit(test_case, editor)
+		SCOPES_ACTION:
+			return _check_scopes(test_case, editor)
+		"check_project_scripts":
+			return _check_project_scripts()
 		"check_index_memory":
 			return _check_index_memory(editor)
 	return PackedStringArray(["Unknown action '%s'." % test_case.action])
@@ -252,11 +262,128 @@ func _check_edit(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 	return problems
 
 
+func _check_scopes(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	var index := SymbolIndexBuilder.build(editor.text.split("\n"))
+	var actual := "\n".join(_describe_scope(index.root, 0))
+	if actual == test_case.expected_raw:
+		return PackedStringArray()
+	return PackedStringArray(["Unexpected scopes.\n--- expected ---\n%s\n--- actual ---\n%s" % [test_case.expected_raw, actual]])
+
+
+func _describe_scope(scope: SymbolIndex.ScopeBase, depth: int) -> PackedStringArray:
+	var description := PackedStringArray([DESCRIPTION_INDENT.repeat(depth) + _scope_label(scope)])
+	var member_indent := DESCRIPTION_INDENT.repeat(depth + 1)
+	var variables: Array = scope.locals
+	if scope is SymbolIndex.ClassScope:
+		var class_scope := scope as SymbolIndex.ClassScope
+		variables = class_scope.vars.values()
+		for signal_name: String in class_scope.signals:
+			description.append("%ssignal %s(%s)" % [member_indent, signal_name, _params_label(class_scope.signals[signal_name].params)])
+	var entries: Array = []
+	for variable: SymbolIndex.VariableSymbol in variables:
+		entries.append([variable.start_line * 2, PackedStringArray([member_indent + _variable_label(variable)])])
+	for child in scope.children:
+		entries.append([child.start_line * 2 + 1, _describe_scope(child, depth + 1)])
+	entries.sort_custom(func(first: Array, second: Array) -> bool: return first[0] < second[0])
+	for entry: Array in entries:
+		description.append_array(entry[1])
+	return description
+
+
+func _scope_label(scope: SymbolIndex.ScopeBase) -> String:
+	var label := ""
+	if scope is SymbolIndex.ClassScope:
+		var class_scope := scope as SymbolIndex.ClassScope
+		label = "class %s" % ("<root>" if class_scope.parent == null else class_scope.name)
+	elif scope is SymbolIndex.FunctionScope:
+		var function := scope as SymbolIndex.FunctionScope
+		label = "lambda" if function.is_lambda else "function %s" % function.name
+		label += "(%s)" % _params_label(function.params)
+		if function.return_type != null:
+			label += " -> %s" % SymbolIndex.type_to_string(function.return_type)
+	else:
+		label = SymbolIndex.BlockScope.Kind.find_key((scope as SymbolIndex.BlockScope).kind).to_lower()
+	label += " %d-%d" % [scope.start_line + 1, scope.end_line + 1]
+	if scope.body_start_line != -1 and scope.parent != null:
+		label += " body %d" % (scope.body_start_line + 1)
+	return label
+
+
+func _params_label(params: Dictionary) -> String:
+	var labels := PackedStringArray()
+	for param_name: String in params:
+		labels.append(_typed_label(param_name, params[param_name]))
+	return ", ".join(labels)
+
+
+func _variable_label(variable: SymbolIndex.VariableSymbol) -> String:
+	var label := "%s %s" % ["const" if variable.is_const else "var", _typed_label(variable.name, variable.type)]
+	label += " %d" % (variable.start_line + 1)
+	if variable.end_line != variable.start_line:
+		label += "-%d" % (variable.end_line + 1)
+	return label
+
+
+func _typed_label(symbol_name: String, type: SymbolIndex.TypeData) -> String:
+	return symbol_name if type == null else "%s: %s" % [symbol_name, SymbolIndex.type_to_string(type)]
+
+
+func _check_project_scripts() -> PackedStringArray:
+	var problems := PackedStringArray()
+	for root_directory in PROJECT_SCRIPT_ROOTS:
+		for path in _collect_paths(root_directory, SCRIPT_EXTENSION):
+			var script := load(path) as GDScript
+			if script == null or not script.can_instantiate():
+				_error_collector.take()
+				continue
+			var index := SymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
+			problems.append_array(_compare_with_engine(path, index.root, script))
+	return problems
+
+
+func _compare_with_engine(path: String, root_class: SymbolIndex.ClassScope, script: GDScript) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var engine_methods := _names_of(script.get_script_method_list(), 0).filter(func(method_name: String) -> bool: return not method_name.begins_with(INTERNAL_METHOD_PREFIX))
+	var indexed_methods: Array = root_class.methods.keys()
+	engine_methods.sort()
+	indexed_methods.sort()
+	if engine_methods != indexed_methods:
+		problems.append("%s: methods differ.\n  engine: %s\n  index:  %s" % [path, engine_methods, indexed_methods])
+
+	var engine_signals := _names_of(script.get_script_signal_list(), 0)
+	var indexed_signals: Array = root_class.signals.keys()
+	engine_signals.sort()
+	indexed_signals.sort()
+	if engine_signals != indexed_signals:
+		problems.append("%s: signals differ.\n  engine: %s\n  index:  %s" % [path, engine_signals, indexed_signals])
+
+	var constants := script.get_script_constant_map()
+	for variable_name: String in root_class.vars:
+		var variable: SymbolIndex.VariableSymbol = root_class.vars[variable_name]
+		if variable.is_const and not constants.has(variable_name):
+			problems.append("%s: constant '%s' is unknown to the engine." % [path, variable_name])
+	for inner_class_name: String in root_class.inner_classes:
+		if not constants.has(inner_class_name):
+			problems.append("%s: inner class '%s' is unknown to the engine." % [path, inner_class_name])
+	for variable_name: String in _names_of(script.get_script_property_list(), PROPERTY_USAGE_SCRIPT_VARIABLE):
+		if not root_class.vars.has(variable_name):
+			problems.append("%s: variable '%s' is missing from the index." % [path, variable_name])
+	return problems
+
+
+func _names_of(entries: Array[Dictionary], required_usage: int) -> Array:
+	var names: Array = []
+	for entry in entries:
+		if required_usage == 0 or entry.get("usage", 0) & required_usage != 0:
+			names.append(String(entry["name"]))
+	return names
+
+
 func _check_index_memory(editor: CodeEdit) -> PackedStringArray:
 	var lines := editor.text.split("\n")
 	var before := int(Performance.get_monitor(Performance.OBJECT_COUNT))
 	for i in MEMORY_CHECK_BUILDS:
-		SymbolApi.build_symbol_index(lines)
+		SymbolIndexBuilder.build(lines)
 	var leaked := int(Performance.get_monitor(Performance.OBJECT_COUNT)) - before
 	if leaked >= MEMORY_CHECK_BUILDS:
 		return PackedStringArray(["%d objects still alive after %d index builds." % [leaked, MEMORY_CHECK_BUILDS]])

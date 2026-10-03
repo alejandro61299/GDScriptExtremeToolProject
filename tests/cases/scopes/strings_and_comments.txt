@@ -1,0 +1,35 @@
+action: describe_scopes
+=== input
+extends Node
+
+# func fake_one() -> void:
+const NOTE : String = "func fake_two(): # not a comment"
+const TEXT : String = """
+func fake_three():
+	if true:
+"""
+
+
+func real() -> void:
+	var data : Dictionary = {
+		"key":
+			1,
+	}
+	var total : int = 1 + \
+		2
+	print(data, total, NOTE, TEXT) # trailing: comment
+	# closing comment
+
+
+# documentation of the next function
+func after() -> void:
+	pass
+=== expected
+class <root> 1-24
+  const NOTE: String 4
+  const TEXT: String 5-8
+  function real() -> void 11-19 body 12
+    var data: Dictionary 12-15
+    var total: int 16-17
+  function after() -> void 23-24 body 24
+=== end

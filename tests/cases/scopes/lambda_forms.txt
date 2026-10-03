@@ -1,0 +1,47 @@
+action: describe_scopes
+=== input
+extends Node
+
+
+func test() -> void:
+	_bind(func():
+		print("first")
+	, func(value: int):
+		print(value)
+	)
+	_schedule(func():
+		print("tick"))
+	var handlers : Dictionary = {
+		"start": func():
+			print("start"),
+		"stop": func(): pass,
+	}
+	var tween : Tween = create_tween()
+	tween.tween_callback(func():
+		print("done")
+	).set_delay(1.0)
+	var pick = func(x: int) -> int: return x
+	print(handlers, pick)
+
+
+func _bind(first : Callable, second : Callable) -> void:
+	first.call()
+	second.call(1)
+
+
+func _schedule(callback : Callable) -> void:
+	callback.call()
+=== expected
+class <root> 1-31
+  function test() -> void 4-22 body 5
+    lambda() 5-6 body 6
+    lambda(value: int) 7-8 body 8
+    lambda() 10-11 body 11
+    var handlers: Dictionary 12-16
+    lambda() 13-14 body 14
+    var tween: Tween 17
+    lambda() 18-19 body 19
+    var pick: Callable 21
+  function _bind(first: Callable, second: Callable) -> void 25-27 body 26
+  function _schedule(callback: Callable) -> void 30-31 body 31
+=== end
