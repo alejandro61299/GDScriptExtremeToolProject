@@ -1,0 +1,82 @@
+action: format_class_members
+=== input
+@tool
+extends Node
+signal changed(value : int)
+signal closed
+const LIMIT : int = 10
+
+const SPEED : float = 2.0
+
+
+
+const NAMES : Array[String] = []
+static var instances : int = 0
+enum Mode { SLOW, FAST }
+@export var speed : float = 1.0
+@export var label_text : String = ""
+@onready var label : Label = get_node_or_null("Label")
+var visible_value : int = 1
+var _hidden : int = 0
+class Inner:
+	var value : int = 0
+static func create() -> Node:
+	return null
+
+func _init() -> void:
+	pass<|>
+
+
+
+func _ready() -> void:
+	pass
+func public_method() -> void:
+	pass
+
+=== expected
+@tool
+extends Node
+
+signal changed(value : int)
+signal closed
+
+const LIMIT : int = 10
+
+const SPEED : float = 2.0
+
+const NAMES : Array[String] = []
+
+static var instances : int = 0
+
+enum Mode { SLOW, FAST }
+
+@export var speed : float = 1.0
+@export var label_text : String = ""
+
+@onready var label : Label = get_node_or_null("Label")
+
+var visible_value : int = 1
+
+var _hidden : int = 0
+
+
+class Inner:
+	var value : int = 0
+
+
+static func create() -> Node:
+	return null
+
+
+func _init() -> void:
+	pass<|>
+
+
+func _ready() -> void:
+	pass
+
+
+func public_method() -> void:
+	pass
+
+=== end

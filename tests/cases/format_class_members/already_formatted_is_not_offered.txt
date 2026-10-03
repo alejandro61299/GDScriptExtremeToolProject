@@ -1,0 +1,22 @@
+action: format_class_members
+=== input
+extends Node
+
+signal changed
+
+const LIMIT : int = 10
+const SPEED : float = 2.0
+
+const NAMES : Array[String] = []
+
+var value : int = 0<|>
+
+
+func _ready() -> void:
+	pass
+
+
+func run() -> void:
+	pass
+
+=== end

@@ -15,8 +15,7 @@ const GROUP_STARTERS: Array[String] = ["@export_category", "@export_group"]
 const PRIVATE_PREFIX: String = "_"
 const INIT_METHOD: String = "_init"
 const EXPORTS_CATEGORY: String = "exports"
-const BLANK_LINES_AROUND_TALL_BLOCKS: int = 2
-const BLANK_LINES_BETWEEN_CATEGORIES: int = 1
+const MAX_BLANK_LINES_AT_TOP: int = 1
 
 enum Phase { STATIC, REGULAR, READY }
 
@@ -44,7 +43,7 @@ class Layout:
 static func reorder(class_scope: SymbolIndex.ClassScope, lines: PackedStringArray) -> Layout:
 	var body_first := class_scope.header_end_line + 1
 	var body_last := mini(class_scope.end_line, lines.size() - 1)
-	var blocks := _merge_regions(_build_blocks(class_scope), lines, body_first, body_last)
+	var blocks := _merge_regions(_build_blocks(class_scope, true), lines, body_first, body_last)
 	if blocks.size() < 2:
 		return null
 	for index in blocks.size():
@@ -54,10 +53,22 @@ static func reorder(class_scope: SymbolIndex.ClassScope, lines: PackedStringArra
 	var ordered := _order(blocks)
 	if ordered == blocks:
 		return null
-	return _compose(class_scope, blocks, ordered, lines, body_first, body_last)
+	return _compose(class_scope, blocks, ordered, lines, body_first, body_last, false)
 
 
-static func _build_blocks(class_scope: SymbolIndex.ClassScope) -> Array[Block]:
+static func format(class_scope: SymbolIndex.ClassScope, lines: PackedStringArray) -> Layout:
+	var body_first := class_scope.header_end_line + 1
+	var body_last := mini(class_scope.end_line, lines.size() - 1)
+	var blocks := _build_blocks(class_scope, false)
+	if blocks.is_empty():
+		return null
+	for index in blocks.size():
+		blocks[index].original_index = index
+	_attach_comments(blocks, lines, body_first, body_last)
+	return _compose(class_scope, blocks, blocks, lines, body_first, body_last, true)
+
+
+static func _build_blocks(class_scope: SymbolIndex.ClassScope, merges_export_groups: bool) -> Array[Block]:
 	var blocks: Array[Block] = []
 	var group: Block = null
 	var tentative: Array[Block] = []
@@ -68,8 +79,9 @@ static func _build_blocks(class_scope: SymbolIndex.ClassScope) -> Array[Block]:
 			if GROUP_STARTERS.has(member.name) or (member.name == SUBGROUP_ANNOTATION and group == null):
 				blocks.append_array(tentative)
 				tentative.clear()
-				group = _new_block(member.start_line, member.end_line, _category_index(EXPORTS_CATEGORY))
-				blocks.append(group)
+				var group_header := _new_block(member.start_line, member.end_line, _category_index(EXPORTS_CATEGORY))
+				blocks.append(group_header)
+				group = group_header if merges_export_groups else null
 				continue
 			if not continues_group:
 				annotations.append(member)
@@ -223,21 +235,33 @@ static func _split_gap(above: Block, below: Block, lines: PackedStringArray) -> 
 		if run_start > gap_end:
 			return
 		var run_end := run_start
-		while run_end < gap_end and _is_comment(lines[run_end + 1]):
+		while run_end < gap_end and _is_comment(lines[run_end + 1]) and not _starts_with(lines[run_end], REGION_END) and not _starts_with(lines[run_end + 1], REGION_START):
 			run_end += 1
 		var blank_before := run_start - cursor
 		var blank_after := 0
 		while run_end + 1 + blank_after <= gap_end and not _is_comment(lines[run_end + 1 + blank_after]):
 			blank_after += 1
-		if blank_before >= blank_after:
+		if _belongs_to_member_below(lines[run_start], lines[run_end], blank_before, blank_after):
 			below.first_line = run_start
 			return
 		above.last_line = run_end
 		cursor = run_end + 1
 
 
+static func _belongs_to_member_below(first_comment: String, last_comment: String, blank_before: int, blank_after: int) -> bool:
+	if _starts_with(first_comment, REGION_START):
+		return true
+	if _starts_with(last_comment, REGION_END):
+		return false
+	return blank_before >= blank_after
+
+
 static func _is_comment(line: String) -> bool:
-	return line.strip_edges().begins_with(COMMENT_START)
+	return _starts_with(line, COMMENT_START)
+
+
+static func _starts_with(line: String, prefix: String) -> bool:
+	return line.strip_edges().begins_with(prefix)
 
 
 static func _find_dependencies(blocks: Array[Block], class_scope: SymbolIndex.ClassScope) -> void:
@@ -282,7 +306,7 @@ static func _is_ready(block: Block, declared: Dictionary[String, bool]) -> bool:
 	return true
 
 
-static func _compose(class_scope: SymbolIndex.ClassScope, blocks: Array[Block], ordered: Array[Block], lines: PackedStringArray, body_first: int, body_last: int) -> Layout:
+static func _compose(class_scope: SymbolIndex.ClassScope, blocks: Array[Block], ordered: Array[Block], lines: PackedStringArray, body_first: int, body_last: int, normalizes_spacing: bool) -> Layout:
 	var new_lines := PackedStringArray()
 	var line_map := PackedInt32Array()
 	line_map.resize(body_last - body_first + 1)
@@ -293,17 +317,20 @@ static func _compose(class_scope: SymbolIndex.ClassScope, blocks: Array[Block], 
 	while first_block.first_line - 1 - leading_blank >= body_first and lines[first_block.first_line - 1 - leading_blank].strip_edges().is_empty():
 		leading_blank += 1
 	_copy_lines(lines, body_first, first_block.first_line - 1 - leading_blank, body_first, new_lines, line_map)
+	var is_at_top := _starts_at_top(class_scope, body_first, new_lines)
 
 	for index in ordered.size():
 		var block := ordered[index]
-		var gap := 0
-		if index > 0:
-			var previous := ordered[index - 1]
-			gap = block.first_line - previous.last_line - 1 if block.original_index == previous.original_index + 1 else _standard_gap(previous, block)
-		elif block == first_block:
-			gap = leading_blank
-		elif not _starts_at_top(class_scope, body_first, new_lines):
-			gap = BLANK_LINES_AROUND_TALL_BLOCKS if block.is_tall else BLANK_LINES_BETWEEN_CATEGORIES
+		var previous: Block = ordered[index - 1] if index > 0 else null
+		var is_in_place := block == first_block if previous == null else block.original_index == previous.original_index + 1
+		var existing := 0
+		if is_in_place:
+			existing = leading_blank if previous == null else block.first_line - previous.last_line - 1
+		var gap := existing
+		if normalizes_spacing or not is_in_place:
+			gap = _leading_gap(block, existing, is_at_top) if previous == null else _standard_gap(previous, block, existing)
+		for offset in mini(existing, gap):
+			line_map[block.first_line - existing + offset - body_first] = body_first + new_lines.size() + offset
 		for blank in gap:
 			new_lines.append("")
 		_copy_lines(lines, block.first_line, block.last_line, body_first, new_lines, line_map)
@@ -318,10 +345,18 @@ static func _starts_at_top(class_scope: SymbolIndex.ClassScope, body_first: int,
 	return body_first == 0 or (class_scope.parent != null and body_first == class_scope.body_start_line)
 
 
-static func _standard_gap(previous: Block, block: Block) -> int:
+static func _leading_gap(block: Block, existing: int, is_at_top: bool) -> int:
+	if is_at_top:
+		return mini(existing, MAX_BLANK_LINES_AT_TOP)
+	return Settings.BLANK_LINES_AROUND_METHODS_AND_CLASSES if block.is_tall else Settings.BLANK_LINES_BETWEEN_MEMBER_CATEGORIES
+
+
+static func _standard_gap(previous: Block, block: Block, existing: int) -> int:
 	if previous.is_tall or block.is_tall:
-		return BLANK_LINES_AROUND_TALL_BLOCKS
-	return 0 if previous.category == block.category else BLANK_LINES_BETWEEN_CATEGORIES
+		return Settings.BLANK_LINES_AROUND_METHODS_AND_CLASSES
+	if previous.category != block.category:
+		return Settings.BLANK_LINES_BETWEEN_MEMBER_CATEGORIES
+	return mini(existing, Settings.MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY)
 
 
 static func _copy_lines(lines: PackedStringArray, from: int, to: int, body_first: int, new_lines: PackedStringArray, line_map: PackedInt32Array) -> void:

@@ -1,0 +1,27 @@
+action: format_class_members
+=== input
+extends Node
+var root_value : int = 0<|>
+class Inner:
+	var count : int = 0
+	func run() -> void:
+		pass
+func root_method() -> void:
+	pass
+
+=== expected
+extends Node
+
+var root_value : int = 0<|>
+
+
+class Inner:
+	var count : int = 0
+	func run() -> void:
+		pass
+
+
+func root_method() -> void:
+	pass
+
+=== end

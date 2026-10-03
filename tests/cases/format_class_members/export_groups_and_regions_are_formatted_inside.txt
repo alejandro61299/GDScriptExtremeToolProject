@@ -1,0 +1,45 @@
+action: format_class_members
+=== input
+extends Node
+#region Settings
+@export_group("Movement")
+@export var speed : float = 1.0
+
+
+
+@export var jump : float = 2.0
+
+@export_group("Looks")
+@export var tint : Color = Color.WHITE<|>
+#endregion
+#region Methods
+func run() -> void:
+	pass
+func stop() -> void:
+	pass
+#endregion
+
+=== expected
+extends Node
+
+#region Settings
+@export_group("Movement")
+@export var speed : float = 1.0
+
+@export var jump : float = 2.0
+
+@export_group("Looks")
+@export var tint : Color = Color.WHITE<|>
+#endregion
+
+
+#region Methods
+func run() -> void:
+	pass
+
+
+func stop() -> void:
+	pass
+#endregion
+
+=== end

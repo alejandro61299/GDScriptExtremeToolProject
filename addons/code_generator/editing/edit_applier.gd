@@ -77,11 +77,13 @@ static func _replace_lines(editor: CodeEdit, replacement: EditPlan.LineReplaceme
 		editor.unfold_line(line)
 
 	editor.begin_complex_operation()
-	if replacement.last_line >= replacement.first_line:
+	if replacement.lines.is_empty():
+		_remove_lines(editor, replacement.first_line, replacement.last_line)
+	elif replacement.last_line >= replacement.first_line:
 		editor.remove_text(replacement.first_line, 0, replacement.last_line, editor.get_line(replacement.last_line).length())
 		editor.insert_text("\n".join(replacement.lines), replacement.first_line, 0)
 	else:
-		editor.insert_text("\n".join(replacement.lines) + "\n", replacement.first_line, 0)
+		_insert_lines(editor, replacement.first_line, replacement.lines)
 	editor.end_complex_operation()
 
 	for line in range(replacement.first_line, replacement.first_line + replacement.lines.size()):
@@ -100,6 +102,24 @@ static func _replace_lines(editor: CodeEdit, replacement: EditPlan.LineReplaceme
 	editor.set_caret_line(new_caret_line)
 	editor.set_caret_column(caret_column)
 	_now_and_next_frame(editor, _restore_scroll.bind(scroll_before + new_caret_line - caret_line))
+
+
+static func _remove_lines(editor: CodeEdit, first_line: int, last_line: int) -> void:
+	if last_line + 1 < editor.get_line_count():
+		editor.remove_text(first_line, 0, last_line + 1, 0)
+	elif first_line > 0:
+		editor.remove_text(first_line - 1, editor.get_line(first_line - 1).length(), last_line, editor.get_line(last_line).length())
+	else:
+		editor.remove_text(first_line, 0, last_line, editor.get_line(last_line).length())
+
+
+static func _insert_lines(editor: CodeEdit, line: int, lines: PackedStringArray) -> void:
+	var text := "\n".join(lines)
+	if line < editor.get_line_count():
+		editor.insert_text(text + "\n", line, 0)
+		return
+	var last_line := editor.get_line_count() - 1
+	editor.insert_text("\n" + text, last_line, editor.get_line(last_line).length())
 
 
 static func _lines_in_range(lines: PackedInt32Array, replacement: EditPlan.LineReplacement) -> PackedInt32Array:
@@ -169,12 +189,7 @@ static func _count_blank_lines(editor: CodeEdit, from_line: int, step: int) -> i
 
 
 static func _insert_block(editor: CodeEdit, insertion: ResolvedInsertion) -> void:
-	var text := "\n".join(insertion.block_lines)
-	if insertion.line < editor.get_line_count():
-		editor.insert_text(text + "\n", insertion.line, 0)
-		return
-	var last_line := editor.get_line_count() - 1
-	editor.insert_text("\n" + text, last_line, editor.get_line(last_line).length())
+	_insert_lines(editor, insertion.line, insertion.block_lines)
 
 
 static func _select_first_selection(editor: CodeEdit, resolved: Array[ResolvedInsertion]) -> bool:

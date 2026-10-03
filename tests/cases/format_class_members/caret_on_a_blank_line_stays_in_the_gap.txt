@@ -1,0 +1,26 @@
+action: format_class_members
+=== input
+extends Node
+var value : int = 0
+<|>
+
+
+func run() -> void:
+	pass
+func stop() -> void:
+	pass
+
+=== expected
+extends Node
+
+var value : int = 0
+<|>
+
+func run() -> void:
+	pass
+
+
+func stop() -> void:
+	pass
+
+=== end

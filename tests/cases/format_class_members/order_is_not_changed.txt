@@ -1,0 +1,27 @@
+action: format_class_members
+=== input
+extends Node
+func run() -> void:
+	pass<|>
+var value : int = 0
+signal changed
+func _ready() -> void:
+	pass
+
+=== expected
+extends Node
+
+
+func run() -> void:
+	pass<|>
+
+
+var value : int = 0
+
+signal changed
+
+
+func _ready() -> void:
+	pass
+
+=== end

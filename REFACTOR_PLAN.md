@@ -14,6 +14,7 @@ Godot 4.7.2. Estado de partida: una única utilidad ("Generate Method Stub") con
 | 7 | Generate Connected Function | Hecha |
 | 8 | Vista y navegación tras generar | Hecha |
 | 9 | Reordenar los miembros de una clase | Hecha |
+| 10 | Dar formato a las líneas en blanco de una clase | Hecha |
 
 ## Objetivo
 
@@ -52,7 +53,8 @@ addons/code_generator/
 │   ├── generate_local_variable_action.gd
 │   ├── generate_class_variable_action.gd
 │   ├── generate_connected_function_action.gd
-│   └── reorder_class_members_action.gd
+│   ├── reorder_class_members_action.gd
+│   └── format_class_members_action.gd
 ├── analysis/
 │   ├── builtin_types.gd
 │   ├── class_layout.gd
@@ -487,7 +489,7 @@ Reglas:
 - **`#region` ... `#endregion`** es un bloque indivisible, y se coloca según su primer miembro.
 - **Anotaciones en línea propia** (`@export`, `@rpc(...)` encima de la declaración) viajan con el miembro y cuentan para su categoría.
 - **Comentarios.** Cada bloque de comentarios va con el miembro más cercano, contando las líneas en blanco que lo separan; a igual distancia, con el de abajo. Dos excepciones: entre la cabecera y el primer miembro, y tras el último, un comentario solo viaja con el miembro si está pegado a él; si no, se queda en su sitio. Así la descripción de la clase no se mueve.
-- **Líneas en blanco.** Entre dos bloques que ya eran consecutivos se conserva lo que había. Entre los demás: dos alrededor de métodos y clases, una entre categorías distintas, ninguna dentro de la misma categoría.
+- **Líneas en blanco.** Entre dos bloques que ya eran consecutivos se conserva lo que había. Entre los demás: dos alrededor de métodos y clases, una entre categorías distintas, ninguna dentro de la misma categoría. Para normalizarlas todas está la acción de la fase 10.
 
 Cómo se aplica:
 
@@ -501,6 +503,37 @@ Tests:
 
 - Casos de texto en `tests/cases/reorder_class_members/`. Cabeceras nuevas: `breakpoints`, `bookmarks` y `folds` (líneas en base 1 antes de la acción) con `expect_breakpoints`, `expect_bookmarks` y `expect_folds`, y `expect_view: caret_row_unchanged`.
 - `action: check_reorder_project_scripts` reordena la raíz y todas las clases internas de cada script del proyecto y comprueba que no se pierde ni se duplica ninguna línea, que el resultado compila, que el motor ve los mismos métodos, señales, variables y constantes, y que reordenar otra vez no cambia nada. La acción modifica 8 de las 25 clases raíz del proyecto.
+
+### Fase 10 — Dar formato a las líneas en blanco de una clase (hecha)
+
+"Format Class Members" ajusta las líneas en blanco entre los miembros de la clase donde está el cursor, sin cambiar su orden ni tocar ninguna línea de código. Solo aparece en el menú si hay algo que cambiar. Como la fase 9, no entra en las clases internas: se tratan como un miembro más.
+
+Las cantidades son constantes de `code_generator_settings.gd`:
+
+| Entre | Líneas en blanco | Constante |
+|---|---|---|
+| Un método o una clase interna y cualquier otro miembro | 2 | `BLANK_LINES_AROUND_METHODS_AND_CLASSES` |
+| Miembros de categorías distintas (las de `CLASS_MEMBER_ORDER`) | 1 | `BLANK_LINES_BETWEEN_MEMBER_CATEGORIES` |
+| Miembros de la misma categoría | Las que hubiera, con un máximo de 1 | `MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY` |
+
+Reglas:
+
+- **Dentro de una categoría se respeta la agrupación del usuario**: dos constantes seguidas siguen seguidas y las separadas por una línea siguen separadas; solo se recorta lo que pase de una.
+- **Bajo la cabecera** (`@tool`, `class_name`, `extends`, o la descripción de la clase): una línea antes del primer miembro, dos si es un método o una clase. Justo bajo `class X:` o al principio del archivo se conserva lo que hubiera, con un máximo de una.
+- **Comentarios**: se reparten igual que en la fase 9 y el hueco se mide desde el comentario, que queda pegado a su miembro.
+- **`#region` y `#endregion`** no forman un bloque indivisible como en la fase 9, porque también hay que dar formato dentro: `#endregion` va con el miembro de arriba y `#region` con el de abajo.
+- **`@export_group` y similares** tampoco agrupan: cuentan como un miembro de la categoría de exports.
+- **No se toca**: el interior de los miembros (cuerpos de métodos, arrays y enums multilínea), lo que hay tras el último miembro, ni las líneas entre la cabecera y la descripción de la clase.
+- Una línea que solo tiene espacios o tabuladores cuenta como línea en blanco y queda vacía.
+
+Cómo se aplica: `ClassLayout.format` usa los mismos bloques y el mismo compositor que `ClassLayout.reorder`, con el orden original y las separaciones normalizadas. El reemplazo, el undo único y la restauración de cursor, breakpoints, marcadores, plegados y scroll son los de la fase 9. Las líneas en blanco también entran en el mapa de líneas, así que el cursor situado en un hueco se queda en el hueco.
+
+`EditApplier` necesitó dos casos que el reordenado nunca producía: un reemplazo que solo quita líneas y uno que solo las añade.
+
+Tests:
+
+- Casos de texto en `tests/cases/format_class_members/` y `tests/cases/view/formatting_keeps_the_caret_on_the_same_row.txt`.
+- `action: check_format_project_scripts` da formato a la raíz y a todas las clases internas de cada script del proyecto y comprueba que las líneas de código quedan idénticas y en el mismo orden, que el resultado compila, que el motor ve los mismos miembros y que repetir la acción no cambia nada. La acción modifica 7 de los 27 scripts que revisa.
 
 ## Casos pendientes
 

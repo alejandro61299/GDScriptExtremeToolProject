@@ -35,6 +35,7 @@ const VIEW_SAME_TOP_TEXT: String = "same_top_text"
 const VIEW_TEXT_VISIBLE: String = "text_visible"
 const VIEW_CARET_ROW_UNCHANGED: String = "caret_row_unchanged"
 const REORDER_ACTION: String = "reorder_class_members"
+const FORMAT_ACTION: String = "format_class_members"
 const PLAN_ACTION: String = "apply_plan"
 const DESCRIPTION_INDENT: String = "  "
 
@@ -319,7 +320,9 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 		"check_no_undefined_identifiers":
 			return _check_no_undefined_identifiers()
 		"check_reorder_project_scripts":
-			return _check_reorder_project_scripts()
+			return _check_layout_of_project_scripts(REORDER_ACTION, false)
+		"check_format_project_scripts":
+			return _check_layout_of_project_scripts(FORMAT_ACTION, true)
 		"check_index_memory":
 			return _check_index_memory(editor)
 	var action := _find_code_action(test_case.action)
@@ -500,33 +503,33 @@ func _check_no_false_targets() -> PackedStringArray:
 	return problems
 
 
-func _check_reorder_project_scripts() -> PackedStringArray:
+func _check_layout_of_project_scripts(action_name: String, keeps_line_order: bool) -> PackedStringArray:
 	var problems := PackedStringArray()
-	var action := _find_code_action(REORDER_ACTION)
+	var action := _find_code_action(action_name)
 	for path in _project_script_paths():
 		var original := FileAccess.get_file_as_string(path)
 		var editor := CodeEdit.new()
 		root.add_child(editor)
 		editor.text = original
 		var class_names := _inner_class_names(SymbolIndexBuilder.build(original.split("\n")).root)
-		_reorder_every_class(editor, action, class_names)
-		var reordered := editor.text
-		if _code_lines(reordered) != _code_lines(original):
-			problems.append("%s: reordering lost or duplicated lines." % path)
+		_apply_to_every_class(editor, action, class_names)
+		var changed := editor.text
+		if _code_lines(changed, keeps_line_order) != _code_lines(original, keeps_line_order):
+			problems.append("%s: %s lost, duplicated or misplaced lines." % [path, action_name])
 		var script := GDScript.new()
-		script.source_code = reordered
+		script.source_code = changed
 		if script.reload() != OK:
-			problems.append("%s: the reordered script does not compile." % path)
+			problems.append("%s: the script does not compile after %s." % [path, action_name])
 		else:
 			problems.append_array(_compare_scripts(path, load(path) as GDScript, script))
-		_reorder_every_class(editor, action, class_names)
-		if editor.text != reordered:
-			problems.append("%s: reordering a second time changes the script again." % path)
+		_apply_to_every_class(editor, action, class_names)
+		if editor.text != changed:
+			problems.append("%s: running %s a second time changes the script again." % [path, action_name])
 		editor.free()
 	return problems
 
 
-func _reorder_every_class(editor: CodeEdit, action: CodeAction, class_names: PackedStringArray) -> void:
+func _apply_to_every_class(editor: CodeEdit, action: CodeAction, class_names: PackedStringArray) -> void:
 	editor.set_caret_line(0)
 	EditApplier.apply(editor, action.build_plan(CodeContext.new(editor)))
 	for inner_name in class_names:
@@ -544,26 +547,27 @@ func _inner_class_names(class_scope: SymbolIndex.ClassScope) -> PackedStringArra
 	return names
 
 
-func _code_lines(text: String) -> PackedStringArray:
+func _code_lines(text: String, keeps_line_order: bool) -> PackedStringArray:
 	var code_lines := PackedStringArray()
 	for line in text.split("\n"):
 		if not line.strip_edges().is_empty():
 			code_lines.append(line)
-	code_lines.sort()
+	if not keeps_line_order:
+		code_lines.sort()
 	return code_lines
 
 
-func _compare_scripts(path: String, original: GDScript, reordered: GDScript) -> PackedStringArray:
+func _compare_scripts(path: String, original: GDScript, changed: GDScript) -> PackedStringArray:
 	var problems := PackedStringArray()
 	var original_members := [_names_of(original.get_script_method_list(), 0), _names_of(original.get_script_signal_list(), 0), _names_of(original.get_script_property_list(), PROPERTY_USAGE_SCRIPT_VARIABLE), original.get_script_constant_map().keys()]
-	var reordered_members := [_names_of(reordered.get_script_method_list(), 0), _names_of(reordered.get_script_signal_list(), 0), _names_of(reordered.get_script_property_list(), PROPERTY_USAGE_SCRIPT_VARIABLE), reordered.get_script_constant_map().keys()]
+	var changed_members := [_names_of(changed.get_script_method_list(), 0), _names_of(changed.get_script_signal_list(), 0), _names_of(changed.get_script_property_list(), PROPERTY_USAGE_SCRIPT_VARIABLE), changed.get_script_constant_map().keys()]
 	for index in original_members.size():
 		var before: Array = original_members[index]
-		var after: Array = reordered_members[index]
+		var after: Array = changed_members[index]
 		before.sort()
 		after.sort()
 		if before != after:
-			problems.append("%s: the engine sees different members after reordering.\n  before: %s\n  after:  %s" % [path, before, after])
+			problems.append("%s: the engine sees different members afterwards.\n  before: %s\n  after:  %s" % [path, before, after])
 	return problems
 
 

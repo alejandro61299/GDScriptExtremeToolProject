@@ -1,0 +1,40 @@
+action: format_class_members
+=== input
+extends Node
+## Describes the class.
+
+# Limits
+const LIMIT : int = 10
+# Current value.
+var value : int = 0<|>
+
+# Section: methods
+
+func run() -> void:
+	pass
+# Runs twice.
+func run_twice() -> void:
+	pass
+
+=== expected
+extends Node
+## Describes the class.
+
+# Limits
+const LIMIT : int = 10
+
+# Current value.
+var value : int = 0<|>
+
+
+# Section: methods
+
+func run() -> void:
+	pass
+
+
+# Runs twice.
+func run_twice() -> void:
+	pass
+
+=== end

@@ -1,0 +1,29 @@
+action: format_class_members
+breakpoints: 6
+bookmarks: 2
+folds: 3
+expect_breakpoints: 11
+expect_bookmarks: 3
+expect_folds: 6
+=== input
+extends Node
+var value : int = 0
+func first() -> void:
+	print("first")
+func second() -> void:
+	print("second")<|>
+
+=== expected
+extends Node
+
+var value : int = 0
+
+
+func first() -> void:
+	print("first")
+
+
+func second() -> void:
+	print("second")<|>
+
+=== end
