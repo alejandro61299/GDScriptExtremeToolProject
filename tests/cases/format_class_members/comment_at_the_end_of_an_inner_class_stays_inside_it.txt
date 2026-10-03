@@ -1,0 +1,35 @@
+action: format_class_members
+=== input
+extends Node
+var value : int = 0<|>
+class Inner:
+	var count : int = 0
+
+
+
+	# End of the inner class.
+
+# Describes the method.
+
+func root_method() -> void:
+	pass
+
+=== expected
+extends Node
+
+var value : int = 0<|>
+
+
+class Inner:
+	var count : int = 0
+
+
+
+	# End of the inner class.
+
+
+# Describes the method.
+func root_method() -> void:
+	pass
+
+=== end

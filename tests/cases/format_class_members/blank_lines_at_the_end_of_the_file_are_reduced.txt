@@ -1,0 +1,15 @@
+action: format_class_members
+=== input
+extends Node
+
+var value : int = 0<|>
+
+
+
+
+=== expected
+extends Node
+
+var value : int = 0<|>
+
+=== end

@@ -489,6 +489,8 @@ Reglas:
 - **`#region` ... `#endregion`** es un bloque indivisible, y se coloca según su primer miembro.
 - **Anotaciones en línea propia** (`@export`, `@rpc(...)` encima de la declaración) viajan con el miembro y cuentan para su categoría.
 - **Comentarios.** Cada bloque de comentarios va con el miembro más cercano, contando las líneas en blanco que lo separan; a igual distancia, con el de abajo. Dos excepciones: entre la cabecera y el primer miembro, y tras el último, un comentario solo viaja con el miembro si está pegado a él; si no, se queda en su sitio. Así la descripción de la clase no se mueve.
+- **Comentarios con más indentación que el miembro** (código desactivado al final del cuerpo de un método, o el comentario final de una clase interna) son parte del miembro de arriba, haya o no líneas en blanco por medio.
+- **Comentarios al final de una clase interna**, con la indentación de su cuerpo, entran en el tramo que se reordena: si están pegados al último miembro, viajan con él.
 - **Líneas en blanco.** Entre dos bloques que ya eran consecutivos se conserva lo que había. Entre los demás: dos alrededor de métodos y clases, una entre categorías distintas, ninguna dentro de la misma categoría. Para normalizarlas todas está la acción de la fase 10.
 
 Cómo se aplica:
@@ -506,7 +508,7 @@ Tests:
 
 ### Fase 10 — Dar formato a las líneas en blanco de una clase (hecha)
 
-"Format Class Members" ajusta las líneas en blanco entre los miembros de la clase donde está el cursor, sin cambiar su orden ni tocar ninguna línea de código. Solo aparece en el menú si hay algo que cambiar. Como la fase 9, no entra en las clases internas: se tratan como un miembro más.
+"Format Class Members" ajusta las líneas en blanco entre los miembros de la clase donde está el cursor y alrededor de sus comentarios, sin cambiar su orden ni tocar ninguna línea de código. Solo aparece en el menú si hay algo que cambiar. Como la fase 9, no entra en las clases internas: se tratan como un miembro más.
 
 Las cantidades son constantes de `code_generator_settings.gd`:
 
@@ -516,19 +518,25 @@ Las cantidades son constantes de `code_generator_settings.gd`:
 | Miembros de categorías distintas (las de `CLASS_MEMBER_ORDER`) | 1 | `BLANK_LINES_BETWEEN_MEMBER_CATEGORIES` |
 | Miembros de la misma categoría | Las que hubiera, con un máximo de 1 | `MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY` |
 
-Reglas:
+Reglas entre miembros:
 
 - **Dentro de una categoría se respeta la agrupación del usuario**: dos constantes seguidas siguen seguidas y las separadas por una línea siguen separadas; solo se recorta lo que pase de una.
-- **Bajo la cabecera** (`@tool`, `class_name`, `extends`, o la descripción de la clase): una línea antes del primer miembro, dos si es un método o una clase. Justo bajo `class X:` o al principio del archivo se conserva lo que hubiera, con un máximo de una.
-- **Comentarios**: se reparten igual que en la fase 9 y el hueco se mide desde el comentario, que queda pegado a su miembro.
 - **`#region` y `#endregion`** no forman un bloque indivisible como en la fase 9, porque también hay que dar formato dentro: `#endregion` va con el miembro de arriba y `#region` con el de abajo.
 - **`@export_group` y similares** tampoco agrupan: cuentan como un miembro de la categoría de exports.
-- **No se toca**: el interior de los miembros (cuerpos de métodos, arrays y enums multilínea), lo que hay tras el último miembro, ni las líneas entre la cabecera y la descripción de la clase.
+- **No se toca el interior de los miembros**: cuerpos de métodos, arrays y enums multilínea, ni los comentarios con más indentación que el miembro.
 - Una línea que solo tiene espacios o tabuladores cuenta como línea en blanco y queda vacía.
 
-Cómo se aplica: `ClassLayout.format` usa los mismos bloques y el mismo compositor que `ClassLayout.reorder`, con el orden original y las separaciones normalizadas. El reemplazo, el undo único y la restauración de cursor, breakpoints, marcadores, plegados y scroll son los de la fase 9. Las líneas en blanco también entran en el mapa de líneas, así que el cursor situado en un hueco se queda en el hueco.
+Reglas de los comentarios. Hay dos clases de comentario: los del scope (su descripción al principio y lo que haya tras el último miembro) y los de un miembro.
 
-`EditApplier` necesitó dos casos que el reordenado nunca producía: un reemplazo que solo quita líneas y uno que solo las añade.
+- **Comentarios de un miembro: pegados a él.** Se reparten como en la fase 9 (el más cercano; a igual distancia, el de abajo) y se quitan las líneas en blanco entre el comentario y su miembro. Si un miembro tiene varios bloques de comentarios, quedan todos seguidos. La separación con el miembro vecino se mide desde el comentario.
+- **Antes del primer miembro** (`MAX_BLANK_LINES_OUTSIDE_MEMBERS`, 1): entre el comentario inicial del scope y la primera sentencia, sea `@tool`, `class_name`, `extends` o un miembro, queda una línea en blanco como máximo, o ninguna si no la había. Lo mismo entre las sentencias de la cabecera y justo bajo `class X:`. Las líneas en blanco al principio del archivo se quitan todas, igual que las sobrantes del final.
+- **Comentario entre la cabecera y el primer miembro, separado de los dos**: se aplica la regla general tomando la cabecera como vecino de arriba. Si está más cerca de la cabecera es la descripción de la clase y se queda con ella; a igual distancia o más cerca del miembro, es del miembro y se pega a él.
+- **Tras la cabecera**, el primer miembro lleva una línea en blanco delante, dos si es un método o una clase. Sin cabecera, lleva las que hubiera con un máximo de una.
+- **Al final del scope**: entre el último miembro y los comentarios que le siguen, y entre esos comentarios, una línea en blanco como máximo. Las líneas en blanco sobrantes al final del archivo se quitan. En una clase interna, los comentarios finales son los que tienen la indentación de su cuerpo.
+
+Cómo se aplica: `ClassLayout.format` usa los mismos bloques y el mismo compositor que `ClassLayout.reorder`, con el orden original y las separaciones normalizadas. El tramo que se procesa va desde el principio del scope hasta su último comentario, mientras que el reordenado empieza tras la cabecera. El reemplazo, el undo único y la restauración de cursor, breakpoints, marcadores, plegados y scroll son los de la fase 9. Las líneas en blanco también entran en el mapa de líneas, así que el cursor situado en un hueco se queda en el hueco.
+
+`EditApplier` necesitó dos casos que el reordenado nunca producía: un reemplazo que solo quita líneas (también al final del documento, donde el cursor se recoloca en la última línea que queda) y uno que solo las añade.
 
 Tests:
 

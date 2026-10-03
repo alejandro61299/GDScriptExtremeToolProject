@@ -96,7 +96,7 @@ static func _replace_lines(editor: CodeEdit, replacement: EditPlan.LineReplaceme
 	for line in folded:
 		editor.fold_line(_moved_line(replacement, line))
 
-	var new_caret_line := _moved_line(replacement, caret_line)
+	var new_caret_line := mini(_moved_line(replacement, caret_line), editor.get_line_count() - 1)
 	editor.remove_secondary_carets()
 	editor.deselect()
 	editor.set_caret_line(new_caret_line)

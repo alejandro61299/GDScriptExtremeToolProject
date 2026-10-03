@@ -7,6 +7,7 @@ const GENERATED_SIGNAL_CALLBACK_FORMAT : String = "_on_{name}"
 const BLANK_LINES_AROUND_METHODS_AND_CLASSES : int = 2
 const BLANK_LINES_BETWEEN_MEMBER_CATEGORIES : int = 1
 const MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY : int = 1
+const MAX_BLANK_LINES_OUTSIDE_MEMBERS : int = 1
 const CLASS_MEMBER_ORDER : Array[String] = [
 	"signals",
 	"constants",

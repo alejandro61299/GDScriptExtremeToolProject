@@ -1,17 +1,21 @@
 action: format_class_members
 === input
+extends Node
+
+## Describes the class.
 
 
 
-var value : int = 0<|>
 func run() -> void:
-	pass
+	pass<|>
 
 === expected
-var value : int = 0<|>
+extends Node
+
+## Describes the class.
 
 
 func run() -> void:
-	pass
+	pass<|>
 
 === end

@@ -28,7 +28,6 @@ var value : int = 0<|>
 
 
 # Section: methods
-
 func run() -> void:
 	pass
 

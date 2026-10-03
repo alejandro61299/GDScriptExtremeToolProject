@@ -1,0 +1,21 @@
+action: format_class_members
+=== input
+extends Node
+
+
+func run() -> void:
+	pass<|>
+
+
+
+	# Disabled code.
+	# print("run")
+
+
+func stop() -> void:
+	pass
+
+
+	# Disabled code at the end.
+
+=== end

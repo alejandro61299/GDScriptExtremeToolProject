@@ -1,0 +1,31 @@
+action: format_class_members
+=== input
+extends Node
+
+
+# Closer to the signal.
+
+signal changed
+
+# Closer to the signal too.
+
+
+# Section
+
+
+# Describes the value.
+
+var value : int = 0<|>
+
+=== expected
+extends Node
+
+# Closer to the signal.
+signal changed
+# Closer to the signal too.
+
+# Section
+# Describes the value.
+var value : int = 0<|>
+
+=== end

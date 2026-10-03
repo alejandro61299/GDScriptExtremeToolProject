@@ -1,0 +1,33 @@
+action: format_class_members
+=== input
+
+
+
+# License.
+
+
+@tool
+
+
+
+extends Node
+
+
+## Describes the class.
+
+
+
+var value : int = 0<|>
+
+=== expected
+# License.
+
+@tool
+
+extends Node
+
+## Describes the class.
+
+var value : int = 0<|>
+
+=== end

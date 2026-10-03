@@ -1,17 +1,16 @@
 action: format_class_members
 === input
+# Describes the script.
 
 
 
-var value : int = 0<|>
 func run() -> void:
-	pass
+	pass<|>
 
 === expected
-var value : int = 0<|>
-
+# Describes the script.
 
 func run() -> void:
-	pass
+	pass<|>
 
 === end

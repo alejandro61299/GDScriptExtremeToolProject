@@ -1,0 +1,42 @@
+action: format_class_members
+=== input
+extends Node
+
+
+class Inner:
+	# Describes the inner class.
+
+
+
+	signal done
+	func run() -> void:
+		pass<|>
+
+
+
+	# End of the inner class.
+
+
+func root_method() -> void:
+	pass
+
+=== expected
+extends Node
+
+
+class Inner:
+	# Describes the inner class.
+
+	signal done
+
+
+	func run() -> void:
+		pass<|>
+
+	# End of the inner class.
+
+
+func root_method() -> void:
+	pass
+
+=== end

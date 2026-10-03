@@ -17,6 +17,7 @@ class Propietario extends  RefCounted:
 	func _init() -> void:
 		pass
 
+
 # Clase
 class Panchito extends RefCounted:
 	# Signal
@@ -45,11 +46,4 @@ func _on_panchito_debasted(p_data: Dictionary[Propietario, int]) -> void:
 func _on_my_signal(p_array: Array[int]) -> void:
 	var panchito : Panchito = Panchito.new()
 	panchito.panchito_debasted.connect(_on_panchito_debasted)
-
-
-
-
-
-
-
 # Se acabó la clase

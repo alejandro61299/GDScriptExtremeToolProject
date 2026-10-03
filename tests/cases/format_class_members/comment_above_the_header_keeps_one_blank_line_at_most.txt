@@ -1,0 +1,22 @@
+action: format_class_members
+=== input
+# Describes the script.
+# Second line.
+
+
+
+@tool
+extends Node
+
+var value : int = 0<|>
+
+=== expected
+# Describes the script.
+# Second line.
+
+@tool
+extends Node
+
+var value : int = 0<|>
+
+=== end
