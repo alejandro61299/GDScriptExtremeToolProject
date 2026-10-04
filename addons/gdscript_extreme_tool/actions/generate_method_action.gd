@@ -5,7 +5,7 @@ const GDSExSymbolIndex = preload("res://addons/gdscript_extreme_tool/analysis/sy
 const GDSExCallSiteParser = preload("res://addons/gdscript_extreme_tool/analysis/call_site_parser.gd")
 const GDSExTypeResolver = preload("res://addons/gdscript_extreme_tool/analysis/type_resolver.gd")
 const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
-const GDSExSettings = preload("res://addons/gdscript_extreme_tool/settings.gd")
+const GDSExPluginProjectSettings = preload("res://addons/gdscript_extreme_tool/plugin_project_settings.gd")
 const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
 const GDSExPlacement = preload("res://addons/gdscript_extreme_tool/editing/placement.gd")
 
@@ -154,7 +154,7 @@ func _build_signature(target: GDSExTarget, code: String, scope_info: GDSExSymbol
 func _add_param(signature: GDSExMethodSignature, source_name: String, type: GDSExSymbolIndex.GDSExTypeData) -> void:
 	var param_name := _format_param_name(source_name)
 	if param_name.is_empty() or signature.param_names.has(param_name):
-		param_name = GDSExSettings.fallback_param_format().format({"index": signature.param_names.size()})
+		param_name = GDSExPluginProjectSettings.fallback_param_format().format({"index": signature.param_names.size()})
 	signature.param_names.append(param_name)
 	signature.param_types.append(type)
 
@@ -167,11 +167,11 @@ func _format_param_name(source_name: String) -> String:
 		return ""
 	if _matches_param_format(base_name):
 		return base_name
-	return GDSExSettings.generated_param_format().format({"name": base_name})
+	return GDSExPluginProjectSettings.generated_param_format().format({"name": base_name})
 
 
 func _matches_param_format(param_name: String) -> bool:
-	var affixes := GDSExSettings.generated_param_format().split(NAME_PLACEHOLDER)
+	var affixes := GDSExPluginProjectSettings.generated_param_format().split(NAME_PLACEHOLDER)
 	var prefix := affixes[0]
 	var suffix := affixes[1] if affixes.size() > 1 else ""
 	if prefix.is_empty() and suffix.is_empty():

@@ -60,7 +60,7 @@ func callback_name_for(signal_name: String) -> String:
 	var base_name := signal_name.lstrip(NAME_PREFIX_TO_SKIP)
 	if base_name.is_empty():
 		return ""
-	return GDSExSettings.generated_signal_callback_format().format({"name": base_name})
+	return GDSExPluginProjectSettings.generated_signal_callback_format().format({"name": base_name})
 
 
 func _find_connection(code: String, caret: int, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExConnection:

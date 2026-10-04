@@ -11,8 +11,7 @@ const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/
 const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
 const GDSExEditPlan = preload("res://addons/gdscript_extreme_tool/editing/edit_plan.gd")
 const GDSExEditApplier = preload("res://addons/gdscript_extreme_tool/editing/edit_applier.gd")
-const GDSExSettings = preload("res://addons/gdscript_extreme_tool/settings.gd")
-const GDSExDefaultSettings = preload("res://addons/gdscript_extreme_tool/default_settings.gd")
+const GDSExPluginProjectSettings = preload("res://addons/gdscript_extreme_tool/plugin_project_settings.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -192,7 +191,7 @@ func _run_case(path: String) -> void:
 
 func _override_settings(settings: Dictionary, is_applied: bool) -> void:
 	for key: String in settings:
-		ProjectSettings.set_setting(GDSExSettings.setting_path(key), settings[key] if is_applied else null)
+		ProjectSettings.set_setting(GDSExPluginProjectSettings.setting_path(key), settings[key] if is_applied else null)
 
 
 func _check_view(test_case: TestCase) -> PackedStringArray:
@@ -524,9 +523,9 @@ func _check_no_false_targets() -> PackedStringArray:
 
 func _check_settings_registration() -> PackedStringArray:
 	var problems := PackedStringArray()
-	var prefix := GDSExSettings.SECTION + "/"
+	var prefix := GDSExPluginProjectSettings.SECTION + "/"
 	var names_before := _setting_names(prefix)
-	GDSExSettings.register()
+	GDSExPluginProjectSettings.register()
 	var names := _setting_names(prefix)
 	if names.size() != SETTING_COUNT:
 		problems.append("Expected %d registered settings, found %d: %s" % [SETTING_COUNT, names.size(), names])
@@ -534,18 +533,18 @@ func _check_settings_registration() -> PackedStringArray:
 		var value: Variant = ProjectSettings.get_setting(setting_name)
 		if value != ProjectSettings.property_get_revert(setting_name):
 			problems.append("%s does not start at its default value." % setting_name)
-	if GDSExSettings.class_member_order() != PackedStringArray(GDSExDefaultSettings.CLASS_MEMBER_ORDER) or GDSExSettings.generated_param_format() != GDSExDefaultSettings.GENERATED_PARAM_FORMAT:
+	if GDSExPluginProjectSettings.class_member_order() != PackedStringArray(GDSExPluginProjectSettings.DEFAULT_CLASS_MEMBER_ORDER) or GDSExPluginProjectSettings.generated_param_format() != GDSExPluginProjectSettings.DEFAULT_GENERATED_PARAM_FORMAT:
 		problems.append("The settings do not return the defaults when nothing is overridden.")
 
-	var blank_lines := GDSExSettings.setting_path(GDSExSettings.BLANK_LINES_AROUND_METHODS_AND_CLASSES)
+	var blank_lines := GDSExPluginProjectSettings.setting_path(GDSExPluginProjectSettings.BLANK_LINES_AROUND_METHODS_AND_CLASSES_KEY)
 	ProjectSettings.set_setting(blank_lines, 4)
-	if GDSExSettings.blank_lines_around_methods_and_classes() != 4:
+	if GDSExPluginProjectSettings.blank_lines_around_methods_and_classes() != 4:
 		problems.append("An overridden value is not returned.")
 	ProjectSettings.set_setting(blank_lines, "many")
-	if GDSExSettings.blank_lines_around_methods_and_classes() != GDSExDefaultSettings.BLANK_LINES_AROUND_METHODS_AND_CLASSES:
+	if GDSExPluginProjectSettings.blank_lines_around_methods_and_classes() != GDSExPluginProjectSettings.DEFAULT_BLANK_LINES_AROUND_METHODS_AND_CLASSES:
 		problems.append("A value of the wrong type should fall back to the default.")
 	ProjectSettings.set_setting(blank_lines, -3)
-	if GDSExSettings.blank_lines_around_methods_and_classes() != 0:
+	if GDSExPluginProjectSettings.blank_lines_around_methods_and_classes() != 0:
 		problems.append("A negative amount of blank lines should count as zero.")
 
 	for setting_name in names:

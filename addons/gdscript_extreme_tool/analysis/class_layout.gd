@@ -6,7 +6,7 @@ const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/
 const GDSExBracketLayout = preload("res://addons/gdscript_extreme_tool/analysis/bracket_layout.gd")
 const GDSExTokenSpacing = preload("res://addons/gdscript_extreme_tool/analysis/token_spacing.gd")
 const GDSExTypeResolver = preload("res://addons/gdscript_extreme_tool/analysis/type_resolver.gd")
-const GDSExSettings = preload("res://addons/gdscript_extreme_tool/settings.gd")
+const GDSExPluginProjectSettings = preload("res://addons/gdscript_extreme_tool/plugin_project_settings.gd")
 
 const COMMENT_START: String = "#"
 const REGION_START: String = "#region"
@@ -284,7 +284,7 @@ static func _last_category(blocks: Array[GDSExBlock]) -> int:
 
 
 static func _category_index(category_name: String) -> int:
-	var order := GDSExSettings.class_member_order()
+	var order := GDSExPluginProjectSettings.class_member_order()
 	var index := order.find(category_name)
 	return order.size() if index == -1 else index
 
@@ -509,7 +509,7 @@ static func _compose(class_scope: GDSExSymbolIndex.GDSExClassScope, blocks: Arra
 
 static func _copy_outside_members(draft: GDSExDraft, from: int, to: int, applies_format: bool) -> void:
 	if applies_format:
-		draft.copy_limiting_blank_lines(from, to, GDSExSettings.max_blank_lines_outside_members())
+		draft.copy_limiting_blank_lines(from, to, GDSExPluginProjectSettings.max_blank_lines_outside_members())
 	else:
 		draft.copy_lines(from, to)
 
@@ -520,16 +520,16 @@ static func _has_header(class_scope: GDSExSymbolIndex.GDSExClassScope) -> bool:
 
 static func _leading_gap(block: GDSExBlock, existing: int, is_at_top: bool) -> int:
 	if is_at_top:
-		return mini(existing, GDSExSettings.max_blank_lines_outside_members())
-	return GDSExSettings.blank_lines_around_methods_and_classes() if block.is_tall else GDSExSettings.blank_lines_between_member_categories()
+		return mini(existing, GDSExPluginProjectSettings.max_blank_lines_outside_members())
+	return GDSExPluginProjectSettings.blank_lines_around_methods_and_classes() if block.is_tall else GDSExPluginProjectSettings.blank_lines_between_member_categories()
 
 
 static func _standard_gap(previous: GDSExBlock, block: GDSExBlock, existing: int) -> int:
 	if previous.is_tall or block.is_tall:
-		return GDSExSettings.blank_lines_around_methods_and_classes()
+		return GDSExPluginProjectSettings.blank_lines_around_methods_and_classes()
 	if previous.category != block.category:
-		return GDSExSettings.blank_lines_between_member_categories()
-	return mini(existing, GDSExSettings.max_blank_lines_inside_member_category())
+		return GDSExPluginProjectSettings.blank_lines_between_member_categories()
+	return mini(existing, GDSExPluginProjectSettings.max_blank_lines_inside_member_category())
 
 
 static func _trimmed_layout(draft: GDSExDraft, last_line: int) -> GDSExLayout:

@@ -44,8 +44,7 @@ Cada fase deja el plugin funcionando y los tests en verde.
 addons/gdscript_extreme_tool/
 ├── plugin.cfg
 ├── plugin.gd
-├── default_settings.gd
-├── settings.gd
+├── plugin_project_settings.gd
 ├── actions/
 │   ├── action_registry.gd
 │   ├── code_action.gd
@@ -220,17 +219,17 @@ func build_plan(context: GDSExCodeContext) -> GDSExEditPlan
 
 ## Nombres de los parámetros generados
 
-Valores por defecto en `default_settings.gd`, sobrescribibles desde Project Settings (fase 11):
+Valores por defecto en las constantes `DEFAULT_` de `plugin_project_settings.gd`, sobrescribibles desde Project Settings (fase 11):
 
 ```gdscript
-const GENERATED_PARAM_FORMAT : String = "p_{name}"
-const FALLBACK_PARAM_FORMAT : String = "param_{index}"
-const GENERATED_SIGNAL_CALLBACK_FORMAT : String = "_on_{name}"
+const DEFAULT_GENERATED_PARAM_FORMAT : String = "p_{name}"
+const DEFAULT_FALLBACK_PARAM_FORMAT : String = "param_{index}"
+const DEFAULT_GENERATED_SIGNAL_CALLBACK_FORMAT : String = "_on_{name}"
 ```
 
-- Si el argumento es un nombre simple (variable, constante, parámetro) o un parámetro de señal con nombre, se aplica `GENERATED_PARAM_FORMAT` al nombre en minúsculas y sin guiones bajos iniciales: `event` → `p_event`, `CONST_1` → `p_const_1`, `_item` → `p_item`.
+- Si el argumento es un nombre simple (variable, constante, parámetro) o un parámetro de señal con nombre, se aplica `DEFAULT_GENERATED_PARAM_FORMAT` al nombre en minúsculas y sin guiones bajos iniciales: `event` → `p_event`, `CONST_1` → `p_const_1`, `_item` → `p_item`.
 - Un nombre que ya tiene el formato (`p_item`) se deja igual.
-- En cualquier otro caso (literal, `null`, `true`, `false`, `self`, expresión, lambda) o si el nombre se repite, se usa `FALLBACK_PARAM_FORMAT` con la posición del argumento: `param_0`, `param_1`.
+- En cualquier otro caso (literal, `null`, `true`, `false`, `self`, expresión, lambda) o si el nombre se repite, se usa `DEFAULT_FALLBACK_PARAM_FORMAT` con la posición del argumento: `param_0`, `param_1`.
 
 Al no empezar por `_`, el stub recién generado muestra el aviso `UNUSED_PARAMETER` de GDScript hasta que se usa el parámetro.
 
@@ -434,8 +433,8 @@ func _on_my_signal(p_value: int) -> void:
 
 - **Qué se reemplaza.** La expresión puede estar sola o a medio escribir: `my_signal`, `my_signal.`, `my_signal.conn`, `my_signal.connect(` o `my_signal.connect()`. La parte de la señal no se toca; lo que venga detrás se sustituye por `.connect(_on_...)`.
 - **Qué señales.** Propias (`my_signal`, `self.my_signal`), de una clase del archivo (`foo.changed`), del motor (`player.animation_changed`) y variables o parámetros de tipo `Signal` (sin parámetros conocidos).
-- **Nombre del método.** `GENERATED_SIGNAL_CALLBACK_FORMAT` aplicado al nombre de la señal sin guiones bajos iniciales (`String.lstrip("_")`): `_my_signal` da `_on_my_signal`. No incluye el nombre del objeto: `button.pressed` da `_on_pressed`.
-- **Parámetros.** Los de la señal, con el formato de `GENERATED_PARAM_FORMAT`.
+- **Nombre del método.** `DEFAULT_GENERATED_SIGNAL_CALLBACK_FORMAT` aplicado al nombre de la señal sin guiones bajos iniciales (`String.lstrip("_")`): `_my_signal` da `_on_my_signal`. No incluye el nombre del objeto: `button.pressed` da `_on_pressed`.
+- **Parámetros.** Los de la señal, con el formato de `DEFAULT_GENERATED_PARAM_FORMAT`.
 - **Si el método ya existe**, solo se completa la expresión y el cursor queda detrás. Se mira la clase donde se crearía el método y sus clases base; un método con el mismo nombre en una clase exterior no cuenta, porque desde una clase interna no se puede llamar.
 - **Regla general de visibilidad desde una clase interna:** de las clases exteriores solo se ven las constantes (incluidos `preload`, `enum` y clases internas). Sus métodos, variables y señales no cuentan como definidos para ninguna acción.
 - **No se ofrece** en la declaración `signal ...`, si la conexión ya tiene argumento, con otro método (`emit`, `disconnect`) ni cuando la señal es parte de una expresión mayor (argumento, asignación, `await`).
@@ -467,7 +466,7 @@ Casos en `tests/cases/view/`, con tres cabeceras nuevas:
 
 "Reorder Class Members" reordena la clase donde está el cursor (la raíz o una interna, sin entrar en sus clases internas). Solo aparece en el menú si la clase no está ya en orden.
 
-El orden es el ajuste `order/class_member_order`, cuyo valor por defecto es `CLASS_MEMBER_ORDER` de `default_settings.gd`. La cabecera (`@tool`, `class_name`, `extends`) no se mueve:
+El orden es el ajuste `order/class_member_order`, cuyo valor por defecto es `DEFAULT_CLASS_MEMBER_ORDER` de `plugin_project_settings.gd`. La cabecera (`@tool`, `class_name`, `extends`) no se mueve:
 
 1. Señales.
 2. Constantes.
@@ -514,13 +513,13 @@ Tests:
 
 "Format Class Members" ajusta las líneas en blanco entre los miembros de la clase donde está el cursor y alrededor de sus comentarios, sin cambiar su orden ni tocar ninguna línea de código. Solo aparece en el menú si hay algo que cambiar. Como la fase 9, no entra en las clases internas: se tratan como un miembro más.
 
-Las cantidades son ajustes de la sección `format/`, con sus valores por defecto en las constantes de `default_settings.gd`:
+Las cantidades son ajustes de la sección `format/`, con sus valores por defecto en las constantes `DEFAULT_` de `plugin_project_settings.gd`:
 
 | Entre | Líneas en blanco | Constante |
 |---|---|---|
-| Un método o una clase interna y cualquier otro miembro | 2 | `BLANK_LINES_AROUND_METHODS_AND_CLASSES` |
-| Miembros de categorías distintas (las de `CLASS_MEMBER_ORDER`) | 1 | `BLANK_LINES_BETWEEN_MEMBER_CATEGORIES` |
-| Miembros de la misma categoría | Las que hubiera, con un máximo de 1 | `MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY` |
+| Un método o una clase interna y cualquier otro miembro | 2 | `DEFAULT_BLANK_LINES_AROUND_METHODS_AND_CLASSES` |
+| Miembros de categorías distintas (las de `DEFAULT_CLASS_MEMBER_ORDER`) | 1 | `DEFAULT_BLANK_LINES_BETWEEN_MEMBER_CATEGORIES` |
+| Miembros de la misma categoría | Las que hubiera, con un máximo de 1 | `DEFAULT_MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY` |
 
 Reglas entre miembros:
 
@@ -533,7 +532,7 @@ Reglas entre miembros:
 Reglas de los comentarios. Hay dos clases de comentario: los del scope (su descripción al principio y lo que haya tras el último miembro) y los de un miembro.
 
 - **Comentarios de un miembro: pegados a él.** Se reparten como en la fase 9 (el más cercano; a igual distancia, el de abajo) y se quitan las líneas en blanco entre el comentario y su miembro. Si un miembro tiene varios bloques de comentarios, quedan todos seguidos. La separación con el miembro vecino se mide desde el comentario.
-- **Antes del primer miembro** (`MAX_BLANK_LINES_OUTSIDE_MEMBERS`, 1): entre el comentario inicial del scope y la primera sentencia, sea `@tool`, `class_name`, `extends` o un miembro, queda una línea en blanco como máximo, o ninguna si no la había. Lo mismo entre las sentencias de la cabecera y justo bajo `class X:`. Las líneas en blanco al principio del archivo se quitan todas, igual que las sobrantes del final.
+- **Antes del primer miembro** (`DEFAULT_MAX_BLANK_LINES_OUTSIDE_MEMBERS`, 1): entre el comentario inicial del scope y la primera sentencia, sea `@tool`, `class_name`, `extends` o un miembro, queda una línea en blanco como máximo, o ninguna si no la había. Lo mismo entre las sentencias de la cabecera y justo bajo `class X:`. Las líneas en blanco al principio del archivo se quitan todas, igual que las sobrantes del final.
 - **Comentario entre la cabecera y el primer miembro, separado de los dos**: se aplica la regla general tomando la cabecera como vecino de arriba. Si está más cerca de la cabecera es la descripción de la clase y se queda con ella; a igual distancia o más cerca del miembro, es del miembro y se pega a él.
 - **Tras la cabecera**, el primer miembro lleva una línea en blanco delante, dos si es un método o una clase. Sin cabecera, lleva las que hubiera con un máximo de una.
 - **Al final del scope**: entre el último miembro y los comentarios que le siguen, y entre esos comentarios, una línea en blanco como máximo. Las líneas en blanco sobrantes al final del archivo se quitan. En una clase interna, los comentarios finales son los que tienen la indentación de su cuerpo.
@@ -594,20 +593,19 @@ Tests:
 
 La configuración se edita en Project > Project Settings, sección "GDScript Extreme Tool", y se guarda en `project.godot` bajo `[gdscript_extreme_tool]`. Solo se escriben los valores que difieren del valor por defecto, así que se comparten con el proyecto y no se pierden al actualizar el plugin.
 
-- `default_settings.gd` (antes `settings.gd`) conserva las constantes con los valores por defecto.
-- `settings.gd` es el acceso a los valores efectivos: una función por ajuste (`GDSExSettings.generated_param_format()`, `GDSExSettings.class_member_order()`...) que lee Project Settings y cae al valor por defecto. El resto del código ya no lee constantes.
-- `GDSExSettings.register()`, llamado desde `plugin.gd` al activar el plugin, declara cada ajuste con su valor inicial, su tipo y, en los enteros, un rango de 0 a 10.
+- `plugin_project_settings.gd` reúne toda la configuración. Arriba, las constantes `DEFAULT_` con los valores por defecto y las constantes `_KEY` con la ruta de cada ajuste; debajo, una función por ajuste (`GDSExPluginProjectSettings.generated_param_format()`, `GDSExPluginProjectSettings.class_member_order()`...) que lee Project Settings y cae al valor por defecto. El resto del código ya no lee constantes.
+- `GDSExPluginProjectSettings.register()`, llamado desde `plugin.gd` al activar el plugin, declara cada ajuste con su valor inicial, su tipo y, en los enteros, un rango de 0 a 10.
 
 | Ajuste | Constante por defecto |
 |---|---|
-| `naming/generated_param_format` | `GENERATED_PARAM_FORMAT` |
-| `naming/fallback_param_format` | `FALLBACK_PARAM_FORMAT` |
-| `naming/generated_signal_callback_format` | `GENERATED_SIGNAL_CALLBACK_FORMAT` |
-| `format/blank_lines_around_methods_and_classes` | `BLANK_LINES_AROUND_METHODS_AND_CLASSES` |
-| `format/blank_lines_between_member_categories` | `BLANK_LINES_BETWEEN_MEMBER_CATEGORIES` |
-| `format/max_blank_lines_inside_member_category` | `MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY` |
-| `format/max_blank_lines_outside_members` | `MAX_BLANK_LINES_OUTSIDE_MEMBERS` |
-| `order/class_member_order` | `CLASS_MEMBER_ORDER` |
+| `naming/generated_param_format` | `DEFAULT_GENERATED_PARAM_FORMAT` |
+| `naming/fallback_param_format` | `DEFAULT_FALLBACK_PARAM_FORMAT` |
+| `naming/generated_signal_callback_format` | `DEFAULT_GENERATED_SIGNAL_CALLBACK_FORMAT` |
+| `format/blank_lines_around_methods_and_classes` | `DEFAULT_BLANK_LINES_AROUND_METHODS_AND_CLASSES` |
+| `format/blank_lines_between_member_categories` | `DEFAULT_BLANK_LINES_BETWEEN_MEMBER_CATEGORIES` |
+| `format/max_blank_lines_inside_member_category` | `DEFAULT_MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY` |
+| `format/max_blank_lines_outside_members` | `DEFAULT_MAX_BLANK_LINES_OUTSIDE_MEMBERS` |
+| `order/class_member_order` | `DEFAULT_CLASS_MEMBER_ORDER` |
 
 Reglas:
 
@@ -615,7 +613,7 @@ Reglas:
 - Un valor de tipo distinto al del valor por defecto (por ejemplo, tras editar `project.godot` a mano) se ignora y se usa el valor por defecto. Una cantidad negativa de líneas en blanco cuenta como cero.
 - Una categoría que falte en `order/class_member_order` va al final.
 - Al desactivar el plugin los ajustes no se borran: los valores cambiados siguen en `project.godot`.
-- `settings.gd` no puede tener variables `static`: `plugin.gd` lo precarga directamente y, en Godot 4.7.2, un script con variables `static` precargado por el script del `EditorPlugin` hace que el editor avise de recursos sin liberar al cerrar. Por eso los valores por defecto se construyen en una función.
+- `plugin_project_settings.gd` no puede tener variables `static`: `plugin.gd` lo precarga directamente y, en Godot 4.7.2, un script con variables `static` precargado por el script del `EditorPlugin` hace que el editor avise de recursos sin liberar al cerrar. Por eso los valores por defecto se construyen en una función.
 
 Tests:
 

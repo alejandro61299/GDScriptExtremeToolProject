@@ -5,13 +5,13 @@ const GDSExActionRegistry = preload("res://addons/gdscript_extreme_tool/actions/
 const GDSExCodeAction = preload("res://addons/gdscript_extreme_tool/actions/code_action.gd")
 const GDSExCodeContext = preload("res://addons/gdscript_extreme_tool/actions/code_context.gd")
 const GDSExEditApplier = preload("res://addons/gdscript_extreme_tool/editing/edit_applier.gd")
-const GDSExSettings = preload("res://addons/gdscript_extreme_tool/settings.gd")
+const GDSExPluginProjectSettings = preload("res://addons/gdscript_extreme_tool/plugin_project_settings.gd")
 
 var _context_menu_plugin : GDSExCodeActionsMenuPlugin
 
 
 func _enter_tree() -> void:
-	GDSExSettings.register()
+	GDSExPluginProjectSettings.register()
 	_context_menu_plugin = GDSExCodeActionsMenuPlugin.new()
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, _context_menu_plugin)
 

@@ -41,7 +41,7 @@ Open **Project > Project Settings** and look for the **GDScript Extreme Tool** s
 | `format/blank_lines_between_member_categories` | `1` | Blank lines between members of different categories. |
 | `format/max_blank_lines_inside_member_category` | `1` | Blank lines kept between members of the same category. |
 | `format/max_blank_lines_outside_members` | `1` | Blank lines kept around the comments at the start and the end of a class. |
-| `order/class_member_order` | see `default_settings.gd` | Order used by Reorder Class Members. A category missing from the list goes last. |
+| `order/class_member_order` | see `plugin_project_settings.gd` | Order used by Reorder Class Members. A category missing from the list goes last. |
 
 Only the values you change are saved, in the `[gdscript_extreme_tool]` section of `project.godot`, so they are shared with the project and survive plugin updates. You can also edit that section by hand:
 
@@ -52,7 +52,7 @@ naming/generated_param_format="arg_{name}"
 format/blank_lines_around_methods_and_classes=1
 ```
 
-The defaults live in `addons/gdscript_extreme_tool/default_settings.gd`. A value of the wrong type is ignored and its default is used.
+The defaults are the `DEFAULT_` constants in `addons/gdscript_extreme_tool/plugin_project_settings.gd`. A value of the wrong type is ignored and its default is used.
 
 ## Footprint in your project
 
