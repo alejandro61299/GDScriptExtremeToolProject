@@ -284,8 +284,9 @@ static func _last_category(blocks: Array[GDSExBlock]) -> int:
 
 
 static func _category_index(category_name: String) -> int:
-	var index := GDSExSettings.CLASS_MEMBER_ORDER.find(category_name)
-	return GDSExSettings.CLASS_MEMBER_ORDER.size() if index == -1 else index
+	var order := GDSExSettings.class_member_order()
+	var index := order.find(category_name)
+	return order.size() if index == -1 else index
 
 
 static func _category_name(member: GDSExSymbolIndex.GDSExClassMember, modifiers: String, class_scope: GDSExSymbolIndex.GDSExClassScope) -> String:
@@ -508,7 +509,7 @@ static func _compose(class_scope: GDSExSymbolIndex.GDSExClassScope, blocks: Arra
 
 static func _copy_outside_members(draft: GDSExDraft, from: int, to: int, applies_format: bool) -> void:
 	if applies_format:
-		draft.copy_limiting_blank_lines(from, to, GDSExSettings.MAX_BLANK_LINES_OUTSIDE_MEMBERS)
+		draft.copy_limiting_blank_lines(from, to, GDSExSettings.max_blank_lines_outside_members())
 	else:
 		draft.copy_lines(from, to)
 
@@ -519,16 +520,16 @@ static func _has_header(class_scope: GDSExSymbolIndex.GDSExClassScope) -> bool:
 
 static func _leading_gap(block: GDSExBlock, existing: int, is_at_top: bool) -> int:
 	if is_at_top:
-		return mini(existing, GDSExSettings.MAX_BLANK_LINES_OUTSIDE_MEMBERS)
-	return GDSExSettings.BLANK_LINES_AROUND_METHODS_AND_CLASSES if block.is_tall else GDSExSettings.BLANK_LINES_BETWEEN_MEMBER_CATEGORIES
+		return mini(existing, GDSExSettings.max_blank_lines_outside_members())
+	return GDSExSettings.blank_lines_around_methods_and_classes() if block.is_tall else GDSExSettings.blank_lines_between_member_categories()
 
 
 static func _standard_gap(previous: GDSExBlock, block: GDSExBlock, existing: int) -> int:
 	if previous.is_tall or block.is_tall:
-		return GDSExSettings.BLANK_LINES_AROUND_METHODS_AND_CLASSES
+		return GDSExSettings.blank_lines_around_methods_and_classes()
 	if previous.category != block.category:
-		return GDSExSettings.BLANK_LINES_BETWEEN_MEMBER_CATEGORIES
-	return mini(existing, GDSExSettings.MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY)
+		return GDSExSettings.blank_lines_between_member_categories()
+	return mini(existing, GDSExSettings.max_blank_lines_inside_member_category())
 
 
 static func _trimmed_layout(draft: GDSExDraft, last_line: int) -> GDSExLayout:

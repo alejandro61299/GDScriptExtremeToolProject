@@ -1,0 +1,21 @@
+action: generate_method
+settings: {"naming/generated_param_format": "arg_{name}", "naming/fallback_param_format": "value_{index}"}
+=== input
+extends Node
+
+
+func run(amount : int) -> void:
+	_apply(amount, 3)<|>
+
+=== expected
+extends Node
+
+
+func run(amount : int) -> void:
+	_apply(amount, 3)
+
+
+func _apply(arg_amount: int, value_1: int) -> void:
+	<|pass|>
+
+=== end

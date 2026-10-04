@@ -154,7 +154,7 @@ func _build_signature(target: GDSExTarget, code: String, scope_info: GDSExSymbol
 func _add_param(signature: GDSExMethodSignature, source_name: String, type: GDSExSymbolIndex.GDSExTypeData) -> void:
 	var param_name := _format_param_name(source_name)
 	if param_name.is_empty() or signature.param_names.has(param_name):
-		param_name = GDSExSettings.FALLBACK_PARAM_FORMAT.format({"index": signature.param_names.size()})
+		param_name = GDSExSettings.fallback_param_format().format({"index": signature.param_names.size()})
 	signature.param_names.append(param_name)
 	signature.param_types.append(type)
 
@@ -167,11 +167,11 @@ func _format_param_name(source_name: String) -> String:
 		return ""
 	if _matches_param_format(base_name):
 		return base_name
-	return GDSExSettings.GENERATED_PARAM_FORMAT.format({"name": base_name})
+	return GDSExSettings.generated_param_format().format({"name": base_name})
 
 
 func _matches_param_format(param_name: String) -> bool:
-	var affixes := GDSExSettings.GENERATED_PARAM_FORMAT.split(NAME_PLACEHOLDER)
+	var affixes := GDSExSettings.generated_param_format().split(NAME_PLACEHOLDER)
 	var prefix := affixes[0]
 	var suffix := affixes[1] if affixes.size() > 1 else ""
 	if prefix.is_empty() and suffix.is_empty():

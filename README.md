@@ -30,24 +30,33 @@ The folder must keep its name: the plugin loads its own scripts from `res://addo
 
 ## Configuration
 
-Edit the constants in `addons/gdscript_extreme_tool/settings.gd`:
+Open **Project > Project Settings** and look for the **GDScript Extreme Tool** section. Changes apply the next time an action runs.
 
-| Constant | Default | Meaning |
+| Setting | Default | Meaning |
 |---|---|---|
-| `GENERATED_PARAM_FORMAT` | `p_{name}` | Name of a generated parameter when the argument has a name. |
-| `FALLBACK_PARAM_FORMAT` | `param_{index}` | Name of a generated parameter otherwise. |
-| `GENERATED_SIGNAL_CALLBACK_FORMAT` | `_on_{name}` | Name of a generated signal callback. |
-| `BLANK_LINES_AROUND_METHODS_AND_CLASSES` | `2` | Blank lines around methods and inner classes. |
-| `BLANK_LINES_BETWEEN_MEMBER_CATEGORIES` | `1` | Blank lines between members of different categories. |
-| `MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY` | `1` | Blank lines kept between members of the same category. |
-| `MAX_BLANK_LINES_OUTSIDE_MEMBERS` | `1` | Blank lines kept around the comments at the start and the end of a class. |
-| `CLASS_MEMBER_ORDER` | see file | Order used by Reorder Class Members. |
+| `naming/generated_param_format` | `p_{name}` | Name of a generated parameter when the argument has a name. |
+| `naming/fallback_param_format` | `param_{index}` | Name of a generated parameter otherwise. |
+| `naming/generated_signal_callback_format` | `_on_{name}` | Name of a generated signal callback. |
+| `format/blank_lines_around_methods_and_classes` | `2` | Blank lines around methods and inner classes. |
+| `format/blank_lines_between_member_categories` | `1` | Blank lines between members of different categories. |
+| `format/max_blank_lines_inside_member_category` | `1` | Blank lines kept between members of the same category. |
+| `format/max_blank_lines_outside_members` | `1` | Blank lines kept around the comments at the start and the end of a class. |
+| `order/class_member_order` | see `default_settings.gd` | Order used by Reorder Class Members. A category missing from the list goes last. |
 
-Updating the plugin replaces this file, so keep a note of your changes.
+Only the values you change are saved, in the `[gdscript_extreme_tool]` section of `project.godot`, so they are shared with the project and survive plugin updates. You can also edit that section by hand:
+
+```ini
+[gdscript_extreme_tool]
+
+naming/generated_param_format="arg_{name}"
+format/blank_lines_around_methods_and_classes=1
+```
+
+The defaults live in `addons/gdscript_extreme_tool/default_settings.gd`. A value of the wrong type is ignored and its default is used.
 
 ## Footprint in your project
 
-The plugin registers nothing global: no `class_name`, no autoloads, no project settings and no input actions. Its scripts reference each other with `preload` constants, so they do not show up in autocompletion or in the node and resource dialogs.
+The plugin registers nothing global besides its own section in Project Settings: no `class_name`, no autoloads and no input actions. Its scripts reference each other with `preload` constants, so they do not show up in autocompletion or in the node and resource dialogs.
 
 Every type the plugin declares is prefixed with `GDSEx`, so a global class of your project cannot shadow one of them.
 

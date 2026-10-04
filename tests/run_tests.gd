@@ -11,6 +11,8 @@ const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/
 const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
 const GDSExEditPlan = preload("res://addons/gdscript_extreme_tool/editing/edit_plan.gd")
 const GDSExEditApplier = preload("res://addons/gdscript_extreme_tool/editing/edit_applier.gd")
+const GDSExSettings = preload("res://addons/gdscript_extreme_tool/settings.gd")
+const GDSExDefaultSettings = preload("res://addons/gdscript_extreme_tool/default_settings.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -36,6 +38,7 @@ const VIEW_TEXT_VISIBLE: String = "text_visible"
 const VIEW_CARET_ROW_UNCHANGED: String = "caret_row_unchanged"
 const REORDER_ACTION: String = "reorder_class_members"
 const FORMAT_ACTION: String = "format_class_members"
+const SETTING_COUNT: int = 8
 const BLANK_CHARACTERS: Array[String] = [" ", "\t", "\n"]
 const COLLECTION_CLOSINGS: Array[String] = ["]", "}"]
 const STRING_LITERAL_PATTERN: String = "\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\\\n]|\\\\.)*'"
@@ -109,6 +112,7 @@ class TestCase:
 	var expected_bookmarks: PackedInt32Array = []
 	var folds: PackedInt32Array = []
 	var expected_folds: PackedInt32Array = []
+	var settings: Dictionary = {}
 
 
 class ErrorCollector extends Logger:
@@ -175,13 +179,20 @@ func _run_case(path: String) -> void:
 		return
 	var editor := _create_editor(test_case)
 	_error_collector.take()
+	_override_settings(test_case.settings, true)
 	var problems := _run_action(test_case, editor)
 	editor.free()
 	if test_case.viewport_lines > 0 and problems.is_empty():
 		problems.append_array(await _check_view(test_case))
+	_override_settings(test_case.settings, false)
 	for error in _error_collector.take():
 		problems.append("Engine error: %s" % error)
 	_report(test_case, problems)
+
+
+func _override_settings(settings: Dictionary, is_applied: bool) -> void:
+	for key: String in settings:
+		ProjectSettings.set_setting(GDSExSettings.setting_path(key), settings[key] if is_applied else null)
 
 
 func _check_view(test_case: TestCase) -> PackedStringArray:
@@ -270,6 +281,9 @@ func _parse_case(path: String) -> TestCase:
 	test_case.expected_bookmarks = _parse_lines(headers.get("expect_bookmarks", ""))
 	test_case.folds = _parse_lines(headers.get("folds", ""))
 	test_case.expected_folds = _parse_lines(headers.get("expect_folds", ""))
+	var settings: Variant = str_to_var(headers.get("settings", "{}"))
+	if settings is Dictionary:
+		test_case.settings = settings
 	return test_case
 
 
@@ -328,6 +342,8 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_layout_of_project_scripts(FORMAT_ACTION, true)
 		"check_index_memory":
 			return _check_index_memory(editor)
+		"check_settings_registration":
+			return _check_settings_registration()
 	var action := _find_code_action(test_case.action)
 	if action == null:
 		return PackedStringArray(["Unknown action '%s'." % test_case.action])
@@ -504,6 +520,48 @@ func _check_no_false_targets() -> PackedStringArray:
 		var index := GDSExSymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
 		_collect_false_targets(path, index, index.statements, generator, problems)
 	return problems
+
+
+func _check_settings_registration() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var prefix := GDSExSettings.SECTION + "/"
+	var names_before := _setting_names(prefix)
+	GDSExSettings.register()
+	var names := _setting_names(prefix)
+	if names.size() != SETTING_COUNT:
+		problems.append("Expected %d registered settings, found %d: %s" % [SETTING_COUNT, names.size(), names])
+	for setting_name in names:
+		var value: Variant = ProjectSettings.get_setting(setting_name)
+		if value != ProjectSettings.property_get_revert(setting_name):
+			problems.append("%s does not start at its default value." % setting_name)
+	if GDSExSettings.class_member_order() != PackedStringArray(GDSExDefaultSettings.CLASS_MEMBER_ORDER) or GDSExSettings.generated_param_format() != GDSExDefaultSettings.GENERATED_PARAM_FORMAT:
+		problems.append("The settings do not return the defaults when nothing is overridden.")
+
+	var blank_lines := GDSExSettings.setting_path(GDSExSettings.BLANK_LINES_AROUND_METHODS_AND_CLASSES)
+	ProjectSettings.set_setting(blank_lines, 4)
+	if GDSExSettings.blank_lines_around_methods_and_classes() != 4:
+		problems.append("An overridden value is not returned.")
+	ProjectSettings.set_setting(blank_lines, "many")
+	if GDSExSettings.blank_lines_around_methods_and_classes() != GDSExDefaultSettings.BLANK_LINES_AROUND_METHODS_AND_CLASSES:
+		problems.append("A value of the wrong type should fall back to the default.")
+	ProjectSettings.set_setting(blank_lines, -3)
+	if GDSExSettings.blank_lines_around_methods_and_classes() != 0:
+		problems.append("A negative amount of blank lines should count as zero.")
+
+	for setting_name in names:
+		ProjectSettings.set_setting(setting_name, null)
+	if not names_before.is_empty():
+		problems.append("The project overrides plugin settings, so the other cases do not run with the defaults: %s" % [names_before])
+	return problems
+
+
+func _setting_names(prefix: String) -> PackedStringArray:
+	var names := PackedStringArray()
+	for property in ProjectSettings.get_property_list():
+		var property_name: String = property["name"]
+		if property_name.begins_with(prefix) and ProjectSettings.has_setting(property_name):
+			names.append(property_name)
+	return names
 
 
 func _check_layout_of_project_scripts(action_name: String, keeps_line_order: bool) -> PackedStringArray:

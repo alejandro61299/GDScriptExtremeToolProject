@@ -1,0 +1,25 @@
+action: generate_connected_function
+settings: {"naming/generated_signal_callback_format": "_handle_{name}"}
+=== input
+extends Node
+
+signal changed(value : int)
+
+
+func _ready() -> void:
+	changed<|>
+
+=== expected
+extends Node
+
+signal changed(value : int)
+
+
+func _ready() -> void:
+	changed.connect(_handle_changed)
+
+
+func _handle_changed(p_value: int) -> void:
+	<|pass|>
+
+=== end

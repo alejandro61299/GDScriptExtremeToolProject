@@ -1,0 +1,30 @@
+action: reorder_class_members
+settings: {"order/class_member_order": PackedStringArray("public_methods", "public_variables", "constants", "signals")}
+=== input
+extends Node
+
+signal changed
+
+const LIMIT : int = 10
+
+var value : int = 0<|>
+
+
+func run() -> void:
+	pass
+
+=== expected
+extends Node
+
+
+func run() -> void:
+	pass
+
+
+var value : int = 0<|>
+
+const LIMIT : int = 10
+
+signal changed
+
+=== end

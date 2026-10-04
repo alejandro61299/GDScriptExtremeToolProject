@@ -15,6 +15,7 @@ Godot 4.7.2. Estado de partida: una única utilidad ("Generate Method Stub") con
 | 8 | Vista y navegación tras generar | Hecha |
 | 9 | Reordenar los miembros de una clase | Hecha |
 | 10 | Dar formato a las líneas en blanco de una clase | Hecha |
+| 11 | Ajustes en Project Settings | Hecha |
 
 ## Objetivo
 
@@ -43,6 +44,7 @@ Cada fase deja el plugin funcionando y los tests en verde.
 addons/gdscript_extreme_tool/
 ├── plugin.cfg
 ├── plugin.gd
+├── default_settings.gd
 ├── settings.gd
 ├── actions/
 │   ├── action_registry.gd
@@ -218,7 +220,7 @@ func build_plan(context: GDSExCodeContext) -> GDSExEditPlan
 
 ## Nombres de los parámetros generados
 
-Definidos en `settings.gd`:
+Valores por defecto en `default_settings.gd`, sobrescribibles desde Project Settings (fase 11):
 
 ```gdscript
 const GENERATED_PARAM_FORMAT : String = "p_{name}"
@@ -465,7 +467,7 @@ Casos en `tests/cases/view/`, con tres cabeceras nuevas:
 
 "Reorder Class Members" reordena la clase donde está el cursor (la raíz o una interna, sin entrar en sus clases internas). Solo aparece en el menú si la clase no está ya en orden.
 
-El orden es la constante `CLASS_MEMBER_ORDER` de `settings.gd`. La cabecera (`@tool`, `class_name`, `extends`) no se mueve:
+El orden es el ajuste `order/class_member_order`, cuyo valor por defecto es `CLASS_MEMBER_ORDER` de `default_settings.gd`. La cabecera (`@tool`, `class_name`, `extends`) no se mueve:
 
 1. Señales.
 2. Constantes.
@@ -512,7 +514,7 @@ Tests:
 
 "Format Class Members" ajusta las líneas en blanco entre los miembros de la clase donde está el cursor y alrededor de sus comentarios, sin cambiar su orden ni tocar ninguna línea de código. Solo aparece en el menú si hay algo que cambiar. Como la fase 9, no entra en las clases internas: se tratan como un miembro más.
 
-Las cantidades son constantes de `settings.gd`:
+Las cantidades son ajustes de la sección `format/`, con sus valores por defecto en las constantes de `default_settings.gd`:
 
 | Entre | Líneas en blanco | Constante |
 |---|---|---|
@@ -587,6 +589,38 @@ Tests:
 
 - Casos de texto en `tests/cases/format_class_members/` y `tests/cases/view/formatting_keeps_the_caret_on_the_same_row.txt`.
 - `action: check_format_project_scripts` da formato a la raíz y a todas las clases internas de cada script del proyecto y comprueba que el código queda idéntico salvo espacios, saltos de línea y comas finales, que los literales de cadena no cambian, que el resultado compila, que el motor ve los mismos miembros y las constantes conservan su valor, y que repetir la acción no cambia nada. La acción modifica 7 de los 27 scripts que revisa.
+
+### Fase 11 — Ajustes en Project Settings (hecha)
+
+La configuración se edita en Project > Project Settings, sección "GDScript Extreme Tool", y se guarda en `project.godot` bajo `[gdscript_extreme_tool]`. Solo se escriben los valores que difieren del valor por defecto, así que se comparten con el proyecto y no se pierden al actualizar el plugin.
+
+- `default_settings.gd` (antes `settings.gd`) conserva las constantes con los valores por defecto.
+- `settings.gd` es el acceso a los valores efectivos: una función por ajuste (`GDSExSettings.generated_param_format()`, `GDSExSettings.class_member_order()`...) que lee Project Settings y cae al valor por defecto. El resto del código ya no lee constantes.
+- `GDSExSettings.register()`, llamado desde `plugin.gd` al activar el plugin, declara cada ajuste con su valor inicial, su tipo y, en los enteros, un rango de 0 a 10.
+
+| Ajuste | Constante por defecto |
+|---|---|
+| `naming/generated_param_format` | `GENERATED_PARAM_FORMAT` |
+| `naming/fallback_param_format` | `FALLBACK_PARAM_FORMAT` |
+| `naming/generated_signal_callback_format` | `GENERATED_SIGNAL_CALLBACK_FORMAT` |
+| `format/blank_lines_around_methods_and_classes` | `BLANK_LINES_AROUND_METHODS_AND_CLASSES` |
+| `format/blank_lines_between_member_categories` | `BLANK_LINES_BETWEEN_MEMBER_CATEGORIES` |
+| `format/max_blank_lines_inside_member_category` | `MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY` |
+| `format/max_blank_lines_outside_members` | `MAX_BLANK_LINES_OUTSIDE_MEMBERS` |
+| `order/class_member_order` | `CLASS_MEMBER_ORDER` |
+
+Reglas:
+
+- Los valores se leen en cada uso, sin caché: un cambio en Project Settings se aplica en la siguiente acción.
+- Un valor de tipo distinto al del valor por defecto (por ejemplo, tras editar `project.godot` a mano) se ignora y se usa el valor por defecto. Una cantidad negativa de líneas en blanco cuenta como cero.
+- Una categoría que falte en `order/class_member_order` va al final.
+- Al desactivar el plugin los ajustes no se borran: los valores cambiados siguen en `project.godot`.
+- `settings.gd` no puede tener variables `static`: `plugin.gd` lo precarga directamente y, en Godot 4.7.2, un script con variables `static` precargado por el script del `EditorPlugin` hace que el editor avise de recursos sin liberar al cerrar. Por eso los valores por defecto se construyen en una función.
+
+Tests:
+
+- Casos en `tests/cases/settings/`. Cabecera nueva `settings:` con un diccionario en sintaxis de Godot (`{"format/blank_lines_around_methods_and_classes": 1}`); el runner aplica esos valores a Project Settings durante el caso y los retira después.
+- `action: check_settings_registration` comprueba que se registran los 8 ajustes con su valor por defecto, que un valor cambiado se devuelve, que un tipo incorrecto cae al valor por defecto, y que el `project.godot` de desarrollo no sobrescribe ninguno (el resto de casos presupone los valores por defecto).
 
 ## Casos pendientes
 

@@ -1,0 +1,36 @@
+action: format_class_members
+settings: {"format/blank_lines_around_methods_and_classes": 1, "format/blank_lines_between_member_categories": 2, "format/max_blank_lines_inside_member_category": 0}
+=== input
+extends Node
+signal changed
+const LIMIT : int = 10
+
+
+
+const SPEED : int = 2
+var value : int = 0<|>
+func run() -> void:
+	pass
+func stop() -> void:
+	pass
+
+=== expected
+extends Node
+
+
+signal changed
+
+
+const LIMIT : int = 10
+const SPEED : int = 2
+
+
+var value : int = 0<|>
+
+func run() -> void:
+	pass
+
+func stop() -> void:
+	pass
+
+=== end

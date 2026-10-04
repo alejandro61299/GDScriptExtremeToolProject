@@ -1,0 +1,4 @@
+action: check_settings_registration
+=== input
+extends Node
+=== end
