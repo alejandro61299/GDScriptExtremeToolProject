@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="CodeGeneratorPluginProject"
+config/name="GDScript Extreme Tool"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"
 
@@ -21,7 +21,7 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/code_generator/plugin.cfg")
+enabled=PackedStringArray("res://addons/gdscript_extreme_tool/plugin.cfg")
 
 [physics]
 

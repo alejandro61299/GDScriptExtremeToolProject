@@ -1,13 +1,13 @@
 @tool
 extends RefCounted
 
-const SourceScanner = preload("res://addons/code_generator/analysis/source_scanner.gd")
+const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/source_scanner.gd")
 
 const BLANK_CHARACTERS: String = " \t"
 const SEPARATOR: String = " "
 
 
-static func tidy(statements: Array[SourceScanner.Statement], lines: PackedStringArray, line_ranges: Array[Vector2i]) -> PackedStringArray:
+static func tidy(statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray, line_ranges: Array[Vector2i]) -> PackedStringArray:
 	var runs: Dictionary[int, Array] = {}
 	var code_ends: Dictionary[int, int] = {}
 	for statement in statements:
@@ -27,7 +27,7 @@ static func tidy(statements: Array[SourceScanner.Statement], lines: PackedString
 	return tidied
 
 
-static func _find_untidy_runs(code: String, piece: SourceScanner.Piece, lines: PackedStringArray, runs: Dictionary[int, Array]) -> void:
+static func _find_untidy_runs(code: String, piece: GDSExSourceScanner.GDSExPiece, lines: PackedStringArray, runs: Dictionary[int, Array]) -> void:
 	var index := 0
 	while index < code.length():
 		if not BLANK_CHARACTERS.contains(code[index]):

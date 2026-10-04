@@ -1,4 +1,4 @@
-# Plan de refactorización — CodeGenerator
+# Plan de refactorización — GDScript Extreme Tool
 
 Godot 4.7.2. Estado de partida: una única utilidad ("Generate Method Stub") con la inserción acoplada a "método nuevo en una clase" y un índice de símbolos que calcula mal dónde termina cada miembro, sobre todo con lambdas y métodos anidados.
 
@@ -27,7 +27,7 @@ Cada fase deja el plugin funcionando y los tests en verde.
 
 ## Decisiones de diseño
 
-- **Las utilidades solo producen datos.** Una acción devuelve un `EditPlan`; `EditApplier` es la única clase que toca `CodeEdit`.
+- **Las utilidades solo producen datos.** Una acción devuelve un `GDSExEditPlan`; `GDSExEditApplier` es la única clase que toca `CodeEdit`.
 - **El final del archivo es una posición válida.** Un punto de inserción es "antes de la línea N", con N entre 0 y `line_count` inclusive. Se aplica con `insert_text`, no con `insert_line_at` (que no puede añadir al final).
 - **La indentación se copia, no se calcula.** El punto de inserción lleva el texto de indentación de las líneas hermanas. La unidad para los niveles relativos del snippet se detecta del propio archivo; la configuración del editor (`is_indent_using_spaces()`, `get_indent_size()`) solo se usa si el archivo no tiene ninguna línea indentada.
 - **El espaciado es un parámetro.** Cada punto de inserción pide un mínimo de líneas en blanco antes y después; el applier cuenta las que ya hay a ambos lados y añade solo la diferencia.
@@ -40,10 +40,10 @@ Cada fase deja el plugin funcionando y los tests en verde.
 ## Estructura objetivo
 
 ```
-addons/code_generator/
+addons/gdscript_extreme_tool/
 ├── plugin.cfg
-├── code_generator_plugin.gd
-├── code_generator_settings.gd
+├── plugin.gd
+├── settings.gd
 ├── actions/
 │   ├── action_registry.gd
 │   ├── code_action.gd
@@ -91,28 +91,28 @@ class SnippetLine:
 	var indent: int
 	var text: String
 
-class Snippet:
+class GDSExSnippet:
 	var lines: Array[SnippetLine]
 	var selection_line: int = -1
 	var selection_from: int
 	var selection_to: int
 
-class InsertionPoint:
+class GDSExInsertionPoint:
 	var line: int
 	var indent_text: String
 	var blank_lines_before: int
 	var blank_lines_after: int
 
-class EditPlan:
-	func insert(point: InsertionPoint, snippet: Snippet) -> void
+class GDSExEditPlan:
+	func insert(point: GDSExInsertionPoint, snippet: GDSExSnippet) -> void
 ```
 
-- `EditApplier.apply(editor, plan)` aplica todas las ediciones de abajo arriba dentro de una sola operación compleja (un solo undo) y coloca la selección del snippet.
+- `GDSExEditApplier.apply(editor, plan)` aplica todas las ediciones de abajo arriba dentro de una sola operación compleja (un solo undo) y coloca la selección del snippet.
 - El plan es una lista, así que reemplazar o borrar rangos se puede añadir cuando una utilidad lo necesite. De momento solo hace falta insertar.
 
 ### Colocación (`editing/placement.gd`)
 
-Traduce una intención a un `InsertionPoint` usando el índice:
+Traduce una intención a un `GDSExInsertionPoint` usando el índice:
 
 | Función | Dónde | Blancos antes / después |
 |---|---|---|
@@ -157,9 +157,9 @@ El builder recorre el árbol de sentencias y crea los scopes:
 
 | Scope | Qué cubre |
 |---|---|
-| `ClassScope` | La raíz y cada `class` interna |
-| `FunctionScope` | Métodos y lambdas, con o sin variable, a cualquier profundidad (`is_lambda`) |
-| `BlockScope` | `if`, `elif`, `else`, `for`, `while`, `match` y cada rama de `match` |
+| `GDSExClassScope` | La raíz y cada `class` interna |
+| `GDSExFunctionScope` | Métodos y lambdas, con o sin variable, a cualquier profundidad (`is_lambda`) |
+| `GDSExBlockScope` | `if`, `elif`, `else`, `for`, `while`, `match` y cada rama de `match` |
 
 - Todo scope guarda su línea de cabecera, la primera línea de su cuerpo, su última línea, el texto de indentación de su cuerpo, sus hijos y sus locales en orden de declaración.
 - El scope de una posición es el bloque que contiene su sentencia. La condición de un `if` pertenece al scope exterior, no al bloque que abre.
@@ -208,17 +208,17 @@ Operadores: comparaciones, `and`, `or` y `not` dan `bool`; `as T` da `T`; la ari
 
 ```gdscript
 func get_label() -> String
-func build_plan(context: CodeContext) -> EditPlan
+func build_plan(context: GDSExCodeContext) -> GDSExEditPlan
 ```
 
-- `CodeContext` se construye a partir del `CodeEdit`: líneas, índice, scope y sentencia de la posición del cursor, selección (como posiciones dentro de la sentencia) y unidad de indentación.
+- `GDSExCodeContext` se construye a partir del `CodeEdit`: líneas, índice, scope y sentencia de la posición del cursor, selección (como posiciones dentro de la sentencia) y unidad de indentación.
 - `action_registry.gd` crea la lista de acciones y decide cuáles están disponibles para un contexto.
 - En `_popup_menu`, el plugin añade al menú las acciones disponibles. Al pulsar una, vuelve a construir el contexto y el plan y lo aplica, de modo que nunca se usa un plan calculado sobre un texto anterior.
 - Añadir una utilidad es crear `actions/<nombre>_action.gd` y añadir una línea en el registro. Sus casos de test usan `action: <nombre>`.
 
 ## Nombres de los parámetros generados
 
-Definidos en `code_generator_settings.gd`:
+Definidos en `settings.gd`:
 
 ```gdscript
 const GENERATED_PARAM_FORMAT : String = "p_{name}"
@@ -289,7 +289,7 @@ func _add_to_list(item : Object) -> void:
 ```
 
 - **Clase destino:** la clase más interna que contiene la selección, sea la raíz o una interna, con la indentación de sus miembros.
-- **Dónde** (`Placement.member_variable`), por orden de preferencia:
+- **Dónde** (`GDSExPlacement.member_variable`), por orden de preferencia:
   1. Tras la última variable declarada antes del primer método, sin línea en blanco.
   2. Tras la última constante, señal o enum, con una línea en blanco.
   3. Tras la cabecera (`@tool`, `class_name`, `extends`, o `class Foo:` y su `extends`), con una línea en blanco.
@@ -342,7 +342,7 @@ indent: spaces
 ### Fase 1 — Capa de edición genérica (hecha)
 
 - `indentation.gd`, `snippet.gd`, `edit_plan.gd`, `edit_applier.gd` y `placement.gd` (con las tres colocaciones que ya existían).
-- El generador de métodos produce un `Snippet` con indentación relativa y lo inserta a través de `EditPlan` y `EditApplier`.
+- El generador de métodos produce un `GDSExSnippet` con indentación relativa y lo inserta a través de `GDSExEditPlan` y `GDSExEditApplier`.
 - Arreglados: la inserción al final de un archivo sin salto de línea y los stubs con tabs en archivos indentados con espacios.
 - Siete casos en `tests/cases/editing/` prueban la capa directamente: varias inserciones en un plan, principio y final del archivo, reutilización de líneas en blanco, indentación relativa y conservación de la selección.
 - `code_inserter.gd` está borrado.
@@ -351,7 +351,7 @@ indent: spaces
 
 - `analysis/source_scanner.gd` produce el árbol de sentencias con las reglas de arriba.
 - `analysis/symbol_index_builder.gd` crea los scopes de clase, función (métodos, lambdas y accesores de propiedad) y bloque. `symbol_index.gd` se ha movido a `analysis/` y se queda con los datos, las consultas y los ayudantes de tipos que la fase 3 pasará a `type_resolver.gd`.
-- `Placement` inserta tras el miembro de la clase destino que contiene la posición, usando su rango real, y copia la indentación del cuerpo de la clase.
+- `GDSExPlacement` inserta tras el miembro de la clase destino que contiene la posición, usando su rango real, y copia la indentación del cuerpo de la clase.
 - El generador de métodos sigue siendo el antiguo, adaptado al índice nuevo: busca los locales por scope y admite varios `return` por función.
 - Arreglados: stubs insertados en medio de lambdas, propiedades y valores multilínea; tipos perdidos en lambdas anidadas; `:=`, genéricos sin valor inicial, firmas multilínea, `func` en comentarios y strings, locales con el mismo nombre en bloques distintos, y la fuga de memoria.
 - Ocho casos en `tests/cases/scopes/` comprueban el árbol de scopes directamente. Uno de ellos compara el índice de cada script del proyecto con lo que devuelve el propio motor (métodos, señales, constantes, variables y clases internas).
@@ -374,7 +374,7 @@ indent: spaces
 ### Fase 4 — Acciones y menú (hecha)
 
 - `actions/code_context.gd`, `code_action.gd`, `action_registry.gd` y `generate_method_action.gd`. `stub_generator.gd` está borrado.
-- `code_generator_plugin.gd` ya no conoce ninguna utilidad concreta: pide las acciones al registro y solo muestra las disponibles.
+- `plugin.gd` ya no conoce ninguna utilidad concreta: pide las acciones al registro y solo muestra las disponibles.
 - Los tests pasan por el registro, igual que el menú. Además comprueban la disponibilidad: si el caso espera un cambio, la acción tiene que ofrecerse; si no espera ninguno, no.
 - La comprobación de scripts del proyecto falla ahora si alguno no compila, incluido el del plugin.
 - No verificable en headless: que el menú contextual del editor llame a `_popup_menu` con la ruta del `CodeEdit` y pase el `CodeEdit` al callback. Es lo que dice la documentación de Godot y lo que hacía la versión anterior; si falla, el plugin recurre al editor de scripts activo.
@@ -382,7 +382,7 @@ indent: spaces
 ### Fase 5 — Utilidades nuevas (hecha)
 
 - `actions/variable_action.gd` (base común), `generate_local_variable_action.gd` y `generate_class_variable_action.gd`, registradas en `action_registry.gd`.
-- `Placement.scope_start` y `Placement.member_variable`. El índice guarda ahora el fin de la cabecera de cada clase, sus miembros en orden y los `enum`.
+- `GDSExPlacement.scope_start` y `GDSExPlacement.member_variable`. El índice guarda ahora el fin de la cabecera de cada clase, sus miembros en orden y los `enum`.
 - Las dos acciones se ofrecen cuando el cursor o la selección están sobre un identificador sin definir que se usa como valor. No se ofrecen sobre el nombre de una llamada, tras un punto, en una declaración ni sobre nada ya definido: variables del scope, miembros propios o heredados, clases, tipos, singletons, funciones y constantes globales, y parámetros de una lambda de una línea.
 - El tipo sale del contexto, igual que el retorno de un método: argumento, declaración tipada, `return`, condición. Además, si el identificador es el destino de una asignación (`total = 3 * 2`, `total += 1`), toma el tipo del valor asignado.
 - **Local:** va a la primera línea del cuerpo del scope más interno que admite declaraciones, con el valor por defecto seleccionado (`null` para objetos y cuando no hay tipo).
@@ -440,8 +440,8 @@ func _on_my_signal(p_value: int) -> void:
 
 Lo que ha hecho falta en las capas comunes:
 
-- `EditPlan.replace(line, from_column, to_column, text)` y su aplicación en `EditApplier`, en el mismo undo que las inserciones. Sin selección de snippet, el cursor queda tras el texto reemplazado.
-- `Statement.position_at(offset)` para pasar de una posición de la sentencia a línea y columna.
+- `GDSExEditPlan.replace(line, from_column, to_column, text)` y su aplicación en `GDSExEditApplier`, en el mismo undo que las inserciones. Sin selección de snippet, el cursor queda tras el texto reemplazado.
+- `GDSExStatement.position_at(offset)` para pasar de una posición de la sentencia a línea y columna.
 - **Recuperación ante paréntesis sin cerrar.** `my_signal.connect(` deja un paréntesis abierto, y el escáner unía las líneas siguientes a esa sentencia. Ahora una línea con indentación menor o igual que la de la sentencia, que no empieza por un cierre, una coma, un punto o un operador, empieza una sentencia nueva.
 
 ### Fase 8 — Vista y navegación tras generar (hecha)
@@ -452,7 +452,7 @@ Lo que ha hecho falta en las capas comunes:
 - **El ajuste se repite en el frame siguiente.** Al insertar al final del archivo, el editor aún no ha ampliado su rango de scroll y el primer intento se queda corto. Era el motivo de que los métodos generados al final no se vieran.
 - **Si la acción no pide mostrar nada, la vista no se mueve** (variable de clase, o completar una conexión cuyo método ya existe). Si se insertan líneas por encima de lo visible, el scroll se compensa para que el mismo código siga en el mismo sitio de la pantalla.
 - **Se puede volver atrás.** Antes de saltar, el plugin emite `request_save_history` en el editor del script, de modo que el botón de historial "anterior" del editor de scripts devuelve el cursor a donde estaba. Comprobado en un editor headless: tras emitirla y saltar, el botón se activa y al pulsarlo el cursor vuelve a la línea original.
-- La capa de edición no sabe nada del editor de scripts: el historial lo guarda `code_generator_plugin.gd`, y `EditPlan.leaves_current_position()` le dice cuándo (hay un bloque que mostrar o una selección en lo insertado).
+- La capa de edición no sabe nada del editor de scripts: el historial lo guarda `plugin.gd`, y `GDSExEditPlan.leaves_current_position()` le dice cuándo (hay un bloque que mostrar o una selección en lo insertado).
 
 Casos en `tests/cases/view/`, con tres cabeceras nuevas:
 
@@ -465,7 +465,7 @@ Casos en `tests/cases/view/`, con tres cabeceras nuevas:
 
 "Reorder Class Members" reordena la clase donde está el cursor (la raíz o una interna, sin entrar en sus clases internas). Solo aparece en el menú si la clase no está ya en orden.
 
-El orden es la constante `CLASS_MEMBER_ORDER` de `code_generator_settings.gd`. La cabecera (`@tool`, `class_name`, `extends`) no se mueve:
+El orden es la constante `CLASS_MEMBER_ORDER` de `settings.gd`. La cabecera (`@tool`, `class_name`, `extends`) no se mueve:
 
 1. Señales.
 2. Constantes.
@@ -498,7 +498,7 @@ Reglas:
 Cómo se aplica:
 
 - `analysis/class_layout.gd` calcula el texto nuevo recolocando los bloques originales copiados literalmente, sin regenerar código.
-- Un único reemplazo (`EditPlan.replace_lines`), recortado al tramo que cambia, en un solo undo.
+- Un único reemplazo (`GDSExEditPlan.replace_lines`), recortado al tramo que cambia, en un solo undo.
 - Con el mapa de línea antigua a línea nueva se restauran el cursor, los breakpoints, los marcadores y los plegados, y el scroll se ajusta para que el cursor quede en la misma fila de la pantalla.
 
 Límite conocido: las dependencias entre variables solo se detectan cuando el nombre aparece en el valor inicial. Si el valor llama a un método que lee otra variable, no se ve.
@@ -512,7 +512,7 @@ Tests:
 
 "Format Class Members" ajusta las líneas en blanco entre los miembros de la clase donde está el cursor y alrededor de sus comentarios, sin cambiar su orden ni tocar ninguna línea de código. Solo aparece en el menú si hay algo que cambiar. Como la fase 9, no entra en las clases internas: se tratan como un miembro más.
 
-Las cantidades son constantes de `code_generator_settings.gd`:
+Las cantidades son constantes de `settings.gd`:
 
 | Entre | Líneas en blanco | Constante |
 |---|---|---|
@@ -543,7 +543,7 @@ Espacios entre tokens (`analysis/token_spacing.gd`). En todo el código de la cl
 - No añade ni quita espacios simples: `foo( 1 )` se queda igual.
 - Las clases internas no se recorren por dentro, pero su línea `class X extends Y:` sí se limpia, tanto desde la raíz como desde dentro de la clase.
 - Se trabaja sobre los trozos de cada sentencia, donde las cadenas ya están enmascaradas y los comentarios fuera. Antes de cambiar un tramo se comprueba que en la línea real solo hay espacios.
-- Este paso va antes que los cierres de corchetes: como cambia columnas pero no líneas ni sentencias, se vuelve a pasar el `SourceScanner` sobre las líneas limpias y las reglas de corchetes trabajan sobre ese resultado.
+- Este paso va antes que los cierres de corchetes: como cambia columnas pero no líneas ni sentencias, se vuelve a pasar el `GDSExSourceScanner` sobre las líneas limpias y las reglas de corchetes trabajan sobre ese resultado.
 
 Cierres de corchetes (`analysis/bracket_layout.gd`). Se aplican a las variables, constantes y métodos de la clase, entrando en los cuerpos de los métodos y de las lambdas, pero no en las clases internas.
 
@@ -575,13 +575,13 @@ button.pressed.connect(func() -> void:
 
 Lo que no se toca: las colecciones de una sola línea, el reparto de elementos por línea, su indentación, la del cuerpo de las lambdas, el espaciado de `clave : valor`, un primer elemento escrito en la misma línea que la apertura, los `enum`, las llamadas multilínea sin lambda, y un `[` que es un índice (`TABLE[...]`) y no un array.
 
-No hacen falta scopes: ni una colección ni un cierre de llamada declaran nombres. Se trabaja sobre las sentencias del árbol de `SourceScanner`, que ya traen el código con cadenas y comentarios enmascarados, la posición de cada trozo en su línea y los bloques de las lambdas. Una misma línea puede recibir cambios de dos sentencias (el final del cuerpo de una lambda y el cierre de la llamada que la contiene), así que los cambios se reúnen por línea antes de reescribir.
+No hacen falta scopes: ni una colección ni un cierre de llamada declaran nombres. Se trabaja sobre las sentencias del árbol de `GDSExSourceScanner`, que ya traen el código con cadenas y comentarios enmascarados, la posición de cada trozo en su línea y los bloques de las lambdas. Una misma línea puede recibir cambios de dos sentencias (el final del cuerpo de una lambda y el cierre de la llamada que la contiene), así que los cambios se reúnen por línea antes de reescribir.
 
 El cursor se queda en su línea y columna; si la línea se parte, en la primera mitad.
 
-Cómo se aplica: `ClassLayout.format` usa los mismos bloques y el mismo compositor que `ClassLayout.reorder`, con el orden original y las separaciones normalizadas. El tramo que se procesa va desde el principio del scope hasta su último comentario, mientras que el reordenado empieza tras la cabecera. El reemplazo, el undo único y la restauración de cursor, breakpoints, marcadores, plegados y scroll son los de la fase 9. Las líneas en blanco también entran en el mapa de líneas, así que el cursor situado en un hueco se queda en el hueco.
+Cómo se aplica: `GDSExClassLayout.format` usa los mismos bloques y el mismo compositor que `GDSExClassLayout.reorder`, con el orden original y las separaciones normalizadas. El tramo que se procesa va desde el principio del scope hasta su último comentario, mientras que el reordenado empieza tras la cabecera. El reemplazo, el undo único y la restauración de cursor, breakpoints, marcadores, plegados y scroll son los de la fase 9. Las líneas en blanco también entran en el mapa de líneas, así que el cursor situado en un hueco se queda en el hueco.
 
-`EditApplier` necesitó dos casos que el reordenado nunca producía: un reemplazo que solo quita líneas (también al final del documento, donde el cursor se recoloca en la última línea que queda) y uno que solo las añade.
+`GDSExEditApplier` necesitó dos casos que el reordenado nunca producía: un reemplazo que solo quita líneas (también al final del documento, donde el cursor se recoloca en la última línea que queda) y uno que solo las añade.
 
 Tests:
 

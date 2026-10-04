@@ -1,16 +1,16 @@
 @tool
 extends EditorPlugin
 
-const ActionRegistry = preload("res://addons/code_generator/actions/action_registry.gd")
-const CodeAction = preload("res://addons/code_generator/actions/code_action.gd")
-const CodeContext = preload("res://addons/code_generator/actions/code_context.gd")
-const EditApplier = preload("res://addons/code_generator/editing/edit_applier.gd")
+const GDSExActionRegistry = preload("res://addons/gdscript_extreme_tool/actions/action_registry.gd")
+const GDSExCodeAction = preload("res://addons/gdscript_extreme_tool/actions/code_action.gd")
+const GDSExCodeContext = preload("res://addons/gdscript_extreme_tool/actions/code_context.gd")
+const GDSExEditApplier = preload("res://addons/gdscript_extreme_tool/editing/edit_applier.gd")
 
-var _context_menu_plugin : CodeActionsMenuPlugin
+var _context_menu_plugin : GDSExCodeActionsMenuPlugin
 
 
 func _enter_tree() -> void:
-	_context_menu_plugin = CodeActionsMenuPlugin.new()
+	_context_menu_plugin = GDSExCodeActionsMenuPlugin.new()
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, _context_menu_plugin)
 
 
@@ -19,27 +19,27 @@ func _exit_tree() -> void:
 	_context_menu_plugin = null
 
 
-class CodeActionsMenuPlugin extends EditorContextMenuPlugin:
+class GDSExCodeActionsMenuPlugin extends EditorContextMenuPlugin:
 
-	var _actions : Array[CodeAction] = ActionRegistry.create_actions()
+	var _actions : Array[GDSExCodeAction] = GDSExActionRegistry.create_actions()
 
 
 	func _popup_menu(paths : PackedStringArray) -> void:
 		var editor := _find_editor(paths)
 		if editor == null:
 			return
-		for action in ActionRegistry.find_available(_actions, CodeContext.new(editor)):
+		for action in GDSExActionRegistry.find_available(_actions, GDSExCodeContext.new(editor)):
 			add_context_menu_item(action.get_label(), _run_action.bind(action))
 
 
-	func _run_action(target : Variant, action : CodeAction) -> void:
+	func _run_action(target : Variant, action : GDSExCodeAction) -> void:
 		var editor : CodeEdit = target if target is CodeEdit else _current_editor()
 		if editor == null:
 			return
-		var plan := action.build_plan(CodeContext.new(editor))
+		var plan := action.build_plan(GDSExCodeContext.new(editor))
 		if plan != null and plan.leaves_current_position():
 			_save_navigation_history(editor)
-		EditApplier.apply(editor, plan)
+		GDSExEditApplier.apply(editor, plan)
 
 
 	func _save_navigation_history(editor : CodeEdit) -> void:

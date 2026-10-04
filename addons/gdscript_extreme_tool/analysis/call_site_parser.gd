@@ -1,8 +1,8 @@
 @tool
 extends RefCounted
 
-const SourceScanner = preload("res://addons/code_generator/analysis/source_scanner.gd")
-const Language = preload("res://addons/code_generator/analysis/language.gd")
+const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/source_scanner.gd")
+const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
 
 const CALL_OPENER: String = "("
 const MEMBER_ACCESS: String = "."
@@ -15,21 +15,21 @@ const SPACES: String = " \t"
 const DIGITS: String = "0123456789"
 
 
-class Argument:
+class GDSExArgument:
 	var text: String = ""
 	var offset: int = 0
 	var length: int = 0
 
 
-class CallSite:
+class GDSExCallSite:
 	var name: String = ""
 	var receiver: String = ""
 	var expression_offset: int = 0
 	var name_offset: int = 0
 	var open_offset: int = 0
 	var close_offset: int = 0
-	var arguments: Array[Argument] = []
-	var parent: CallSite
+	var arguments: Array[GDSExArgument] = []
+	var parent: GDSExCallSite
 	var parent_argument_index: int = -1
 
 	func expression_end() -> int:
@@ -39,8 +39,8 @@ class CallSite:
 		return name_offset + name.length()
 
 
-static func parse(code: String) -> Array[CallSite]:
-	var calls: Array[CallSite] = []
+static func parse(code: String) -> Array[GDSExCallSite]:
+	var calls: Array[GDSExCallSite] = []
 	for offset in code.length():
 		if code[offset] != CALL_OPENER:
 			continue
@@ -52,15 +52,15 @@ static func parse(code: String) -> Array[CallSite]:
 	return calls
 
 
-static func split_arguments(code: String, from: int, to: int) -> Array[Argument]:
-	var arguments: Array[Argument] = []
+static func split_arguments(code: String, from: int, to: int) -> Array[GDSExArgument]:
+	var arguments: Array[GDSExArgument] = []
 	var depth := 0
 	var start := from
 	for index in range(from, to):
 		var character := code[index]
-		if SourceScanner.OPENING_BRACKETS.contains(character):
+		if GDSExSourceScanner.OPENING_BRACKETS.contains(character):
 			depth += 1
-		elif SourceScanner.CLOSING_BRACKETS.contains(character):
+		elif GDSExSourceScanner.CLOSING_BRACKETS.contains(character):
 			depth -= 1
 		elif character == ARGUMENT_SEPARATOR and depth == 0:
 			_append_argument(arguments, code, start, index)
@@ -69,19 +69,19 @@ static func split_arguments(code: String, from: int, to: int) -> Array[Argument]
 	return arguments
 
 
-static func _read_call(code: String, open_offset: int) -> CallSite:
+static func _read_call(code: String, open_offset: int) -> GDSExCallSite:
 	var name_end := _skip_spaces_backwards(code, open_offset)
 	var name_start := _identifier_start(code, name_end)
 	if name_start == name_end or DIGITS.contains(code[name_start]):
 		return null
 	var name := code.substr(name_start, name_end - name_start)
-	if Language.NON_CALL_KEYWORDS.has(name) or _previous_word(code, name_start) == SourceScanner.FUNCTION_KEYWORD:
+	if GDSExLanguage.NON_CALL_KEYWORDS.has(name) or _previous_word(code, name_start) == GDSExSourceScanner.FUNCTION_KEYWORD:
 		return null
-	var call := CallSite.new()
+	var call := GDSExCallSite.new()
 	call.name = name
 	call.name_offset = name_start
 	call.open_offset = open_offset
-	call.close_offset = SourceScanner.find_matching_bracket(code, open_offset)
+	call.close_offset = GDSExSourceScanner.find_matching_bracket(code, open_offset)
 	if call.close_offset == -1:
 		call.close_offset = code.length()
 	call.expression_offset = chain_start(code, name_start)
@@ -90,7 +90,7 @@ static func _read_call(code: String, open_offset: int) -> CallSite:
 	return call
 
 
-static func _link_parent(call: CallSite, calls: Array[CallSite]) -> void:
+static func _link_parent(call: GDSExCallSite, calls: Array[GDSExCallSite]) -> void:
 	for candidate in calls:
 		if candidate == call:
 			continue
@@ -124,12 +124,12 @@ static func _primary_start(code: String, end: int) -> int:
 	var start := end
 	while start > 0:
 		var character := code[start - 1]
-		if SourceScanner.CLOSING_BRACKETS.contains(character):
+		if GDSExSourceScanner.CLOSING_BRACKETS.contains(character):
 			var open := _matching_open_bracket(code, start - 1)
 			if open == -1:
 				return start
 			start = open
-		elif SourceScanner.is_identifier_character(character):
+		elif GDSExSourceScanner.is_identifier_character(character):
 			return _node_path_start(code, _identifier_start(code, start))
 		elif QUOTES.contains(character):
 			return _string_start(code, start)
@@ -142,9 +142,9 @@ static func _matching_open_bracket(code: String, close_index: int) -> int:
 	var depth := 0
 	for index in range(close_index, -1, -1):
 		var character := code[index]
-		if SourceScanner.CLOSING_BRACKETS.contains(character):
+		if GDSExSourceScanner.CLOSING_BRACKETS.contains(character):
 			depth += 1
-		elif SourceScanner.OPENING_BRACKETS.contains(character):
+		elif GDSExSourceScanner.OPENING_BRACKETS.contains(character):
 			depth -= 1
 			if depth == 0:
 				return index
@@ -153,7 +153,7 @@ static func _matching_open_bracket(code: String, close_index: int) -> int:
 
 static func _node_path_start(code: String, identifier_start: int) -> int:
 	var index := identifier_start
-	while index > 0 and (code[index - 1] == NODE_PATH_SEPARATOR or SourceScanner.is_identifier_character(code[index - 1])):
+	while index > 0 and (code[index - 1] == NODE_PATH_SEPARATOR or GDSExSourceScanner.is_identifier_character(code[index - 1])):
 		index -= 1
 	if index > 0 and NODE_PATH_PREFIXES.contains(code[index - 1]):
 		return index - 1
@@ -165,7 +165,7 @@ static func _string_start(code: String, end: int) -> int:
 	var index := end
 	while index > 0 and code[index - 1] == quote:
 		index -= 1
-	while index > 0 and code[index - 1] == SourceScanner.STRING_FILLER:
+	while index > 0 and code[index - 1] == GDSExSourceScanner.STRING_FILLER:
 		index -= 1
 	while index > 0 and code[index - 1] == quote:
 		index -= 1
@@ -174,12 +174,12 @@ static func _string_start(code: String, end: int) -> int:
 	return index
 
 
-static func _append_argument(arguments: Array[Argument], code: String, from: int, to: int) -> void:
+static func _append_argument(arguments: Array[GDSExArgument], code: String, from: int, to: int) -> void:
 	var raw := code.substr(from, to - from)
 	var text := raw.strip_edges()
 	if text.is_empty():
 		return
-	var argument := Argument.new()
+	var argument := GDSExArgument.new()
 	argument.text = text
 	argument.offset = from + raw.length() - raw.strip_edges(true, false).length()
 	argument.length = text.length()
@@ -194,7 +194,7 @@ static func _skip_spaces_backwards(code: String, index: int) -> int:
 
 static func _identifier_start(code: String, end: int) -> int:
 	var start := end
-	while start > 0 and SourceScanner.is_identifier_character(code[start - 1]):
+	while start > 0 and GDSExSourceScanner.is_identifier_character(code[start - 1]):
 		start -= 1
 	return start
 

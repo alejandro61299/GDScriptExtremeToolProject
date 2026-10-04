@@ -1,17 +1,17 @@
 @tool
 extends RefCounted
 
-const SymbolIndex = preload("res://addons/code_generator/analysis/symbol_index.gd")
-const SymbolIndexBuilder = preload("res://addons/code_generator/analysis/symbol_index_builder.gd")
-const SourceScanner = preload("res://addons/code_generator/analysis/source_scanner.gd")
-const Indentation = preload("res://addons/code_generator/editing/indentation.gd")
+const GDSExSymbolIndex = preload("res://addons/gdscript_extreme_tool/analysis/symbol_index.gd")
+const GDSExSymbolIndexBuilder = preload("res://addons/gdscript_extreme_tool/analysis/symbol_index_builder.gd")
+const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/source_scanner.gd")
+const GDSExIndentation = preload("res://addons/gdscript_extreme_tool/editing/indentation.gd")
 
 const LINE_SEPARATOR: String = "\n"
 
 var lines: PackedStringArray = []
-var index: SymbolIndex.SymbolIndexData
-var scope_info: SymbolIndex.ScopeInfo
-var statement: SourceScanner.Statement
+var index: GDSExSymbolIndex.GDSExSymbolIndexData
+var scope_info: GDSExSymbolIndex.GDSExScopeInfo
+var statement: GDSExSourceScanner.GDSExStatement
 var selection_from: int = -1
 var selection_to: int = -1
 var indent_unit: String = ""
@@ -19,11 +19,11 @@ var indent_unit: String = ""
 
 func _init(editor: CodeEdit) -> void:
 	lines = editor.text.split(LINE_SEPARATOR)
-	index = SymbolIndexBuilder.build(lines)
-	indent_unit = Indentation.detect_unit(lines, Indentation.editor_unit(editor))
+	index = GDSExSymbolIndexBuilder.build(lines)
+	indent_unit = GDSExIndentation.detect_unit(lines, GDSExIndentation.editor_unit(editor))
 	var caret_line := editor.get_caret_line()
-	scope_info = SymbolIndex.get_scope_info_for_line(index, caret_line)
-	statement = SourceScanner.find_statement_at(index.statements, caret_line)
+	scope_info = GDSExSymbolIndex.get_scope_info_for_line(index, caret_line)
+	statement = GDSExSourceScanner.find_statement_at(index.statements, caret_line)
 	if statement != null:
 		_read_selection(editor)
 

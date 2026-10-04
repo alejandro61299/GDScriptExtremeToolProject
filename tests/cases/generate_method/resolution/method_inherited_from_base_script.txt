@@ -1,6 +1,6 @@
 action: generate_method
 === input
-extends "res://addons/code_generator/actions/code_action.gd"
+extends "res://addons/gdscript_extreme_tool/actions/code_action.gd"
 
 
 func test() -> void:

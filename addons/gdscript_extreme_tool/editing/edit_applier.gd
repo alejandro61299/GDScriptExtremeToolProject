@@ -1,11 +1,11 @@
 @tool
 extends RefCounted
 
-const EditPlan = preload("res://addons/code_generator/editing/edit_plan.gd")
-const Indentation = preload("res://addons/code_generator/editing/indentation.gd")
+const GDSExEditPlan = preload("res://addons/gdscript_extreme_tool/editing/edit_plan.gd")
+const GDSExIndentation = preload("res://addons/gdscript_extreme_tool/editing/indentation.gd")
 
 
-class ResolvedInsertion:
+class GDSExResolvedInsertion:
 	var order: int = 0
 	var line: int = 0
 	var block_lines: PackedStringArray = []
@@ -17,28 +17,28 @@ class ResolvedInsertion:
 	var selection_from: int = 0
 	var selection_to: int = 0
 
-	func is_above(other: ResolvedInsertion) -> bool:
+	func is_above(other: GDSExResolvedInsertion) -> bool:
 		return line < other.line or (line == other.line and order < other.order)
 
 
-static func apply(editor: CodeEdit, plan: EditPlan) -> void:
+static func apply(editor: CodeEdit, plan: GDSExEditPlan) -> void:
 	if editor == null or plan == null or plan.is_empty():
 		return
 	if plan.line_replacement != null:
 		_replace_lines(editor, plan.line_replacement)
 		return
-	var indent_unit := Indentation.detect_unit(editor.text.split("\n"), Indentation.editor_unit(editor))
-	var resolved: Array[ResolvedInsertion] = []
+	var indent_unit := GDSExIndentation.detect_unit(editor.text.split("\n"), GDSExIndentation.editor_unit(editor))
+	var resolved: Array[GDSExResolvedInsertion] = []
 	for insertion in plan.insertions:
 		var resolved_insertion := _resolve(editor, insertion, indent_unit, resolved.size())
 		resolved_insertion.is_revealed = insertion == plan.revealed_insertion
 		resolved.append(resolved_insertion)
 
-	var bottom_up: Array[ResolvedInsertion] = resolved.duplicate()
-	bottom_up.sort_custom(func(first: ResolvedInsertion, second: ResolvedInsertion) -> bool: return second.is_above(first))
+	var bottom_up: Array[GDSExResolvedInsertion] = resolved.duplicate()
+	bottom_up.sort_custom(func(first: GDSExResolvedInsertion, second: GDSExResolvedInsertion) -> bool: return second.is_above(first))
 
-	var replacements: Array[EditPlan.Replacement] = plan.replacements.duplicate()
-	replacements.sort_custom(func(first: EditPlan.Replacement, second: EditPlan.Replacement) -> bool: return first.line > second.line or (first.line == second.line and first.from_column > second.from_column))
+	var replacements: Array[GDSExEditPlan.GDSExReplacement] = plan.replacements.duplicate()
+	replacements.sort_custom(func(first: GDSExEditPlan.GDSExReplacement, second: GDSExEditPlan.GDSExReplacement) -> bool: return first.line > second.line or (first.line == second.line and first.from_column > second.from_column))
 
 	var scroll_before := editor.scroll_vertical
 	var first_visible_line := editor.get_first_visible_line()
@@ -66,7 +66,7 @@ static func apply(editor: CodeEdit, plan: EditPlan) -> void:
 	_now_and_next_frame(editor, _restore_scroll.bind(scroll_before + lines_inserted_above))
 
 
-static func _replace_lines(editor: CodeEdit, replacement: EditPlan.LineReplacement) -> void:
+static func _replace_lines(editor: CodeEdit, replacement: GDSExEditPlan.GDSExLineReplacement) -> void:
 	var caret_line := editor.get_caret_line()
 	var caret_column := editor.get_caret_column()
 	var scroll_before := editor.scroll_vertical
@@ -122,7 +122,7 @@ static func _insert_lines(editor: CodeEdit, line: int, lines: PackedStringArray)
 	editor.insert_text("\n" + text, last_line, editor.get_line(last_line).length())
 
 
-static func _lines_in_range(lines: PackedInt32Array, replacement: EditPlan.LineReplacement) -> PackedInt32Array:
+static func _lines_in_range(lines: PackedInt32Array, replacement: GDSExEditPlan.GDSExLineReplacement) -> PackedInt32Array:
 	var inside := PackedInt32Array()
 	for line in lines:
 		if line >= replacement.first_line and line <= replacement.last_line and replacement.line_map[line - replacement.first_line] != -1:
@@ -130,7 +130,7 @@ static func _lines_in_range(lines: PackedInt32Array, replacement: EditPlan.LineR
 	return inside
 
 
-static func _moved_line(replacement: EditPlan.LineReplacement, line: int) -> int:
+static func _moved_line(replacement: GDSExEditPlan.GDSExLineReplacement, line: int) -> int:
 	if line < replacement.first_line:
 		return line
 	if line > replacement.last_line:
@@ -142,7 +142,7 @@ static func _moved_line(replacement: EditPlan.LineReplacement, line: int) -> int
 	return replacement.first_line
 
 
-static func _resolve(editor: CodeEdit, insertion: EditPlan.Insertion, indent_unit: String, order: int) -> ResolvedInsertion:
+static func _resolve(editor: CodeEdit, insertion: GDSExEditPlan.GDSExInsertion, indent_unit: String, order: int) -> GDSExResolvedInsertion:
 	var point := insertion.point
 	var snippet := insertion.snippet
 	var line_count := editor.get_line_count()
@@ -156,7 +156,7 @@ static func _resolve(editor: CodeEdit, insertion: EditPlan.Insertion, indent_uni
 	if line + blank_below < line_count:
 		missing_after = maxi(0, point.blank_lines_after - blank_below)
 
-	var resolved := ResolvedInsertion.new()
+	var resolved := GDSExResolvedInsertion.new()
 	resolved.order = order
 	resolved.line = line
 	for i in missing_before:
@@ -188,11 +188,11 @@ static func _count_blank_lines(editor: CodeEdit, from_line: int, step: int) -> i
 	return count
 
 
-static func _insert_block(editor: CodeEdit, insertion: ResolvedInsertion) -> void:
+static func _insert_block(editor: CodeEdit, insertion: GDSExResolvedInsertion) -> void:
 	_insert_lines(editor, insertion.line, insertion.block_lines)
 
 
-static func _select_first_selection(editor: CodeEdit, resolved: Array[ResolvedInsertion]) -> bool:
+static func _select_first_selection(editor: CodeEdit, resolved: Array[GDSExResolvedInsertion]) -> bool:
 	for insertion in resolved:
 		if not insertion.has_selection:
 			continue
@@ -203,7 +203,7 @@ static func _select_first_selection(editor: CodeEdit, resolved: Array[ResolvedIn
 	return false
 
 
-static func _final_line(insertion: ResolvedInsertion, resolved: Array[ResolvedInsertion]) -> int:
+static func _final_line(insertion: GDSExResolvedInsertion, resolved: Array[GDSExResolvedInsertion]) -> int:
 	var line := insertion.line
 	for other in resolved:
 		if other != insertion and other.is_above(insertion):
@@ -233,7 +233,7 @@ static func _now_and_next_frame(editor: CodeEdit, view_action: Callable) -> void
 	, CONNECT_ONE_SHOT)
 
 
-static func _place_caret_after(editor: CodeEdit, replacement: EditPlan.Replacement, resolved: Array[ResolvedInsertion]) -> void:
+static func _place_caret_after(editor: CodeEdit, replacement: GDSExEditPlan.GDSExReplacement, resolved: Array[GDSExResolvedInsertion]) -> void:
 	var line := replacement.line
 	for insertion in resolved:
 		if insertion.line <= replacement.line:

@@ -1,16 +1,16 @@
 extends SceneTree
 
-const ActionRegistry = preload("res://addons/code_generator/actions/action_registry.gd")
-const CodeAction = preload("res://addons/code_generator/actions/code_action.gd")
-const CodeContext = preload("res://addons/code_generator/actions/code_context.gd")
-const GenerateMethodAction = preload("res://addons/code_generator/actions/generate_method_action.gd")
-const VariableAction = preload("res://addons/code_generator/actions/variable_action.gd")
-const SymbolIndex = preload("res://addons/code_generator/analysis/symbol_index.gd")
-const SymbolIndexBuilder = preload("res://addons/code_generator/analysis/symbol_index_builder.gd")
-const SourceScanner = preload("res://addons/code_generator/analysis/source_scanner.gd")
-const Snippet = preload("res://addons/code_generator/editing/snippet.gd")
-const EditPlan = preload("res://addons/code_generator/editing/edit_plan.gd")
-const EditApplier = preload("res://addons/code_generator/editing/edit_applier.gd")
+const GDSExActionRegistry = preload("res://addons/gdscript_extreme_tool/actions/action_registry.gd")
+const GDSExCodeAction = preload("res://addons/gdscript_extreme_tool/actions/code_action.gd")
+const GDSExCodeContext = preload("res://addons/gdscript_extreme_tool/actions/code_context.gd")
+const GDSExGenerateMethodAction = preload("res://addons/gdscript_extreme_tool/actions/generate_method_action.gd")
+const GDSExVariableAction = preload("res://addons/gdscript_extreme_tool/actions/variable_action.gd")
+const GDSExSymbolIndex = preload("res://addons/gdscript_extreme_tool/analysis/symbol_index.gd")
+const GDSExSymbolIndexBuilder = preload("res://addons/gdscript_extreme_tool/analysis/symbol_index_builder.gd")
+const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/source_scanner.gd")
+const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
+const GDSExEditPlan = preload("res://addons/gdscript_extreme_tool/editing/edit_plan.gd")
+const GDSExEditApplier = preload("res://addons/gdscript_extreme_tool/editing/edit_applier.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -198,7 +198,7 @@ func _check_view(test_case: TestCase) -> PackedStringArray:
 	var caret_row := editor.get_caret_line() - top_line
 	if test_case.expected_view == VIEW_SAME_TOP_TEXT and top_text.strip_edges().is_empty():
 		problems.append("The view starts on an empty line; scroll to a line with code.")
-	EditApplier.apply(editor, _build_plan(test_case.plan_description) if test_case.action == PLAN_ACTION else action.build_plan(CodeContext.new(editor)))
+	GDSExEditApplier.apply(editor, _build_plan(test_case.plan_description) if test_case.action == PLAN_ACTION else action.build_plan(GDSExCodeContext.new(editor)))
 	await process_frame
 	await process_frame
 	var first_line := editor.get_first_visible_line()
@@ -312,7 +312,7 @@ func _create_editor(test_case: TestCase) -> CodeEdit:
 func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 	match test_case.action:
 		"apply_plan":
-			EditApplier.apply(editor, _build_plan(test_case.plan_description))
+			GDSExEditApplier.apply(editor, _build_plan(test_case.plan_description))
 			return _check_edit(test_case, editor)
 		SCOPES_ACTION:
 			return _check_scopes(test_case, editor)
@@ -334,18 +334,18 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 	return _check_code_action(test_case, action, editor)
 
 
-func _find_code_action(action_name: String) -> CodeAction:
-	for action in ActionRegistry.create_actions():
+func _find_code_action(action_name: String) -> GDSExCodeAction:
+	for action in GDSExActionRegistry.create_actions():
 		var script_path: String = (action.get_script() as Script).resource_path
 		if script_path.get_file().get_basename().trim_suffix(ACTION_SCRIPT_SUFFIX) == action_name:
 			return action
 	return null
 
 
-func _check_code_action(test_case: TestCase, action: CodeAction, editor: CodeEdit) -> PackedStringArray:
+func _check_code_action(test_case: TestCase, action: GDSExCodeAction, editor: CodeEdit) -> PackedStringArray:
 	var problems := PackedStringArray()
-	var actions: Array[CodeAction] = [action]
-	var is_offered := not ActionRegistry.find_available(actions, CodeContext.new(editor)).is_empty()
+	var actions: Array[GDSExCodeAction] = [action]
+	var is_offered := not GDSExActionRegistry.find_available(actions, GDSExCodeContext.new(editor)).is_empty()
 	var expects_change := test_case.expected.text != test_case.input.text
 	if is_offered and not expects_change:
 		problems.append("The action is offered in the menu but nothing should change.")
@@ -358,7 +358,7 @@ func _check_code_action(test_case: TestCase, action: CodeAction, editor: CodeEdi
 	editor.line_folding = not test_case.folds.is_empty()
 	for line in test_case.folds:
 		editor.fold_line(line)
-	EditApplier.apply(editor, action.build_plan(CodeContext.new(editor)))
+	GDSExEditApplier.apply(editor, action.build_plan(GDSExCodeContext.new(editor)))
 	if PackedInt32Array(editor.get_folded_lines()) != test_case.expected_folds:
 		problems.append("Folded lines are %s instead of %s." % [_one_based(PackedInt32Array(editor.get_folded_lines())), _one_based(test_case.expected_folds)])
 	if editor.get_breakpointed_lines() != test_case.expected_breakpoints:
@@ -376,19 +376,19 @@ func _one_based(lines: PackedInt32Array) -> Array:
 	return shifted
 
 
-func _build_plan(description: String) -> EditPlan:
-	var plan := EditPlan.new()
+func _build_plan(description: String) -> GDSExEditPlan:
+	var plan := GDSExEditPlan.new()
 	for entry: Dictionary in JSON.parse_string(description):
 		if entry.has("replace"):
 			var range: Array = entry["replace"]
 			plan.replace(int(range[0]), int(range[1]), int(range[2]), entry.get("text", ""))
 			continue
-		var point := EditPlan.InsertionPoint.new()
+		var point := GDSExEditPlan.GDSExInsertionPoint.new()
 		point.line = int(entry.get("line", 0))
 		point.indent_text = entry.get("indent_text", "")
 		point.blank_lines_before = int(entry.get("blank_lines_before", 0))
 		point.blank_lines_after = int(entry.get("blank_lines_after", 0))
-		var snippet := Snippet.new()
+		var snippet := GDSExSnippet.new()
 		for line: Array in entry.get("lines", []):
 			snippet.add_line(int(line[0]), line[1])
 		if entry.has("select"):
@@ -413,24 +413,24 @@ func _check_edit(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 
 
 func _check_scopes(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
-	var index := SymbolIndexBuilder.build(editor.text.split("\n"))
+	var index := GDSExSymbolIndexBuilder.build(editor.text.split("\n"))
 	var actual := "\n".join(_describe_scope(index.root, 0))
 	if actual == test_case.expected_raw:
 		return PackedStringArray()
 	return PackedStringArray(["Unexpected scopes.\n--- expected ---\n%s\n--- actual ---\n%s" % [test_case.expected_raw, actual]])
 
 
-func _describe_scope(scope: SymbolIndex.ScopeBase, depth: int) -> PackedStringArray:
+func _describe_scope(scope: GDSExSymbolIndex.GDSExScopeBase, depth: int) -> PackedStringArray:
 	var description := PackedStringArray([DESCRIPTION_INDENT.repeat(depth) + _scope_label(scope)])
 	var member_indent := DESCRIPTION_INDENT.repeat(depth + 1)
 	var variables: Array = scope.locals
-	if scope is SymbolIndex.ClassScope:
-		var class_scope := scope as SymbolIndex.ClassScope
+	if scope is GDSExSymbolIndex.GDSExClassScope:
+		var class_scope := scope as GDSExSymbolIndex.GDSExClassScope
 		variables = class_scope.vars.values()
 		for signal_name: String in class_scope.signals:
 			description.append("%ssignal %s(%s)" % [member_indent, signal_name, _params_label(class_scope.signals[signal_name].params)])
 	var entries: Array = []
-	for variable: SymbolIndex.VariableSymbol in variables:
+	for variable: GDSExSymbolIndex.GDSExVariableSymbol in variables:
 		entries.append([variable.start_line * 2, PackedStringArray([member_indent + _variable_label(variable)])])
 	for child in scope.children:
 		entries.append([child.start_line * 2 + 1, _describe_scope(child, depth + 1)])
@@ -440,19 +440,19 @@ func _describe_scope(scope: SymbolIndex.ScopeBase, depth: int) -> PackedStringAr
 	return description
 
 
-func _scope_label(scope: SymbolIndex.ScopeBase) -> String:
+func _scope_label(scope: GDSExSymbolIndex.GDSExScopeBase) -> String:
 	var label := ""
-	if scope is SymbolIndex.ClassScope:
-		var class_scope := scope as SymbolIndex.ClassScope
+	if scope is GDSExSymbolIndex.GDSExClassScope:
+		var class_scope := scope as GDSExSymbolIndex.GDSExClassScope
 		label = "class %s" % ("<root>" if class_scope.parent == null else class_scope.name)
-	elif scope is SymbolIndex.FunctionScope:
-		var function := scope as SymbolIndex.FunctionScope
+	elif scope is GDSExSymbolIndex.GDSExFunctionScope:
+		var function := scope as GDSExSymbolIndex.GDSExFunctionScope
 		label = "lambda" if function.is_lambda else "function %s" % function.name
 		label += "(%s)" % _params_label(function.params)
 		if function.return_type != null:
-			label += " -> %s" % SymbolIndex.type_to_string(function.return_type)
+			label += " -> %s" % GDSExSymbolIndex.type_to_string(function.return_type)
 	else:
-		label = SymbolIndex.BlockScope.Kind.find_key((scope as SymbolIndex.BlockScope).kind).to_lower()
+		label = GDSExSymbolIndex.GDSExBlockScope.GDSExKind.find_key((scope as GDSExSymbolIndex.GDSExBlockScope).kind).to_lower()
 	label += " %d-%d" % [scope.start_line + 1, scope.end_line + 1]
 	if scope.body_start_line != -1 and scope.parent != null:
 		label += " body %d" % (scope.body_start_line + 1)
@@ -466,7 +466,7 @@ func _params_label(params: Dictionary) -> String:
 	return ", ".join(labels)
 
 
-func _variable_label(variable: SymbolIndex.VariableSymbol) -> String:
+func _variable_label(variable: GDSExSymbolIndex.GDSExVariableSymbol) -> String:
 	var label := "%s %s" % ["const" if variable.is_const else "var", _typed_label(variable.name, variable.type)]
 	label += " %d" % (variable.start_line + 1)
 	if variable.end_line != variable.start_line:
@@ -474,8 +474,8 @@ func _variable_label(variable: SymbolIndex.VariableSymbol) -> String:
 	return label
 
 
-func _typed_label(symbol_name: String, type: SymbolIndex.TypeData) -> String:
-	return symbol_name if type == null else "%s: %s" % [symbol_name, SymbolIndex.type_to_string(type)]
+func _typed_label(symbol_name: String, type: GDSExSymbolIndex.GDSExTypeData) -> String:
+	return symbol_name if type == null else "%s: %s" % [symbol_name, GDSExSymbolIndex.type_to_string(type)]
 
 
 func _check_project_scripts() -> PackedStringArray:
@@ -485,7 +485,7 @@ func _check_project_scripts() -> PackedStringArray:
 		if script == null or not script.can_instantiate():
 			problems.append("%s does not compile." % path)
 			continue
-		var index := SymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
+		var index := GDSExSymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
 		problems.append_array(_compare_with_engine(path, index.root, script))
 	return problems
 
@@ -499,9 +499,9 @@ func _project_script_paths() -> PackedStringArray:
 
 func _check_no_false_targets() -> PackedStringArray:
 	var problems := PackedStringArray()
-	var generator := GenerateMethodAction.new()
+	var generator := GDSExGenerateMethodAction.new()
 	for path in _project_script_paths():
-		var index := SymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
+		var index := GDSExSymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
 		_collect_false_targets(path, index, index.statements, generator, problems)
 	return problems
 
@@ -514,7 +514,7 @@ func _check_layout_of_project_scripts(action_name: String, keeps_line_order: boo
 		var editor := CodeEdit.new()
 		root.add_child(editor)
 		editor.text = original
-		var class_names := _inner_class_names(SymbolIndexBuilder.build(original.split("\n")).root)
+		var class_names := _inner_class_names(GDSExSymbolIndexBuilder.build(original.split("\n")).root)
 		_apply_to_every_class(editor, action, class_names)
 		var changed := editor.text
 		var keeps_code := _code_lines(changed) == _code_lines(original)
@@ -535,17 +535,17 @@ func _check_layout_of_project_scripts(action_name: String, keeps_line_order: boo
 	return problems
 
 
-func _apply_to_every_class(editor: CodeEdit, action: CodeAction, class_names: PackedStringArray) -> void:
+func _apply_to_every_class(editor: CodeEdit, action: GDSExCodeAction, class_names: PackedStringArray) -> void:
 	editor.set_caret_line(0)
-	EditApplier.apply(editor, action.build_plan(CodeContext.new(editor)))
+	GDSExEditApplier.apply(editor, action.build_plan(GDSExCodeContext.new(editor)))
 	for inner_name in class_names:
-		var scope := SymbolIndex.find_class(SymbolIndexBuilder.build(editor.text.split("\n")).root, inner_name)
+		var scope := GDSExSymbolIndex.find_class(GDSExSymbolIndexBuilder.build(editor.text.split("\n")).root, inner_name)
 		if scope != null and scope.body_start_line != -1:
 			editor.set_caret_line(scope.body_start_line)
-			EditApplier.apply(editor, action.build_plan(CodeContext.new(editor)))
+			GDSExEditApplier.apply(editor, action.build_plan(GDSExCodeContext.new(editor)))
 
 
-func _inner_class_names(class_scope: SymbolIndex.ClassScope) -> PackedStringArray:
+func _inner_class_names(class_scope: GDSExSymbolIndex.GDSExClassScope) -> PackedStringArray:
 	var names := PackedStringArray()
 	for inner_name: String in class_scope.inner_classes:
 		names.append(inner_name)
@@ -600,17 +600,17 @@ func _compare_scripts(path: String, original: GDScript, changed: GDScript) -> Pa
 
 func _check_no_undefined_identifiers() -> PackedStringArray:
 	var problems := PackedStringArray()
-	var action := VariableAction.new()
+	var action := GDSExVariableAction.new()
 	var identifier_pattern := RegEx.create_from_string("[A-Za-z_]\\w*")
 	for path in _project_script_paths():
-		var index := SymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
+		var index := GDSExSymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
 		_collect_undefined_identifiers(path, index, index.statements, action, identifier_pattern, problems)
 	return problems
 
 
-func _collect_undefined_identifiers(path: String, index: SymbolIndex.SymbolIndexData, statements: Array[SourceScanner.Statement], action: VariableAction, identifier_pattern: RegEx, problems: PackedStringArray) -> void:
+func _collect_undefined_identifiers(path: String, index: GDSExSymbolIndex.GDSExSymbolIndexData, statements: Array[GDSExSourceScanner.GDSExStatement], action: GDSExVariableAction, identifier_pattern: RegEx, problems: PackedStringArray) -> void:
 	for statement in statements:
-		var scope_info := SymbolIndex.get_scope_info_for_line(index, statement.first_line)
+		var scope_info := GDSExSymbolIndex.get_scope_info_for_line(index, statement.first_line)
 		for occurrence in identifier_pattern.search_all(statement.code):
 			var identifier := action.find_undefined_identifier_at(statement.code, occurrence.get_start(), occurrence.get_end(), scope_info)
 			if identifier != null:
@@ -619,16 +619,16 @@ func _collect_undefined_identifiers(path: String, index: SymbolIndex.SymbolIndex
 			_collect_undefined_identifiers(path, index, block.statements, action, identifier_pattern, problems)
 
 
-func _collect_false_targets(path: String, index: SymbolIndex.SymbolIndexData, statements: Array[SourceScanner.Statement], generator: GenerateMethodAction, problems: PackedStringArray) -> void:
+func _collect_false_targets(path: String, index: GDSExSymbolIndex.GDSExSymbolIndexData, statements: Array[GDSExSourceScanner.GDSExStatement], generator: GDSExGenerateMethodAction, problems: PackedStringArray) -> void:
 	for statement in statements:
-		var scope_info := SymbolIndex.get_scope_info_for_line(index, statement.first_line)
+		var scope_info := GDSExSymbolIndex.get_scope_info_for_line(index, statement.first_line)
 		for target in generator.find_targets(statement.code, scope_info):
 			problems.append("%s:%d: '%s' is defined but was taken for an undefined method." % [path, statement.first_line + 1, target.name])
 		for block in statement.blocks:
 			_collect_false_targets(path, index, block.statements, generator, problems)
 
 
-func _compare_with_engine(path: String, root_class: SymbolIndex.ClassScope, script: GDScript) -> PackedStringArray:
+func _compare_with_engine(path: String, root_class: GDSExSymbolIndex.GDSExClassScope, script: GDScript) -> PackedStringArray:
 	var problems := PackedStringArray()
 	var base_script := script.get_base_script() as GDScript
 	var inherited_methods: Array = [] if base_script == null else _names_of(base_script.get_script_method_list(), 0)
@@ -649,7 +649,7 @@ func _compare_with_engine(path: String, root_class: SymbolIndex.ClassScope, scri
 
 	var constants := script.get_script_constant_map()
 	for variable_name: String in root_class.vars:
-		var variable: SymbolIndex.VariableSymbol = root_class.vars[variable_name]
+		var variable: GDSExSymbolIndex.GDSExVariableSymbol = root_class.vars[variable_name]
 		if variable.is_const and not constants.has(variable_name):
 			problems.append("%s: constant '%s' is unknown to the engine." % [path, variable_name])
 	for inner_class_name: String in root_class.inner_classes:
@@ -681,7 +681,7 @@ func _check_index_memory(editor: CodeEdit) -> PackedStringArray:
 	var lines := editor.text.split("\n")
 	var before := int(Performance.get_monitor(Performance.OBJECT_COUNT))
 	for i in MEMORY_CHECK_BUILDS:
-		SymbolIndexBuilder.build(lines)
+		GDSExSymbolIndexBuilder.build(lines)
 	var leaked := int(Performance.get_monitor(Performance.OBJECT_COUNT)) - before
 	if leaked >= MEMORY_CHECK_BUILDS:
 		return PackedStringArray(["%d objects still alive after %d index builds." % [leaked, MEMORY_CHECK_BUILDS]])

@@ -1,8 +1,8 @@
 @tool
 extends RefCounted
 
-const SourceScanner = preload("res://addons/code_generator/analysis/source_scanner.gd")
-const Language = preload("res://addons/code_generator/analysis/language.gd")
+const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/source_scanner.gd")
+const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
 
 const ARRAY_OPENING: String = "["
 const DICTIONARY_OPENING: String = "{"
@@ -11,14 +11,14 @@ const SUBSCRIPTABLE_ENDINGS: String = ")]}\"'"
 const INDENT_CHARACTERS: String = " \t"
 
 
-class LineEdits:
+class GDSExLineEdits:
 	var comma_columns: PackedInt32Array = []
 	var closings: Dictionary[int, Vector2i] = {}
 	var opening_columns: PackedInt32Array = []
 
 
-static func rewrite(statements: Array[SourceScanner.Statement], lines: PackedStringArray) -> Dictionary[int, PackedStringArray]:
-	var edits: Dictionary[int, LineEdits] = {}
+static func rewrite(statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray) -> Dictionary[int, PackedStringArray]:
+	var edits: Dictionary[int, GDSExLineEdits] = {}
 	for statement in statements:
 		_collect_edits(statement, edits)
 	var edited_lines := edits.keys()
@@ -32,14 +32,14 @@ static func rewrite(statements: Array[SourceScanner.Statement], lines: PackedStr
 	return rewrites
 
 
-static func _collect_edits(statement: SourceScanner.Statement, edits: Dictionary[int, LineEdits]) -> void:
+static func _collect_edits(statement: GDSExSourceScanner.GDSExStatement, edits: Dictionary[int, GDSExLineEdits]) -> void:
 	var groups: Array[Vector2i] = []
 	var open_offsets: PackedInt32Array = []
 	for offset in statement.code.length():
 		var character := statement.code[offset]
-		if SourceScanner.OPENING_BRACKETS.contains(character):
+		if GDSExSourceScanner.OPENING_BRACKETS.contains(character):
 			open_offsets.append(offset)
-		elif SourceScanner.CLOSING_BRACKETS.contains(character):
+		elif GDSExSourceScanner.CLOSING_BRACKETS.contains(character):
 			if open_offsets.is_empty():
 				return
 			groups.append(Vector2i(open_offsets[open_offsets.size() - 1], offset))
@@ -50,7 +50,7 @@ static func _collect_edits(statement: SourceScanner.Statement, edits: Dictionary
 		_add_group_edits(statement, group.x, group.y, edits)
 
 
-static func _add_group_edits(statement: SourceScanner.Statement, open_offset: int, close_offset: int, edits: Dictionary[int, LineEdits]) -> void:
+static func _add_group_edits(statement: GDSExSourceScanner.GDSExStatement, open_offset: int, close_offset: int, edits: Dictionary[int, GDSExLineEdits]) -> void:
 	var opening := statement.position_at(open_offset)
 	var closing := statement.position_at(close_offset)
 	if opening.x == closing.x:
@@ -75,17 +75,17 @@ static func _add_group_edits(statement: SourceScanner.Statement, open_offset: in
 		_add_comma(edits, statement.position_at(last_offset) + Vector2i(0, 1))
 
 
-static func _add_comma(edits: Dictionary[int, LineEdits], position: Vector2i) -> void:
+static func _add_comma(edits: Dictionary[int, GDSExLineEdits], position: Vector2i) -> void:
 	_edits_of(edits, position.x).comma_columns.append(position.y)
 
 
-static func _edits_of(edits: Dictionary[int, LineEdits], line: int) -> LineEdits:
+static func _edits_of(edits: Dictionary[int, GDSExLineEdits], line: int) -> GDSExLineEdits:
 	if not edits.has(line):
-		edits[line] = LineEdits.new()
+		edits[line] = GDSExLineEdits.new()
 	return edits[line]
 
 
-static func _lambda_ending_at(statement: SourceScanner.Statement, offset: int) -> SourceScanner.Block:
+static func _lambda_ending_at(statement: GDSExSourceScanner.GDSExStatement, offset: int) -> GDSExSourceScanner.GDSExBlock:
 	for index in range(1, statement.pieces.size()):
 		if statement.pieces[index].offset != offset:
 			continue
@@ -95,7 +95,7 @@ static func _lambda_ending_at(statement: SourceScanner.Statement, offset: int) -
 	return null
 
 
-static func _code_end(statement: SourceScanner.Statement) -> Vector2i:
+static func _code_end(statement: GDSExSourceScanner.GDSExStatement) -> Vector2i:
 	var last_piece := statement.pieces[statement.pieces.size() - 1]
 	var end := Vector2i(last_piece.line, last_piece.column + last_piece.length)
 	for block in statement.blocks:
@@ -119,15 +119,15 @@ static func _is_collection_literal(code: String, open_offset: int) -> bool:
 		return true
 	if SUBSCRIPTABLE_ENDINGS.contains(code[index]):
 		return false
-	if not SourceScanner.is_identifier_character(code[index]):
+	if not GDSExSourceScanner.is_identifier_character(code[index]):
 		return true
 	var word_end := index + 1
-	while index >= 0 and SourceScanner.is_identifier_character(code[index]):
+	while index >= 0 and GDSExSourceScanner.is_identifier_character(code[index]):
 		index -= 1
-	return Language.NON_CALL_KEYWORDS.has(code.substr(index + 1, word_end - index - 1))
+	return GDSExLanguage.NON_CALL_KEYWORDS.has(code.substr(index + 1, word_end - index - 1))
 
 
-static func _rewrite_line(line: int, raw: String, edits: LineEdits, opening_indents: Dictionary[Vector2i, String]) -> PackedStringArray:
+static func _rewrite_line(line: int, raw: String, edits: GDSExLineEdits, opening_indents: Dictionary[Vector2i, String]) -> PackedStringArray:
 	var rewritten := PackedStringArray()
 	var closing_columns := edits.closings.keys()
 	closing_columns.sort()

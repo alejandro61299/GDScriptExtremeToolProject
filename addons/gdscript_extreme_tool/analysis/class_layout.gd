@@ -1,12 +1,12 @@
 @tool
 extends RefCounted
 
-const SymbolIndex = preload("res://addons/code_generator/analysis/symbol_index.gd")
-const SourceScanner = preload("res://addons/code_generator/analysis/source_scanner.gd")
-const BracketLayout = preload("res://addons/code_generator/analysis/bracket_layout.gd")
-const TokenSpacing = preload("res://addons/code_generator/analysis/token_spacing.gd")
-const TypeResolver = preload("res://addons/code_generator/analysis/type_resolver.gd")
-const Settings = preload("res://addons/code_generator/code_generator_settings.gd")
+const GDSExSymbolIndex = preload("res://addons/gdscript_extreme_tool/analysis/symbol_index.gd")
+const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/source_scanner.gd")
+const GDSExBracketLayout = preload("res://addons/gdscript_extreme_tool/analysis/bracket_layout.gd")
+const GDSExTokenSpacing = preload("res://addons/gdscript_extreme_tool/analysis/token_spacing.gd")
+const GDSExTypeResolver = preload("res://addons/gdscript_extreme_tool/analysis/type_resolver.gd")
+const GDSExSettings = preload("res://addons/gdscript_extreme_tool/settings.gd")
 
 const COMMENT_START: String = "#"
 const REGION_START: String = "#region"
@@ -20,13 +20,13 @@ const INIT_METHOD: String = "_init"
 const EXPORTS_CATEGORY: String = "exports"
 const INDENT_CHARACTERS: String = " \t"
 
-enum Phase { STATIC, REGULAR, READY }
+enum GDSExPhase { STATIC, REGULAR, READY }
 
 static var _static_pattern := RegEx.create_from_string("\\bstatic\\b")
 static var _identifier_pattern := RegEx.create_from_string("(?<![\\w.])[A-Za-z_]\\w*")
 
 
-class Block:
+class GDSExBlock:
 	var first_line: int = 0
 	var last_line: int = 0
 	var member_first_line: int = 0
@@ -34,18 +34,18 @@ class Block:
 	var category: int = 0
 	var is_tall: bool = false
 	var original_index: int = 0
-	var provided: Dictionary[String, Phase] = {}
+	var provided: Dictionary[String, GDSExPhase] = {}
 	var required: PackedStringArray = []
 
 
-class Layout:
+class GDSExLayout:
 	var first_line: int = 0
 	var last_line: int = 0
 	var lines: PackedStringArray = []
 	var line_map: PackedInt32Array = []
 
 
-class Draft:
+class GDSExDraft:
 	var source: PackedStringArray = []
 	var first_line: int = 0
 	var lines: PackedStringArray = []
@@ -77,7 +77,7 @@ class Draft:
 				_copy_line(line, "")
 
 
-	func copy_block(block: Block, glues_comments: bool) -> void:
+	func copy_block(block: GDSExBlock, glues_comments: bool) -> void:
 		for line in range(block.first_line, block.last_line + 1):
 			var is_inside_member := line >= block.member_first_line and line <= block.member_last_line
 			if is_inside_member or not glues_comments or not _is_blank_line(line):
@@ -103,7 +103,7 @@ class Draft:
 		return source[line].strip_edges().is_empty()
 
 
-static func reorder(class_scope: SymbolIndex.ClassScope, lines: PackedStringArray) -> Layout:
+static func reorder(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: PackedStringArray) -> GDSExLayout:
 	var body_first := class_scope.header_end_line + 1
 	var body_last := _last_line_with_comments(class_scope, lines)
 	var blocks := _merge_regions(_build_blocks(class_scope, true), lines, body_first, body_last)
@@ -116,10 +116,10 @@ static func reorder(class_scope: SymbolIndex.ClassScope, lines: PackedStringArra
 	var ordered := _order(blocks)
 	if ordered == blocks:
 		return null
-	return _compose(class_scope, blocks, ordered, Draft.new(lines, body_first, body_last), body_last, false)
+	return _compose(class_scope, blocks, ordered, GDSExDraft.new(lines, body_first, body_last), body_last, false)
 
 
-static func format(class_scope: SymbolIndex.ClassScope, statements: Array[SourceScanner.Statement], lines: PackedStringArray) -> Layout:
+static func format(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray) -> GDSExLayout:
 	var blocks := _build_blocks(class_scope, false)
 	if blocks.is_empty():
 		return null
@@ -130,14 +130,14 @@ static func format(class_scope: SymbolIndex.ClassScope, statements: Array[Source
 	_attach_comments(blocks, lines, scope_first, scope_last)
 	if _has_header(class_scope):
 		_split_gap(_new_block(class_scope.header_end_line, class_scope.header_end_line, 0), blocks[0], lines)
-	var draft := Draft.new(lines, scope_first, scope_last)
+	var draft := GDSExDraft.new(lines, scope_first, scope_last)
 	draft.rewrites = _code_rewrites(class_scope, statements, lines, scope_first, scope_last)
 	return _compose(class_scope, blocks, blocks, draft, scope_last, true)
 
 
-static func _code_rewrites(class_scope: SymbolIndex.ClassScope, statements: Array[SourceScanner.Statement], lines: PackedStringArray, first_line: int, last_line: int) -> Dictionary[int, PackedStringArray]:
-	var tidied_lines := TokenSpacing.tidy(_own_statements(class_scope, statements), lines, _own_line_ranges(class_scope, first_line, last_line))
-	var tidied_statements := statements if tidied_lines == lines else SourceScanner.new().scan(tidied_lines)
+static func _code_rewrites(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray, first_line: int, last_line: int) -> Dictionary[int, PackedStringArray]:
+	var tidied_lines := GDSExTokenSpacing.tidy(_own_statements(class_scope, statements), lines, _own_line_ranges(class_scope, first_line, last_line))
+	var tidied_statements := statements if tidied_lines == lines else GDSExSourceScanner.new().scan(tidied_lines)
 	var rewrites := _bracket_rewrites(class_scope, tidied_statements, tidied_lines)
 	for line in range(first_line, last_line + 1):
 		if tidied_lines[line] != lines[line] and not rewrites.has(line):
@@ -145,24 +145,24 @@ static func _code_rewrites(class_scope: SymbolIndex.ClassScope, statements: Arra
 	return rewrites
 
 
-static func _own_line_ranges(class_scope: SymbolIndex.ClassScope, first_line: int, last_line: int) -> Array[Vector2i]:
+static func _own_line_ranges(class_scope: GDSExSymbolIndex.GDSExClassScope, first_line: int, last_line: int) -> Array[Vector2i]:
 	var ranges: Array[Vector2i] = []
 	var range_start := first_line
 	for member in class_scope.members:
-		if member.kind == SymbolIndex.ClassMember.Kind.CLASS:
+		if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CLASS:
 			ranges.append(Vector2i(range_start, member.start_line))
 			range_start = member.end_line + 1
 	ranges.append(Vector2i(range_start, last_line))
 	return ranges
 
 
-static func _own_statements(class_scope: SymbolIndex.ClassScope, statements: Array[SourceScanner.Statement]) -> Array[SourceScanner.Statement]:
-	var own: Array[SourceScanner.Statement] = []
-	var scope_statements: Array[SourceScanner.Statement] = []
+static func _own_statements(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement]) -> Array[GDSExSourceScanner.GDSExStatement]:
+	var own: Array[GDSExSourceScanner.GDSExStatement] = []
+	var scope_statements: Array[GDSExSourceScanner.GDSExStatement] = []
 	if class_scope.parent == null:
 		scope_statements = statements
 	else:
-		var class_statement := SourceScanner.find_statement_at(statements, class_scope.start_line)
+		var class_statement := GDSExSourceScanner.find_statement_at(statements, class_scope.start_line)
 		if class_statement == null:
 			return own
 		own.append(class_statement)
@@ -170,7 +170,7 @@ static func _own_statements(class_scope: SymbolIndex.ClassScope, statements: Arr
 			scope_statements.append_array(block.statements)
 	var inner_class_lines: Dictionary[int, bool] = {}
 	for member in class_scope.members:
-		if member.kind == SymbolIndex.ClassMember.Kind.CLASS:
+		if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CLASS:
 			inner_class_lines[member.start_line] = true
 	for statement in scope_statements:
 		if inner_class_lines.has(statement.first_line):
@@ -180,16 +180,16 @@ static func _own_statements(class_scope: SymbolIndex.ClassScope, statements: Arr
 	return own
 
 
-static func _bracket_rewrites(class_scope: SymbolIndex.ClassScope, statements: Array[SourceScanner.Statement], lines: PackedStringArray) -> Dictionary[int, PackedStringArray]:
-	var formatted: Array[SourceScanner.Statement] = []
+static func _bracket_rewrites(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray) -> Dictionary[int, PackedStringArray]:
+	var formatted: Array[GDSExSourceScanner.GDSExStatement] = []
 	for member in class_scope.members:
-		var holds_code := member.kind == SymbolIndex.ClassMember.Kind.VARIABLE or member.kind == SymbolIndex.ClassMember.Kind.CONSTANT or member.kind == SymbolIndex.ClassMember.Kind.METHOD
+		var holds_code := member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.VARIABLE or member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CONSTANT or member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.METHOD
 		if holds_code and member.end_line > member.start_line:
-			_collect_statements(SourceScanner.find_statement_at(statements, member.start_line), formatted)
-	return BracketLayout.rewrite(formatted, lines)
+			_collect_statements(GDSExSourceScanner.find_statement_at(statements, member.start_line), formatted)
+	return GDSExBracketLayout.rewrite(formatted, lines)
 
 
-static func _collect_statements(statement: SourceScanner.Statement, collected: Array[SourceScanner.Statement]) -> void:
+static func _collect_statements(statement: GDSExSourceScanner.GDSExStatement, collected: Array[GDSExSourceScanner.GDSExStatement]) -> void:
 	if statement == null:
 		return
 	collected.append(statement)
@@ -198,7 +198,7 @@ static func _collect_statements(statement: SourceScanner.Statement, collected: A
 			_collect_statements(inner, collected)
 
 
-static func _last_line_with_comments(class_scope: SymbolIndex.ClassScope, lines: PackedStringArray) -> int:
+static func _last_line_with_comments(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: PackedStringArray) -> int:
 	var last_line := mini(class_scope.end_line, lines.size() - 1)
 	if class_scope.parent == null:
 		return last_line
@@ -212,13 +212,13 @@ static func _last_line_with_comments(class_scope: SymbolIndex.ClassScope, lines:
 	return last_line
 
 
-static func _build_blocks(class_scope: SymbolIndex.ClassScope, merges_export_groups: bool) -> Array[Block]:
-	var blocks: Array[Block] = []
-	var group: Block = null
-	var tentative: Array[Block] = []
-	var annotations: Array[SymbolIndex.ClassMember] = []
+static func _build_blocks(class_scope: GDSExSymbolIndex.GDSExClassScope, merges_export_groups: bool) -> Array[GDSExBlock]:
+	var blocks: Array[GDSExBlock] = []
+	var group: GDSExBlock = null
+	var tentative: Array[GDSExBlock] = []
+	var annotations: Array[GDSExSymbolIndex.GDSExClassMember] = []
 	for member in class_scope.members:
-		if member.kind == SymbolIndex.ClassMember.Kind.ANNOTATION:
+		if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.ANNOTATION:
 			var continues_group := member.name == SUBGROUP_ANNOTATION and group != null
 			if GROUP_STARTERS.has(member.name) or (member.name == SUBGROUP_ANNOTATION and group == null):
 				blocks.append_array(tentative)
@@ -236,7 +236,7 @@ static func _build_blocks(class_scope: SymbolIndex.ClassScope, merges_export_gro
 			blocks.append(block)
 			continue
 		tentative.append(block)
-		if block.category == group.category and member.kind != SymbolIndex.ClassMember.Kind.ANNOTATION:
+		if block.category == group.category and member.kind != GDSExSymbolIndex.GDSExClassMember.GDSExKind.ANNOTATION:
 			for inner in tentative:
 				_absorb(group, inner)
 			tentative.clear()
@@ -246,7 +246,7 @@ static func _build_blocks(class_scope: SymbolIndex.ClassScope, merges_export_gro
 	return blocks
 
 
-static func _member_block(member: SymbolIndex.ClassMember, annotations: Array[SymbolIndex.ClassMember], class_scope: SymbolIndex.ClassScope, previous_blocks: Array[Block]) -> Block:
+static func _member_block(member: GDSExSymbolIndex.GDSExClassMember, annotations: Array[GDSExSymbolIndex.GDSExClassMember], class_scope: GDSExSymbolIndex.GDSExClassScope, previous_blocks: Array[GDSExBlock]) -> GDSExBlock:
 	var modifiers := member.modifiers
 	for annotation in annotations:
 		modifiers += annotation.name + " "
@@ -254,14 +254,14 @@ static func _member_block(member: SymbolIndex.ClassMember, annotations: Array[Sy
 	var category_name := _category_name(member, modifiers, class_scope)
 	var category := _last_category(previous_blocks) if category_name.is_empty() else _category_index(category_name)
 	var block := _new_block(first_line, member.end_line, category)
-	block.is_tall = member.kind == SymbolIndex.ClassMember.Kind.METHOD or member.kind == SymbolIndex.ClassMember.Kind.CLASS
-	if member.kind == SymbolIndex.ClassMember.Kind.VARIABLE:
+	block.is_tall = member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.METHOD or member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CLASS
+	if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.VARIABLE:
 		block.provided[member.name] = _phase(modifiers)
 	return block
 
 
-static func _new_block(first_line: int, last_line: int, category: int) -> Block:
-	var block := Block.new()
+static func _new_block(first_line: int, last_line: int, category: int) -> GDSExBlock:
+	var block := GDSExBlock.new()
 	block.first_line = first_line
 	block.last_line = last_line
 	block.member_first_line = first_line
@@ -270,7 +270,7 @@ static func _new_block(first_line: int, last_line: int, category: int) -> Block:
 	return block
 
 
-static func _absorb(block: Block, inner: Block) -> void:
+static func _absorb(block: GDSExBlock, inner: GDSExBlock) -> void:
 	block.first_line = mini(block.first_line, inner.first_line)
 	block.last_line = maxi(block.last_line, inner.last_line)
 	block.member_first_line = block.first_line
@@ -279,28 +279,28 @@ static func _absorb(block: Block, inner: Block) -> void:
 	block.provided.merge(inner.provided)
 
 
-static func _last_category(blocks: Array[Block]) -> int:
+static func _last_category(blocks: Array[GDSExBlock]) -> int:
 	return 0 if blocks.is_empty() else blocks[blocks.size() - 1].category
 
 
 static func _category_index(category_name: String) -> int:
-	var index := Settings.CLASS_MEMBER_ORDER.find(category_name)
-	return Settings.CLASS_MEMBER_ORDER.size() if index == -1 else index
+	var index := GDSExSettings.CLASS_MEMBER_ORDER.find(category_name)
+	return GDSExSettings.CLASS_MEMBER_ORDER.size() if index == -1 else index
 
 
-static func _category_name(member: SymbolIndex.ClassMember, modifiers: String, class_scope: SymbolIndex.ClassScope) -> String:
+static func _category_name(member: GDSExSymbolIndex.GDSExClassMember, modifiers: String, class_scope: GDSExSymbolIndex.GDSExClassScope) -> String:
 	var is_static := _static_pattern.search(modifiers) != null
 	var is_private := member.name.begins_with(PRIVATE_PREFIX)
 	match member.kind:
-		SymbolIndex.ClassMember.Kind.SIGNAL:
+		GDSExSymbolIndex.GDSExClassMember.GDSExKind.SIGNAL:
 			return "signals"
-		SymbolIndex.ClassMember.Kind.CONSTANT:
+		GDSExSymbolIndex.GDSExClassMember.GDSExKind.CONSTANT:
 			return "constants"
-		SymbolIndex.ClassMember.Kind.ENUM:
+		GDSExSymbolIndex.GDSExClassMember.GDSExKind.ENUM:
 			return "enums"
-		SymbolIndex.ClassMember.Kind.CLASS:
+		GDSExSymbolIndex.GDSExClassMember.GDSExKind.CLASS:
 			return "inner_classes"
-		SymbolIndex.ClassMember.Kind.VARIABLE:
+		GDSExSymbolIndex.GDSExClassMember.GDSExKind.VARIABLE:
 			if is_static:
 				return "static_variables"
 			if modifiers.contains(EXPORT_ANNOTATION):
@@ -308,24 +308,24 @@ static func _category_name(member: SymbolIndex.ClassMember, modifiers: String, c
 			if modifiers.contains(ONREADY_ANNOTATION):
 				return "onready_variables"
 			return "private_variables" if is_private else "public_variables"
-		SymbolIndex.ClassMember.Kind.METHOD:
+		GDSExSymbolIndex.GDSExClassMember.GDSExKind.METHOD:
 			if is_static:
 				return "static_private_methods" if is_private else "static_public_methods"
 			if member.name == INIT_METHOD:
 				return "init"
-			if TypeResolver.is_engine_callback(class_scope, member.name):
+			if GDSExTypeResolver.is_engine_callback(class_scope, member.name):
 				return "engine_methods"
 			return "private_methods" if is_private else "public_methods"
 	return ""
 
 
-static func _phase(modifiers: String) -> Phase:
+static func _phase(modifiers: String) -> GDSExPhase:
 	if _static_pattern.search(modifiers) != null:
-		return Phase.STATIC
-	return Phase.READY if modifiers.contains(ONREADY_ANNOTATION) else Phase.REGULAR
+		return GDSExPhase.STATIC
+	return GDSExPhase.READY if modifiers.contains(ONREADY_ANNOTATION) else GDSExPhase.REGULAR
 
 
-static func _merge_regions(blocks: Array[Block], lines: PackedStringArray, body_first: int, body_last: int) -> Array[Block]:
+static func _merge_regions(blocks: Array[GDSExBlock], lines: PackedStringArray, body_first: int, body_last: int) -> Array[GDSExBlock]:
 	var open_lines: Array[int] = []
 	var regions: Array[Vector2i] = []
 	var block_index := 0
@@ -344,9 +344,9 @@ static func _merge_regions(blocks: Array[Block], lines: PackedStringArray, body_
 	if regions.is_empty():
 		return blocks
 
-	var merged: Array[Block] = []
+	var merged: Array[GDSExBlock] = []
 	var region_index := 0
-	var region_block: Block = null
+	var region_block: GDSExBlock = null
 	for block in blocks:
 		while region_index < regions.size() and regions[region_index].y < block.first_line:
 			region_index += 1
@@ -362,7 +362,7 @@ static func _merge_regions(blocks: Array[Block], lines: PackedStringArray, body_
 	return merged
 
 
-static func _attach_comments(blocks: Array[Block], lines: PackedStringArray, body_first: int, body_last: int) -> void:
+static func _attach_comments(blocks: Array[GDSExBlock], lines: PackedStringArray, body_first: int, body_last: int) -> void:
 	for index in blocks.size():
 		var limit_line := blocks[index + 1].first_line - 1 if index + 1 < blocks.size() else body_last
 		_absorb_comments_inside_member(blocks[index], lines, limit_line)
@@ -376,7 +376,7 @@ static func _attach_comments(blocks: Array[Block], lines: PackedStringArray, bod
 		_split_gap(blocks[index - 1], blocks[index], lines)
 
 
-static func _absorb_comments_inside_member(block: Block, lines: PackedStringArray, limit_line: int) -> void:
+static func _absorb_comments_inside_member(block: GDSExBlock, lines: PackedStringArray, limit_line: int) -> void:
 	var member_indent := _indent_width(lines[block.member_first_line])
 	for line in range(block.last_line + 1, limit_line + 1):
 		if _is_blank(lines[line]):
@@ -387,7 +387,7 @@ static func _absorb_comments_inside_member(block: Block, lines: PackedStringArra
 		block.member_last_line = line
 
 
-static func _split_gap(above: Block, below: Block, lines: PackedStringArray) -> void:
+static func _split_gap(above: GDSExBlock, below: GDSExBlock, lines: PackedStringArray) -> void:
 	var gap_end := below.first_line - 1
 	var cursor := above.last_line + 1
 	while cursor <= gap_end:
@@ -434,13 +434,13 @@ static func _indent_width(line: String) -> int:
 	return line.length() - line.lstrip(INDENT_CHARACTERS).length()
 
 
-static func _find_dependencies(blocks: Array[Block], class_scope: SymbolIndex.ClassScope) -> void:
-	var phases: Dictionary[String, Phase] = {}
+static func _find_dependencies(blocks: Array[GDSExBlock], class_scope: GDSExSymbolIndex.GDSExClassScope) -> void:
+	var phases: Dictionary[String, GDSExPhase] = {}
 	for block in blocks:
 		phases.merge(block.provided)
 	for block in blocks:
 		for variable_name: String in block.provided:
-			var symbol: SymbolIndex.VariableSymbol = class_scope.vars.get(variable_name)
+			var symbol: GDSExSymbolIndex.GDSExVariableSymbol = class_scope.vars.get(variable_name)
 			if symbol == null:
 				continue
 			for occurrence in _identifier_pattern.search_all(symbol.value_code):
@@ -449,11 +449,11 @@ static func _find_dependencies(blocks: Array[Block], class_scope: SymbolIndex.Cl
 					block.required.append(identifier)
 
 
-static func _order(blocks: Array[Block]) -> Array[Block]:
-	var remaining: Array[Block] = blocks.duplicate()
-	remaining.sort_custom(func(first: Block, second: Block) -> bool:
+static func _order(blocks: Array[GDSExBlock]) -> Array[GDSExBlock]:
+	var remaining: Array[GDSExBlock] = blocks.duplicate()
+	remaining.sort_custom(func(first: GDSExBlock, second: GDSExBlock) -> bool:
 		return first.category < second.category or (first.category == second.category and first.original_index < second.original_index))
-	var ordered: Array[Block] = []
+	var ordered: Array[GDSExBlock] = []
 	var declared: Dictionary[String, bool] = {}
 	while not remaining.is_empty():
 		var picked := 0
@@ -469,14 +469,14 @@ static func _order(blocks: Array[Block]) -> Array[Block]:
 	return ordered
 
 
-static func _is_ready(block: Block, declared: Dictionary[String, bool]) -> bool:
+static func _is_ready(block: GDSExBlock, declared: Dictionary[String, bool]) -> bool:
 	for required_name in block.required:
 		if not declared.has(required_name):
 			return false
 	return true
 
 
-static func _compose(class_scope: SymbolIndex.ClassScope, blocks: Array[Block], ordered: Array[Block], draft: Draft, body_last: int, applies_format: bool) -> Layout:
+static func _compose(class_scope: GDSExSymbolIndex.GDSExClassScope, blocks: Array[GDSExBlock], ordered: Array[GDSExBlock], draft: GDSExDraft, body_last: int, applies_format: bool) -> GDSExLayout:
 	var lines := draft.source
 	var first_block := blocks[0]
 	var head_first := draft.first_line
@@ -491,7 +491,7 @@ static func _compose(class_scope: SymbolIndex.ClassScope, blocks: Array[Block], 
 
 	for index in ordered.size():
 		var block := ordered[index]
-		var previous: Block = ordered[index - 1] if index > 0 else null
+		var previous: GDSExBlock = ordered[index - 1] if index > 0 else null
 		var is_in_place := block == first_block if previous == null else block.original_index == previous.original_index + 1
 		var existing := 0
 		if is_in_place:
@@ -506,32 +506,32 @@ static func _compose(class_scope: SymbolIndex.ClassScope, blocks: Array[Block], 
 	return _trimmed_layout(draft, body_last)
 
 
-static func _copy_outside_members(draft: Draft, from: int, to: int, applies_format: bool) -> void:
+static func _copy_outside_members(draft: GDSExDraft, from: int, to: int, applies_format: bool) -> void:
 	if applies_format:
-		draft.copy_limiting_blank_lines(from, to, Settings.MAX_BLANK_LINES_OUTSIDE_MEMBERS)
+		draft.copy_limiting_blank_lines(from, to, GDSExSettings.MAX_BLANK_LINES_OUTSIDE_MEMBERS)
 	else:
 		draft.copy_lines(from, to)
 
 
-static func _has_header(class_scope: SymbolIndex.ClassScope) -> bool:
+static func _has_header(class_scope: GDSExSymbolIndex.GDSExClassScope) -> bool:
 	return class_scope.header_end_line >= class_scope.body_start_line
 
 
-static func _leading_gap(block: Block, existing: int, is_at_top: bool) -> int:
+static func _leading_gap(block: GDSExBlock, existing: int, is_at_top: bool) -> int:
 	if is_at_top:
-		return mini(existing, Settings.MAX_BLANK_LINES_OUTSIDE_MEMBERS)
-	return Settings.BLANK_LINES_AROUND_METHODS_AND_CLASSES if block.is_tall else Settings.BLANK_LINES_BETWEEN_MEMBER_CATEGORIES
+		return mini(existing, GDSExSettings.MAX_BLANK_LINES_OUTSIDE_MEMBERS)
+	return GDSExSettings.BLANK_LINES_AROUND_METHODS_AND_CLASSES if block.is_tall else GDSExSettings.BLANK_LINES_BETWEEN_MEMBER_CATEGORIES
 
 
-static func _standard_gap(previous: Block, block: Block, existing: int) -> int:
+static func _standard_gap(previous: GDSExBlock, block: GDSExBlock, existing: int) -> int:
 	if previous.is_tall or block.is_tall:
-		return Settings.BLANK_LINES_AROUND_METHODS_AND_CLASSES
+		return GDSExSettings.BLANK_LINES_AROUND_METHODS_AND_CLASSES
 	if previous.category != block.category:
-		return Settings.BLANK_LINES_BETWEEN_MEMBER_CATEGORIES
-	return mini(existing, Settings.MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY)
+		return GDSExSettings.BLANK_LINES_BETWEEN_MEMBER_CATEGORIES
+	return mini(existing, GDSExSettings.MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY)
 
 
-static func _trimmed_layout(draft: Draft, last_line: int) -> Layout:
+static func _trimmed_layout(draft: GDSExDraft, last_line: int) -> GDSExLayout:
 	var old_count := last_line - draft.first_line + 1
 	var new_count := draft.lines.size()
 	var prefix := 0
@@ -542,7 +542,7 @@ static func _trimmed_layout(draft: Draft, last_line: int) -> Layout:
 	var suffix := 0
 	while suffix < old_count - prefix and suffix < new_count - prefix and draft.source[last_line - suffix] == draft.lines[new_count - 1 - suffix]:
 		suffix += 1
-	var layout := Layout.new()
+	var layout := GDSExLayout.new()
 	layout.first_line = draft.first_line + prefix
 	layout.last_line = last_line - suffix
 	layout.lines = draft.lines.slice(prefix, new_count - suffix)

@@ -2,19 +2,19 @@
 extends RefCounted
 
 
-class Line:
+class GDSExLine:
 	var indent: int = 0
 	var text: String = ""
 
 
-var lines: Array[Line] = []
+var lines: Array[GDSExLine] = []
 var selection_line: int = -1
 var selection_from: int = 0
 var selection_to: int = 0
 
 
 func add_line(indent: int, text: String) -> void:
-	var line := Line.new()
+	var line := GDSExLine.new()
 	line.indent = indent
 	line.text = text
 	lines.append(line)

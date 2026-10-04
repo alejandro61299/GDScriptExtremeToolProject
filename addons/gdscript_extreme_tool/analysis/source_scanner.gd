@@ -12,31 +12,31 @@ const CONTINUATION_STARTS: String = ")]},.+-*/%|&^=<>:"
 const CONTINUATION_WORDS: Array[String] = ["and", "or", "in", "is", "as"]
 
 
-class Block:
+class GDSExBlock:
 	var header_line: int = 0
 	var opened_by_function: bool = false
 	var header_code: String = ""
 	var indent_text: String = ""
 	var last_line: int = 0
 	var trailing_comment_line: int = -1
-	var statements: Array[Statement] = []
+	var statements: Array[GDSExStatement] = []
 
 
-class Piece:
+class GDSExPiece:
 	var line: int = 0
 	var column: int = 0
 	var offset: int = 0
 	var length: int = 0
 
 
-class Statement:
+class GDSExStatement:
 	var first_line: int = 0
 	var own_last_line: int = 0
 	var last_line: int = 0
 	var indent_text: String = ""
 	var code: String = ""
-	var pieces: Array[Piece] = []
-	var blocks: Array[Block] = []
+	var pieces: Array[GDSExPiece] = []
+	var blocks: Array[GDSExBlock] = []
 
 	func offset_at(line: int, column: int) -> int:
 		for piece in pieces:
@@ -51,24 +51,24 @@ class Statement:
 		return Vector2i(-1, -1)
 
 
-class Frame:
-	var block: Block
-	var owner: Statement
+class GDSExFrame:
+	var block: GDSExBlock
+	var owner: GDSExStatement
 	var indent_length: int = 0
 	var resume_depth: int = 0
 
 
-var _frames: Array[Frame] = []
-var _open_statement: Statement
+var _frames: Array[GDSExFrame] = []
+var _open_statement: GDSExStatement
 var _depth: int = 0
 var _string_delimiter: String = ""
-var _pending_frame: Frame
+var _pending_frame: GDSExFrame
 var _pending_comments: Array[Vector2i] = []
 
 
-func scan(lines: PackedStringArray) -> Array[Statement]:
-	var root := Block.new()
-	var root_frame := Frame.new()
+func scan(lines: PackedStringArray) -> Array[GDSExStatement]:
+	var root := GDSExBlock.new()
+	var root_frame := GDSExFrame.new()
 	root_frame.block = root
 	_frames.clear()
 	_frames.append(root_frame)
@@ -80,7 +80,7 @@ func scan(lines: PackedStringArray) -> Array[Statement]:
 	return root.statements
 
 
-static func find_statement_at(statements: Array[Statement], line: int) -> Statement:
+static func find_statement_at(statements: Array[GDSExStatement], line: int) -> GDSExStatement:
 	for statement in statements:
 		if line < statement.first_line or line > statement.last_line:
 			continue
@@ -146,14 +146,14 @@ func _scan_line(raw: String, line_index: int) -> void:
 			return
 
 	while _frames.size() > 1 and indent_length < _frames.back().indent_length:
-		var frame: Frame = _frames.pop_back()
+		var frame: GDSExFrame = _frames.pop_back()
 		_close_frame(frame)
 		if frame.resume_depth > 0:
 			_resume(frame, masked, line_index)
 			return
 
 	_pending_comments.clear()
-	var statement := Statement.new()
+	var statement := GDSExStatement.new()
 	statement.first_line = line_index
 	statement.own_last_line = line_index
 	statement.indent_text = raw.substr(0, indent_length)
@@ -175,7 +175,7 @@ func _abandons_open_brackets(raw: String, masked: String) -> bool:
 	return not CONTINUATION_WORDS.has(text.substr(0, word_end))
 
 
-func _resume(frame: Frame, masked: String, line_index: int) -> void:
+func _resume(frame: GDSExFrame, masked: String, line_index: int) -> void:
 	_pending_comments.clear()
 	_open_statement = frame.owner
 	_depth = frame.resume_depth
@@ -203,7 +203,7 @@ func _append_code(masked: String, line_index: int) -> void:
 	_add_fragment(masked, line_index)
 	if text.ends_with(LINE_CONTINUATION):
 		_open_statement.code = _open_statement.code.trim_suffix(LINE_CONTINUATION).strip_edges(false, true)
-		var last_piece: Piece = _open_statement.pieces.back()
+		var last_piece: GDSExPiece = _open_statement.pieces.back()
 		last_piece.length = _open_statement.code.length() - last_piece.offset
 		return
 	if not _string_delimiter.is_empty():
@@ -225,7 +225,7 @@ func _split_at(masked: String, column: int, line_index: int) -> bool:
 	if _open_statement.code.is_empty():
 		_frames.back().block.statements.erase(_open_statement)
 	_open_statement = null
-	var frame: Frame
+	var frame: GDSExFrame
 	while _frames.size() > frame_index:
 		frame = _frames.pop_back()
 		_close_frame(frame)
@@ -246,7 +246,7 @@ func _add_fragment(fragment: String, line_index: int) -> void:
 		return
 	if not _open_statement.code.is_empty():
 		_open_statement.code += " "
-	var piece := Piece.new()
+	var piece := GDSExPiece.new()
 	piece.line = line_index
 	piece.column = fragment.length() - fragment.strip_edges(true, false).length()
 	piece.offset = _open_statement.code.length()
@@ -257,26 +257,26 @@ func _add_fragment(fragment: String, line_index: int) -> void:
 
 
 func _open_pending_block(function_offset: int, line_index: int) -> void:
-	var block := Block.new()
+	var block := GDSExBlock.new()
 	block.header_line = line_index
 	block.opened_by_function = function_offset != -1
 	if block.opened_by_function:
 		block.header_code = _open_statement.code.substr(function_offset)
-	_pending_frame = Frame.new()
+	_pending_frame = GDSExFrame.new()
 	_pending_frame.block = block
 	_pending_frame.owner = _open_statement
 	_pending_frame.resume_depth = _depth
 	_open_statement = null
 
 
-func _close_frame(frame: Frame) -> void:
+func _close_frame(frame: GDSExFrame) -> void:
 	for comment in _pending_comments:
 		if comment.y < frame.indent_length:
 			break
 		frame.block.trailing_comment_line = comment.x
 
 
-func _finish_block(block: Block) -> void:
+func _finish_block(block: GDSExBlock) -> void:
 	block.last_line = maxi(block.header_line, block.trailing_comment_line)
 	for statement in block.statements:
 		statement.last_line = statement.own_last_line

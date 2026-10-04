@@ -1,6 +1,6 @@
 extends SceneTree
 
-const OUTPUT_PATH: String = "res://addons/code_generator/analysis/builtin_types.gd"
+const OUTPUT_PATH: String = "res://addons/gdscript_extreme_tool/analysis/builtin_types.gd"
 const GENERATOR_PATH: String = "res://tools/generate_builtin_types.gd"
 const VOID_TYPE_NAME: String = "void"
 const USAGE: String = "Usage: godot --headless --path . --script res://tools/generate_builtin_types.gd -- <path to extension_api.json>"
