@@ -1,5 +1,7 @@
 # GDScript Extreme Tool
 
+<img src="icon.svg" width="128" alt="GDScript Extreme Tool icon">
+
 A Godot editor plugin that adds code actions to the script editor's context menu: it generates methods, variables and signal callbacks from the code under the caret, reorders the members of a class and formats it.
 
 ## Actions
@@ -85,3 +87,5 @@ git archive --format=zip --output=gdscript_extreme_tool-0.1.0.zip v0.1.0
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+The icon is based on the Godot Engine logo by Andrea Calabró, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
