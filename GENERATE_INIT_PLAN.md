@@ -9,7 +9,7 @@ Dos acciones nuevas que comparten la misma lógica: generar una función inicial
 | I3 | Validación del nombre de la función | Hecha |
 | I4 | Acciones con diálogo y acción Custom sin interfaz | Hecha |
 | I5 | Diálogo de "Generate Custom Init Definition..." | Hecha |
-| I6 | Verificación en el editor y documentación | Pendiente |
+| I6 | Verificación en el editor y documentación | Hecha |
 
 Cada paso termina con la suite en verde y una pasada de `--headless --editor --quit` sin errores ni avisos. Los commits los hace el usuario al cerrar cada paso.
 
@@ -234,6 +234,12 @@ Nota para repetir la prueba: el editor guarda los scripts modificados al cerrars
 - `REFACTOR_PLAN.md`: resumen de la fase y enlace a este plan.
 
 Queda para el usuario lo que no se puede ver sin interfaz: aspecto del diálogo, uso con ratón y tamaños.
+
+Hecho el 2026-10-06:
+
+- La prueba en el editor sin interfaz se hizo en I5 y se repitió con el código final: abrir desde el atajo, foco en el nombre, colores y fuente del tema, tamaño 560×420, `Intro` con error y sin él, un solo deshacer, barra espaciadora en la lista y `Esc`.
+- README: las dos acciones en la tabla y en la descripción. La descripción de `plugin.cfg` también las menciona.
+- `REFACTOR_PLAN.md`: fase 14 con el resumen y lo que la funcionalidad deja para el resto del plugin.
 
 ## 7. Fuera de alcance
 

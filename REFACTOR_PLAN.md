@@ -18,7 +18,7 @@ Godot 4.7.2. Estado de partida: una única utilidad ("Generate Function Definiti
 | 11 | Ajustes en Project Settings | Hecha |
 | 12 | Acciones bajo demanda: atajo y submenú | Hecha |
 | 13 | Terminología: de «method» a «function» | Hecha |
-| 14 | Acciones Generate Init (plan propio en `GENERATE_INIT_PLAN.md`) | Pendiente |
+| 14 | Acciones Generate Init (plan propio en `GENERATE_INIT_PLAN.md`) | Hecha |
 
 ## Objetivo
 
@@ -48,6 +48,7 @@ addons/gdscript_extreme_tool/
 ├── plugin.cfg
 ├── plugin.gd
 ├── code_actions_popup.gd
+├── init_function_dialog.gd
 ├── plugin_project_settings.gd
 ├── actions/
 │   ├── action_registry.gd
@@ -58,6 +59,9 @@ addons/gdscript_extreme_tool/
 │   ├── generate_local_variable_action.gd
 │   ├── generate_class_variable_action.gd
 │   ├── generate_connected_function_action.gd
+│   ├── init_function.gd
+│   ├── generate_default_init_action.gd
+│   ├── generate_custom_init_action.gd
 │   ├── reorder_class_members_action.gd
 │   └── format_class_members_action.gd
 ├── analysis/
@@ -65,6 +69,8 @@ addons/gdscript_extreme_tool/
 │   ├── bracket_layout.gd
 │   ├── class_layout.gd
 │   ├── language.gd
+│   ├── member_categories.gd
+│   ├── param_names.gd
 │   ├── source_scanner.gd
 │   ├── symbol_index.gd
 │   ├── symbol_index_builder.gd
@@ -658,6 +664,25 @@ GDScript declara con `func` y la documentación de Godot habla de funciones, as�
 - **Menú contextual:** la entrada del clic derecho se llama ahora "Script Extreme Tools".
 
 En las fases anteriores de este documento se han actualizado los nombres de archivos, ajustes y constantes; el texto en español sigue diciendo «método» donde habla del concepto.
+
+### Fase 14 — Acciones Generate Init (hecha)
+
+Dos acciones que generan una función inicializadora con un parámetro por variable y su asignación. El detalle, las decisiones del usuario y lo que se fue encontrando en cada paso están en `GENERATE_INIT_PLAN.md`.
+
+- **"Generate Default Init Definition"** genera `_init` con las variables privadas de la clase, sin preguntar. No se ofrece si ya hay `_init`, si no hay variables privadas o si la clase hereda de `Node` o `Resource`.
+- **"Generate Custom Init Definition..."** abre un diálogo para elegir el nombre y las variables (privadas, públicas y exports), con filtros, vista previa de la firma y un panel de validación del nombre.
+
+Lo que deja para el resto del plugin:
+
+- **Acciones con diálogo.** `GDSExCodeAction.create_dialog(context, on_plan_ready)` permite que una acción pida datos antes de dar su plan. El menú abre el diálogo y aplica el plan al confirmar.
+- **`analysis/member_categories.gd`.** La clasificación de miembros según `order/class_member_order`, compartida por el reordenado, el punto de inserción y la lista de variables.
+- **`GDSExPlacement.function_by_order`.** Coloca una función nueva donde manda el orden de miembros.
+- **`analysis/param_names.gd`.** El formato de los nombres de parámetro, compartido con "Generate Function Definition".
+- **Ajuste `naming/alternative_init_function_name`.**
+- **Las funciones generadas** toman sus líneas en blanco del ajuste `format/blank_lines_around_functions_and_classes`.
+- **Nombres de enums globales** (`Key`, `Error`) reconocidos como definidos; antes las acciones de variable se ofrecían sobre ellos.
+
+Cómo se probó: casos `.txt` para la generación, la validación del nombre y el diálogo, y una prueba de extremo a extremo en el editor sin interfaz que no está en el repositorio. Dos avisos para repetirla: lo que la prueba cambie en `EditorSettings` se guarda en la configuración global del usuario, y el editor guarda los scripts modificados al cerrarse.
 
 ## Casos pendientes
 
