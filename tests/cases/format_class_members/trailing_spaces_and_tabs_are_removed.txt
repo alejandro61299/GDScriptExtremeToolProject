@@ -32,11 +32,11 @@ var names : Array[String] = [
 
 func run() -> void:<|>
 	var total := 1
-
+		
 	if total > 0:
 		# Prints it.
 		print(total)
-
+	  
 	return
 
 === end

@@ -21,7 +21,7 @@ class Inner:
 		"alpha" : 2,
 		"beta" : 3,
 	}
-
+	
 	const NAMES : Array[String] = [
 		"alpha",
 		"beta",

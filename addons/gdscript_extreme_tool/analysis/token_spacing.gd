@@ -22,7 +22,7 @@ static func tidy(statements: Array[GDSExSourceScanner.GDSExStatement], lines: Pa
 			tidied[line] = tidied[line].substr(0, run.x) + SEPARATOR + tidied[line].substr(run.x + run.y)
 	for line_range in line_ranges:
 		for line in range(line_range.x, line_range.y + 1):
-			if code_ends.get(line, 0) < lines[line].length():
+			if code_ends.get(line, 0) < lines[line].length() and not lines[line].strip_edges().is_empty():
 				tidied[line] = tidied[line].rstrip(BLANK_CHARACTERS)
 	return tidied
 

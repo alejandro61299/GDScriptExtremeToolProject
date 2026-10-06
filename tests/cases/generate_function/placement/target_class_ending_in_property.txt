@@ -19,8 +19,8 @@ class Foo:
 	var health: int:
 		set(value):
 			health = value
-
-
+	
+	
 	func bar() -> void:
 		<|pass|>
 

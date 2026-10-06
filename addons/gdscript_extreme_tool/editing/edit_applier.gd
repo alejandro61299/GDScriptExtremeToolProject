@@ -160,7 +160,7 @@ static func _resolve(editor: CodeEdit, insertion: GDSExEditPlan.GDSExInsertion, 
 	resolved.order = order
 	resolved.line = line
 	for i in missing_before:
-		resolved.block_lines.append("")
+		resolved.block_lines.append(point.indent_text)
 	resolved.snippet_offset = missing_before
 	resolved.snippet_size = snippet.lines.size()
 	for index in snippet.lines.size():
@@ -174,9 +174,16 @@ static func _resolve(editor: CodeEdit, insertion: GDSExEditPlan.GDSExInsertion, 
 			resolved.selection_from = prefix.length() + snippet.selection_from
 			resolved.selection_to = prefix.length() + snippet.selection_to
 		resolved.block_lines.append(prefix + snippet_line.text)
+	var blank_line_after := point.indent_text if _continues_indented(editor, line + blank_below, point.indent_text) else ""
 	for i in missing_after:
-		resolved.block_lines.append("")
+		resolved.block_lines.append(blank_line_after)
 	return resolved
+
+
+static func _continues_indented(editor: CodeEdit, next_code_line: int, indent_text: String) -> bool:
+	if indent_text.is_empty() or next_code_line >= editor.get_line_count():
+		return false
+	return editor.get_line(next_code_line).begins_with(indent_text)
 
 
 static func _count_blank_lines(editor: CodeEdit, from_line: int, step: int) -> int:

@@ -16,8 +16,8 @@ extends Node
 
 class Foo:
     var a: int = 0
-
-
+    
+    
     func bar() -> void:
         <|pass|>
 

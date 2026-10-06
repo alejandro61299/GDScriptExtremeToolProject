@@ -45,6 +45,7 @@ class GDSExDraft:
 	var lines: PackedStringArray = []
 	var line_map: PackedInt32Array = []
 	var rewrites: Dictionary[int, PackedStringArray] = {}
+	var blank_line: String = ""
 
 
 	func _init(source_lines: PackedStringArray, source_first_line: int, source_last_line: int) -> void:
@@ -68,7 +69,7 @@ class GDSExDraft:
 				continue
 			blank_lines += 1
 			if blank_lines <= max_blank_lines:
-				_copy_line(line, "")
+				_copy_line(line, blank_line)
 
 
 	func copy_block(block: GDSExBlock, glues_comments: bool) -> void:
@@ -82,7 +83,7 @@ class GDSExDraft:
 		for offset in mini(replaced_count, count):
 			line_map[replaced_first_line + offset - first_line] = first_line + lines.size() + offset
 		for blank in count:
-			lines.append("")
+			lines.append(blank_line)
 
 
 	func _copy_line(line: int, text: String) -> void:
@@ -110,7 +111,7 @@ static func reorder(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: Packed
 	var ordered := _order(blocks)
 	if ordered == blocks:
 		return null
-	return _compose(class_scope, blocks, ordered, GDSExDraft.new(lines, body_first, body_last), body_last, false)
+	return _compose(class_scope, blocks, ordered, _new_draft(class_scope, lines, body_first, body_last), body_last, false)
 
 
 static func format(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray) -> GDSExLayout:
@@ -124,9 +125,16 @@ static func format(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Ar
 	_attach_comments(blocks, lines, scope_first, scope_last)
 	if _has_header(class_scope):
 		_split_gap(_new_block(class_scope.header_end_line, class_scope.header_end_line, 0), blocks[0], lines)
-	var draft := GDSExDraft.new(lines, scope_first, scope_last)
+	var draft := _new_draft(class_scope, lines, scope_first, scope_last)
 	draft.rewrites = _code_rewrites(class_scope, statements, lines, scope_first, scope_last)
 	return _compose(class_scope, blocks, blocks, draft, scope_last, true)
+
+
+static func _new_draft(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: PackedStringArray, first_line: int, last_line: int) -> GDSExDraft:
+	var draft := GDSExDraft.new(lines, first_line, last_line)
+	if class_scope.parent != null:
+		draft.blank_line = class_scope.body_indent_text
+	return draft
 
 
 static func _code_rewrites(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray, first_line: int, last_line: int) -> Dictionary[int, PackedStringArray]:
@@ -198,9 +206,9 @@ static func _last_line_with_comments(class_scope: GDSExSymbolIndex.GDSExClassSco
 		return last_line
 	var body_indent := class_scope.body_indent_text.length()
 	for line in range(last_line + 1, lines.size()):
-		if _is_blank(lines[line]):
+		if lines[line].is_empty():
 			continue
-		if not _is_comment(lines[line]) or _indent_width(lines[line]) < body_indent:
+		if _indent_width(lines[line]) < body_indent or not (_is_blank(lines[line]) or _is_comment(lines[line])):
 			break
 		last_line = line
 	return last_line
@@ -437,8 +445,15 @@ static func _is_ready(block: GDSExBlock, declared: Dictionary[String, bool]) -> 
 static func _compose(class_scope: GDSExSymbolIndex.GDSExClassScope, blocks: Array[GDSExBlock], ordered: Array[GDSExBlock], draft: GDSExDraft, body_last: int, applies_format: bool) -> GDSExLayout:
 	var lines := draft.source
 	var first_block := blocks[0]
+	var last_block := blocks[blocks.size() - 1]
 	var head_first := draft.first_line
-	if applies_format and class_scope.parent == null:
+	var tail_last := body_last
+	if applies_format:
+		if class_scope.parent != null:
+			draft.copy_lines(head_first, head_first)
+			head_first += 1
+			while tail_last > last_block.last_line and _is_blank(lines[tail_last]):
+				tail_last -= 1
 		while head_first < first_block.first_line and _is_blank(lines[head_first]):
 			head_first += 1
 	var leading_blank := 0
@@ -460,7 +475,7 @@ static func _compose(class_scope: GDSExSymbolIndex.GDSExClassScope, blocks: Arra
 		draft.add_blank_lines(gap, block.first_line - existing, existing)
 		draft.copy_block(block, applies_format)
 
-	_copy_outside_members(draft, blocks[blocks.size() - 1].last_line + 1, body_last, applies_format)
+	_copy_outside_members(draft, last_block.last_line + 1, tail_last, applies_format)
 	return _trimmed_layout(draft, body_last)
 
 

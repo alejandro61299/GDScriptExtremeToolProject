@@ -11,8 +11,8 @@ extends Node
 
 class Counter:
 	var total: int
-
-
+	
+	
 	func bump() -> void:
 		<|total|> += 1
 

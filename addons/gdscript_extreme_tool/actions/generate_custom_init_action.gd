@@ -13,8 +13,6 @@ func get_label() -> String:
 
 
 func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
-	if GDSExInitFunction.find_variables(context).is_empty():
-		return null
 	var private_names := GDSExInitFunction.find_variable_names(context, GDSExMemberCategories.PRIVATE_VARIABLES)
 	return GDSExInitFunction.build_plan(context, GDSExInitFunction.default_function_name(context), private_names)
 

@@ -26,13 +26,13 @@ extends Node
 
 class Inner:
 	# Describes the inner class.
-
+	
 	signal done
-
-
+	
+	
 	func run() -> void:
 		pass<|>
-
+	
 	# End of the inner class.
 
 

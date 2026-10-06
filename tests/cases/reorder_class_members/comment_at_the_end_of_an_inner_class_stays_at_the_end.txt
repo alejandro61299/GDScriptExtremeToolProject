@@ -17,8 +17,8 @@ extends Node
 class Inner:
 	var count : int = 0
 	# End of the inner class.
-
-
+	
+	
 	func run() -> void:
 		pass<|>
 

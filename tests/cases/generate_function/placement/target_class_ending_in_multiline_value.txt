@@ -19,8 +19,8 @@ class Foo:
 	var data: Dictionary = {
 		"a": 1,
 	}
-
-
+	
+	
 	func bar() -> void:
 		<|pass|>
 

@@ -25,7 +25,7 @@ var my_var_1 : Dictionary = {}
 
 class EmptyClass:
 	extends Object
-
+	
 	func get_vector(p_const_2: int) -> Vector2:
 		<|return Vector2(0, 0)|>
 

@@ -25,7 +25,7 @@ var my_var_1 : Dictionary = {}
 
 class EmptyClass:
 	extends Object
-
+	
 	func new_method_1(p_const_1: Node, p_my_var_1: Dictionary) -> void:
 		<|pass|>
 

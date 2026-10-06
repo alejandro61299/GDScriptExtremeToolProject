@@ -1,0 +1,31 @@
+action: format_class_members
+=== input
+extends Node
+
+
+class Stats extends RefCounted:
+	var _life : int = 0
+	func heal() -> void:
+		pass
+	<|>
+
+
+func _process(delta: float) -> void:
+	pass
+
+=== expected
+extends Node
+
+
+class Stats extends RefCounted:
+	var _life : int = 0
+	
+	
+	func heal() -> void:
+	<|>	pass
+
+
+func _process(delta: float) -> void:
+	pass
+
+=== end

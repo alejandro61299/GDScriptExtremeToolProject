@@ -26,10 +26,10 @@ var root_value : int = 0
 
 class Inner:
 	signal done
-
+	
 	var count : int = 0<|>
-
-
+	
+	
 	func run() -> void:
 		pass
 

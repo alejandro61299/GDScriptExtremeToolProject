@@ -1,0 +1,13 @@
+action: generate_default_init
+=== input
+extends Node
+
+
+class Stats extends RefCounted:
+	var _life : int = 0
+<|>
+
+func _process(delta: float) -> void:
+	pass
+
+=== end

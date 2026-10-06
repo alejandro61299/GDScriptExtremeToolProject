@@ -1,4 +1,5 @@
 action: run_first_popup_action
+popup_action: Format Class Members
 === input
 extends Node
 signal changed<|>

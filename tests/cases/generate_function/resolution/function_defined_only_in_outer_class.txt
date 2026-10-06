@@ -22,8 +22,8 @@ func helper(value : int) -> void:
 class Worker extends RefCounted:
 	func run() -> void:
 		helper(1)
-
-
+	
+	
 	func helper(param_0: int) -> void:
 		<|pass|>
 

@@ -30,8 +30,8 @@ class Worker:
 					_execute(index, count)
 				)
 		outer.call(3)
-
-
+	
+	
 	func _execute(p_index: int, p_count: int) -> void:
 		<|pass|>
 

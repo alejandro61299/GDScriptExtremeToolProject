@@ -45,7 +45,7 @@ Las tomó el usuario el 2026-10-06, en dos rondas.
 7. **Si `_init` ya existe.** La Default no aparece en el menú (oculta, no en gris). La Custom abre con el nombre alternativo.
 8. **Nodos y recursos.** En una clase que hereda de `Node` o `Resource`, Godot llama a `_init` sin argumentos al instanciar una escena o cargar un recurso. Ahí la Default no se ofrece, y la Custom abre con el nombre alternativo y avisa si se elige `_init` con algún parámetro.
 9. **Dónde se inserta.** Donde manda `order/class_member_order`: `_init` en la categoría `init`; cualquier otro nombre, en `public_functions` o `private_functions` según empiece o no por `_`.
-10. **Cuándo se ofrecen.** La Default, si hay al menos una variable privada que cumpla. La Custom, si hay al menos una variable de cualquiera de los tres grupos.
+10. **Cuándo se ofrecen.** La Default, si hay al menos una variable privada que cumpla. La Custom, siempre, también en una clase sin variables (el usuario lo cambió el 2026-10-06, tras probarla; antes exigía al menos una variable).
 11. **Nombre inválido.** Se marca en rojo y bloquea el botón Generate.
 12. **Diseño del diálogo.** El de los diálogos de Godot 4.7.2: botones en la última fila, centrados y con el espaciado estándar. Los errores y avisos siguen la misma estrategia que esos diálogos.
 13. **Teclado.** Las acciones de interfaz de Godot, no teclas fijas: `ui_accept` genera y `ui_cancel` cancela.
@@ -241,7 +241,21 @@ Hecho el 2026-10-06:
 - README: las dos acciones en la tabla y en la descripción. La descripción de `plugin.cfg` también las menciona.
 - `REFACTOR_PLAN.md`: fase 14 con el resumen y lo que la funcionalidad deja para el resto del plugin.
 
-## 7. Fuera de alcance
+## 7. Cambios tras probarlo en el editor
+
+El usuario lo probó el 2026-10-06 en `tests/test.gd` y salieron dos cosas:
+
+- **La Custom se ofrece siempre.** En una clase sin variables abre el diálogo con la lista vacía y genera la función con `pass`. Como consecuencia el menú ya nunca está vacío en un script, y el caso que comprobaba el menú sin acciones se eliminó.
+- **El cursor en una línea en blanco indentada no contaba como parte de la clase.** Una clase acaba en su última sentencia, así que la línea en blanco de debajo, aunque estuviera indentada dentro, se atribuía al script raíz y las acciones de la clase interna no salían. `GDSExCodeContext` resuelve ahora las líneas en blanco también por indentación: parte del scope de la línea de código anterior y sube mientras la línea en blanco no esté más indentada que la cabecera de ese scope. Entre ese resultado y el que da el rango de líneas se queda con el más profundo, de modo que una línea vacía en mitad del cuerpo de una función sigue siendo de la función. Afecta a todas las acciones, no solo a las de init.
+
+- **Las líneas en blanco que añade la generación dentro de una clase interna llevan la indentación de la clase.** Antes salían vacías. Es como las deja el editor de Godot al escribir y como están en el código original del usuario. Las de después del fragmento solo se indentan si el código que sigue pertenece a la misma clase; ante código del script raíz quedan vacías. Vale para todas las acciones que generan, y cambió lo esperado en 18 casos, comprobando en cada uno que la única diferencia era esa.
+- **Format y Reorder siguen la misma regla** (decisión del usuario, el mismo día). Entre los miembros de una clase interna escriben las líneas en blanco con la indentación de la clase, y Format deja de vaciar las líneas que solo tienen indentación dentro del cuerpo de una función; los espacios sobrantes detrás de código o de un comentario se siguen quitando. Cambió lo esperado en 8 casos más, con la misma comprobación.
+
+- **Extremos de una clase interna al dar formato** (ejemplo del usuario en `tests/test.gd`: `Panchito` debe quedar como `PanchitoResultado`). Bajo la línea `class X:` no queda ninguna línea en blanco, y las líneas en blanco indentadas tras el último miembro o comentario se quitan; para eso el tramo de la clase incluye ahora esas líneas. Comprobado que `Panchito`, tras el formato, queda idéntica a `PanchitoResultado`.
+
+Casos nuevos: cursor en una línea en blanco indentada bajo los miembros, en una sin indentar bajo una clase interna (sigue siendo del script), en una línea vacía dentro del cuerpo de una función, en el cuerpo vacío de una clase, y el formato de una clase interna desde su línea en blanco.
+
+## 8. Fuera de alcance
 
 - Reordenar los parámetros en el diálogo.
 - Variables heredadas y llamada a `super(...)`.

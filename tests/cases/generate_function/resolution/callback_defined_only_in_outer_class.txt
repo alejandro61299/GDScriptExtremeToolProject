@@ -26,8 +26,8 @@ class Emitter extends RefCounted:
 
 	func _init() -> void:
 		changed.connect(_on_changed)
-
-
+	
+	
 	func _on_changed(p_data: int) -> void:
 		<|pass|>
 

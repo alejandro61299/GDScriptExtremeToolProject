@@ -14,8 +14,8 @@ extends Node
 
 class Foo:
 	var value : int = 0
-
-
+	
+	
 	static func create(param_0: int) -> Foo:
 		<|return Foo.new()|>
 

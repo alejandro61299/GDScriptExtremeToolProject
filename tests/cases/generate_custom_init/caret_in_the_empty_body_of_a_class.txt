@@ -1,0 +1,28 @@
+action: generate_custom_init
+compile_check: skip
+=== input
+extends Node
+
+
+class Stats extends RefCounted:
+	<|>
+
+
+func _process(delta: float) -> void:
+	pass
+
+=== expected
+extends Node
+
+
+class Stats extends RefCounted:
+	
+	func _init() -> void:
+		pass<|>
+	
+
+
+func _process(delta: float) -> void:
+	pass
+
+=== end

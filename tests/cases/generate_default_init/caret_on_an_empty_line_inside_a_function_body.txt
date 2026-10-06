@@ -1,0 +1,32 @@
+action: generate_default_init
+=== input
+extends Node
+
+
+class Stats extends RefCounted:
+	var _life : int = 0
+
+
+	func heal() -> void:
+		_life += 1
+<|>
+		_life += 2
+
+=== expected
+extends Node
+
+
+class Stats extends RefCounted:
+	var _life : int = 0
+	
+	
+	func _init(p_life: int) -> void:
+		_life = p_life<|>
+
+
+	func heal() -> void:
+		_life += 1
+
+		_life += 2
+
+=== end

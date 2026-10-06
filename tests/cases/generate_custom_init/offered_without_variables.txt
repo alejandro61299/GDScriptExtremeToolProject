@@ -10,4 +10,19 @@ static var instances : int = 0<|>
 func run() -> void:
 	pass
 
+=== expected
+extends RefCounted
+
+const LIMIT : int = 3
+
+static var instances : int = 0
+
+
+func _init() -> void:
+	pass<|>
+
+
+func run() -> void:
+	pass
+
 === end

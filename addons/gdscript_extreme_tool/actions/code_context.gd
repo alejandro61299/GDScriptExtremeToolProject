@@ -23,6 +23,8 @@ func _init(editor: CodeEdit) -> void:
 	indent_unit = GDSExIndentation.detect_unit(lines, GDSExIndentation.editor_unit(editor))
 	var caret_line := editor.get_caret_line()
 	scope_info = GDSExSymbolIndex.get_scope_info_for_line(index, caret_line)
+	if lines[caret_line].strip_edges().is_empty():
+		scope_info = GDSExSymbolIndex.get_scope_info_for_scope(index, _find_blank_line_scope(caret_line, scope_info.scope), caret_line)
 	statement = GDSExSourceScanner.find_statement_at(index.statements, caret_line)
 	if statement != null:
 		_read_selection(editor)
@@ -30,6 +32,28 @@ func _init(editor: CodeEdit) -> void:
 
 func has_selection() -> bool:
 	return selection_from != selection_to
+
+
+func _find_blank_line_scope(blank_line: int, enclosing_scope: GDSExSymbolIndex.GDSExScopeBase) -> GDSExSymbolIndex.GDSExScopeBase:
+	var code_line := blank_line - 1
+	while code_line >= 0 and lines[code_line].strip_edges().is_empty():
+		code_line -= 1
+	if code_line < 0:
+		return enclosing_scope
+	var indent_length := GDSExIndentation.leading_whitespace(lines[blank_line]).length()
+	var indented_scope := GDSExSymbolIndex.get_scope_info_for_line(index, code_line).scope
+	while indented_scope.parent != null and indent_length <= GDSExIndentation.leading_whitespace(lines[indented_scope.start_line]).length():
+		indented_scope = indented_scope.parent
+	return indented_scope if _depth(indented_scope) > _depth(enclosing_scope) else enclosing_scope
+
+
+func _depth(scope: GDSExSymbolIndex.GDSExScopeBase) -> int:
+	var depth := 0
+	var current := scope.parent
+	while current != null:
+		depth += 1
+		current = current.parent
+	return depth
 
 
 func _read_selection(editor: CodeEdit) -> void:

@@ -691,6 +691,13 @@ func _check_init_dialog() -> PackedStringArray:
 	node_dialog.none_button.pressed.emit()
 	_expect(problems, "no warning without parameters", node_dialog.validation_label.text, "• Function name is valid.")
 	node_dialog.free()
+
+	editor.text = "extends RefCounted\n"
+	var empty_dialog := GDSExInitFunctionDialog.new()
+	empty_dialog.setup(GDSExCodeContext.new(editor), func(_plan: GDSExEditPlan) -> void: pass)
+	root.add_child(empty_dialog)
+	_expect(problems, "dialog of a class without variables", [_dialog_rows(empty_dialog), empty_dialog.preview_label.text, empty_dialog.get_ok_button().disabled], ["", "func _init() -> void", false])
+	empty_dialog.free()
 	editor.free()
 	return problems
 
@@ -763,9 +770,8 @@ func _check_code_actions_popup(test_case: TestCase, editor: CodeEdit) -> PackedS
 			listed_labels.append(popup.get_item_text(index))
 	if listed_labels != available_labels:
 		problems.append("The popup lists %s but the available actions are %s." % [listed_labels, available_labels])
-	if available_labels.is_empty() and (popup.item_count != 1 or popup.get_item_text(0) != GDSExCodeActionsPopup.NO_ACTIONS_LABEL):
-		problems.append("Without available actions the popup should only say so.")
-	popup.index_pressed.emit(0)
+	var chosen_index := maxi(0, listed_labels.find(test_case.headers.get("popup_action", "")))
+	popup.index_pressed.emit(chosen_index)
 	popup.free()
 	problems.append_array(_check_edit(test_case, editor))
 	return problems

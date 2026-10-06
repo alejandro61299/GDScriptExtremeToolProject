@@ -25,7 +25,7 @@ var my_var_1 : Dictionary = {}
 
 class EmptyClass:
 	extends Object
-
+	
 	func new_method_2() -> Dictionary[int, Node]:
 		<|return {}|>
 
