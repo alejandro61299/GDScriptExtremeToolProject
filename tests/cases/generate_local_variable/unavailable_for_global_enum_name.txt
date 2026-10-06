@@ -1,0 +1,11 @@
+action: generate_local_variable
+=== input
+extends Node
+
+
+func run(keycode : Key) -> Error:
+	var side : <|Side|> = SIDE_LEFT
+	print(keycode, side)
+	return OK
+
+=== end

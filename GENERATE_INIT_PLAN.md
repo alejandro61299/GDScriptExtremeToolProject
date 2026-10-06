@@ -8,7 +8,7 @@ Dos acciones nuevas que comparten la misma lógica: generar una función inicial
 | I2 | Lógica común y acción "Generate Default Init Definition" | Hecha |
 | I3 | Validación del nombre de la función | Hecha |
 | I4 | Acciones con diálogo y acción Custom sin interfaz | Hecha |
-| I5 | Diálogo de "Generate Custom Init Definition..." | Pendiente |
+| I5 | Diálogo de "Generate Custom Init Definition..." | Hecha |
 | I6 | Verificación en el editor y documentación | Pendiente |
 
 Cada paso termina con la suite en verde y una pasada de `--headless --editor --quit` sin errores ni avisos. Los commits los hace el usuario al cerrar cada paso.
@@ -124,7 +124,7 @@ Si no hay error, el panel muestra en verde que el nombre es válido.
 - **Vista previa.** La firma que se va a generar, actualizada al cambiar el nombre o una casilla.
 - **Panel de validación.** Encima de los botones, con el estado del nombre y, si toca, el aviso.
 - **Fila inferior.** Cancel y Generate, centrados, los que pone `ConfirmationDialog`.
-- **Teclado.** `ui_accept` genera si el nombre es válido; `ui_cancel` cierra sin cambios. El resto (cambio de foco, marcar una fila) es el comportamiento normal de los controles de Godot.
+- **Teclado.** `ui_accept` genera si el nombre es válido, tanto desde el campo del nombre como desde la lista; `ui_cancel` cierra sin cambios. En la lista, `ui_select` (la barra espaciadora) marca o desmarca la fila seleccionada. En los botones, `ui_accept` pulsa el botón, como en cualquier control de Godot.
 
 ## 5. Arquitectura
 
@@ -209,6 +209,23 @@ Hecho el 2026-10-06:
 - Construir el diálogo del apartado 4.3 y conectarlo a la acción Custom.
 
 Verificación: una comprobación del runner que instancia el diálogo sin editor y revisa el estado inicial (nombre, filas, casillas), los filtros, All y None, la vista previa, el panel de validación en sus tres estados, el nombre en rojo con Generate bloqueado, y que confirmar entrega las opciones elegidas.
+
+Hecho el 2026-10-06:
+
+- `init_function_dialog.gd` (`GDSExInitFunctionDialog`, un `ConfirmationDialog`) con el diseño del apartado 4.3. Los botones de filtro de un grupo sin variables salen desactivados. La acción Custom ya está en el registro y aparece en el menú.
+- Colores y fuente salen del tema del editor (`success_color`, `warning_color` y `error_color` del tipo `Editor`; fuente `source` de `EditorFonts` para la vista previa), con valores de reserva fuera del editor.
+- Runner: `action: check_init_dialog` recorre los estados del diálogo y `action: run_custom_init_dialog` abre el diálogo desde el menú, aplica las opciones de la cabecera `options:` a través de sus controles y pulsa Generate.
+- Dos casos del menú usaban una clase con una variable y pasaron a usar una señal, porque la Custom se ofrece en cualquier clase con variables.
+
+Tres fallos que solo aparecieron al probar en el editor sin interfaz, ya corregidos:
+
+- **Altura desproporcionada.** Una etiqueta con ajuste de línea automático calcula su alto mínimo antes de tener ancho, y la ventana se abría con 868 píxeles de alto. La etiqueta de validación ya no ajusta líneas: recorta con puntos suspensivos y muestra el mensaje completo al pasar el ratón. El aviso de nodos y recursos se acortó para que quepa.
+- **`Intro` dejaba de generar tras un error.** Desde Godot 4.4 un `LineEdit` sale del modo edición al enviar. Con `keep_editing_on_text_submit` el campo sigue editando.
+- **La barra espaciadora generaba en vez de marcar la fila.** `ui_accept` incluye la barra espaciadora, así que en la lista se comprueba primero `ui_select`.
+
+Un arreglo fuera del diálogo, destapado por el runner: el plugin conocía los valores de los enums globales (`KEY_ENTER`) pero no sus nombres (`Key`, `Error`, `Side`), y ofrecía "Generate Local Variable" y "Generate Class Variable" sobre un tipo así. `GDSExTypeResolver.is_global_enum` los reconoce ahora, con dos casos nuevos.
+
+Nota para repetir la prueba: el editor guarda los scripts modificados al cerrarse, también sin interfaz. El script de ejemplo de la prueba hay que restaurarlo antes de cada ejecución o los resultados se contaminan.
 
 ### I6 — Editor y documentación
 

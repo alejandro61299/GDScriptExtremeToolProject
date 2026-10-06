@@ -1,0 +1,10 @@
+action: generate_class_variable
+=== input
+extends Node
+
+
+func run(keycode : <|Key|>) -> Error:
+	print(keycode)
+	return OK
+
+=== end

@@ -2,7 +2,7 @@ action: run_first_popup_action
 === input
 extends Node
 
-var value : int = 0<|>
+signal changed<|>
 
 
 func run() -> void:

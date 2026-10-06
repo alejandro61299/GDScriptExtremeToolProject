@@ -1,0 +1,28 @@
+action: run_custom_init_dialog
+options: {"name": "setup", "variables": ["speed", "_name"]}
+=== input
+extends RefCounted
+
+@export var speed : float = 1.0
+
+var health : int = 0
+
+var _name : String<|>
+var _secret : String
+
+=== expected
+extends RefCounted
+
+@export var speed : float = 1.0
+
+var health : int = 0
+
+var _name : String
+var _secret : String
+
+
+func setup(p_speed: float, p_name: String) -> void:
+	speed = p_speed
+	_name = p_name<|>
+
+=== end

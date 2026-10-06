@@ -28,7 +28,7 @@ const EXISTING_FUNCTION_MESSAGE: String = "The class already has a function name
 const EXISTING_MEMBER_MESSAGE: String = "The class already has a member named '%s'."
 const ENGINE_FUNCTION_MESSAGE: String = "'%s' is a function of the engine class %s."
 const INHERITED_MEMBER_MESSAGE: String = "'%s' is already defined in a base class."
-const ENGINE_INIT_MESSAGE: String = "Godot calls _init() without arguments when it creates a node or loads a resource."
+const ENGINE_INIT_MESSAGE: String = "Godot calls _init() without arguments in nodes and resources."
 
 
 class GDSExNameCheck:

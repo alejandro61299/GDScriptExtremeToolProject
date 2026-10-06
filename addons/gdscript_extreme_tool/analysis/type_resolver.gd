@@ -44,6 +44,7 @@ static var _condition_pattern := RegEx.create_from_string("^(?:if|elif|while)\\b
 static var _for_pattern := RegEx.create_from_string("^for\\s+\\w+\\s*(?::\\s*(.+?))?\\s+in\\s+(.+):$")
 static var _identifier_pattern := RegEx.create_from_string("^[A-Za-z_]\\w*$")
 static var _deferred_depth: int = 0
+static var _global_enum_names: Dictionary[String, bool] = {}
 static var _engine_callbacks: Dictionary[String, Dictionary] = {}
 
 
@@ -204,12 +205,19 @@ static func function_return_type(function: GDSExSymbolIndex.GDSExFunctionScope, 
 	return common
 
 
+static func is_global_enum(identifier: String) -> bool:
+	if _global_enum_names.is_empty():
+		for enum_name: String in GDSExBuiltinTypes.GLOBAL_CONSTANTS.values():
+			_global_enum_names[enum_name] = true
+	return _global_enum_names.has(identifier)
+
+
 static func is_name_defined(identifier: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> bool:
 	if GDSExLanguage.LITERAL_KEYWORDS.has(identifier) or GDSExLanguage.NON_CALL_KEYWORDS.has(identifier) or GDSExLanguage.MATH_CONSTANTS.has(identifier):
 		return true
 	if GDSExSymbolIndex.find_variable(identifier, scope_info).is_defined or is_function_defined(identifier, scope_info):
 		return true
-	if GDSExBuiltinTypes.GLOBAL_CONSTANTS.has(identifier) or Engine.has_singleton(identifier):
+	if GDSExBuiltinTypes.GLOBAL_CONSTANTS.has(identifier) or is_global_enum(identifier) or Engine.has_singleton(identifier):
 		return true
 	var outer_class := scope_info.class_scope.parent
 	while outer_class is GDSExSymbolIndex.GDSExClassScope:

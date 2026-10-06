@@ -16,6 +16,8 @@ const GDSExCodeActionsPopup = preload("res://addons/gdscript_extreme_tool/code_a
 const GDSExInitFunction = preload("res://addons/gdscript_extreme_tool/actions/init_function.gd")
 const GDSExGenerateDefaultInitAction = preload("res://addons/gdscript_extreme_tool/actions/generate_default_init_action.gd")
 const GDSExGenerateCustomInitAction = preload("res://addons/gdscript_extreme_tool/actions/generate_custom_init_action.gd")
+const GDSExInitFunctionDialog = preload("res://addons/gdscript_extreme_tool/init_function_dialog.gd")
+const GDSExMemberCategories = preload("res://addons/gdscript_extreme_tool/analysis/member_categories.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -43,6 +45,8 @@ const REORDER_ACTION: String = "reorder_class_members"
 const FORMAT_ACTION: String = "format_class_members"
 const SETTING_COUNT: int = 9
 const NAME_CHECK_LEVELS: Array[String] = ["valid", "warning", "error"]
+const DIALOG_SAMPLE: String = "extends RefCounted\n\n@export var speed : float = 1.0\n\nvar health : int = 0\n\nvar _name : String\nvar _secret : String\n\n\nfunc heal() -> void:\n\tpass\n"
+const DIALOG_NODE_SAMPLE: String = "extends Node\n\nvar _health : int\n"
 const BLANK_CHARACTERS: Array[String] = [" ", "\t", "\n"]
 const COLLECTION_CLOSINGS: Array[String] = ["]", "}"]
 const STRING_LITERAL_PATTERN: String = "\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\\\n]|\\\\.)*'"
@@ -373,6 +377,10 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_custom_init(test_case, editor)
 		"run_dialog_action":
 			return _check_dialog_action(test_case, editor)
+		"run_custom_init_dialog":
+			return _check_custom_init_dialog(test_case, editor)
+		"check_init_dialog":
+			return _check_init_dialog()
 	var action := _find_code_action(test_case.action)
 	if action == null:
 		return PackedStringArray(["Unknown action '%s'." % test_case.action])
@@ -581,6 +589,143 @@ func _check_dialog_action(test_case: TestCase, editor: CodeEdit) -> PackedString
 		problems.append("The dialog is not freed after it closes.")
 	problems.append_array(_check_edit(test_case, editor))
 	return problems
+
+
+func _check_custom_init_dialog(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var popup := GDSExCodeActionsPopup.new()
+	root.add_child(popup)
+	popup.setup(editor, GDSExActionRegistry.create_actions())
+	popup.about_to_popup.emit()
+	for index in popup.item_count:
+		if popup.get_item_text(index) == GDSExGenerateCustomInitAction.LABEL:
+			popup.index_pressed.emit(index)
+	popup.free()
+	var dialog: GDSExInitFunctionDialog = null
+	for child in editor.get_window().get_children():
+		if child is GDSExInitFunctionDialog:
+			dialog = child
+	if dialog == null or not dialog.visible:
+		return PackedStringArray(["The menu did not open the custom init dialog."])
+	if editor.text != test_case.input.text:
+		problems.append("The script changed before the dialog was confirmed.")
+	if test_case.headers.has("options"):
+		var options: Dictionary = str_to_var(test_case.headers["options"])
+		_type_dialog_name(dialog, options["name"])
+		for item in dialog.variable_tree.get_root().get_children():
+			item.set_checked(0, (options["variables"] as Array).has(item.get_text(0)))
+		dialog.variable_tree.item_edited.emit()
+	dialog.get_ok_button().pressed.emit()
+	if dialog.visible or not dialog.is_queued_for_deletion():
+		problems.append("The dialog is not closed and freed after generating.")
+	problems.append_array(_check_edit(test_case, editor))
+	return problems
+
+
+func _check_init_dialog() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var editor := CodeEdit.new()
+	root.add_child(editor)
+	editor.text = DIALOG_SAMPLE
+	var plans: Array[GDSExEditPlan] = []
+	var dialog := GDSExInitFunctionDialog.new()
+	dialog.setup(GDSExCodeContext.new(editor), func(plan: GDSExEditPlan) -> void: plans.append(plan))
+	root.add_child(dialog)
+	dialog.popup_centered()
+
+	_expect(problems, "initial name", dialog.name_edit.text, "_init")
+	_expect(problems, "rows", _dialog_rows(dialog), "[ ] speed: float, [ ] health: int, [x] _name: String, [x] _secret: String")
+	_expect(problems, "initial preview", dialog.preview_label.text, "func _init(p_name: String, p_secret: String) -> void")
+	_expect(problems, "initial message", dialog.validation_label.text, "• Function name is valid.")
+	_expect(problems, "generate enabled at start", dialog.get_ok_button().disabled, false)
+
+	dialog.variable_tree.get_root().get_child(0).set_checked(0, true)
+	dialog.variable_tree.item_edited.emit()
+	_expect(problems, "preview after checking a row", dialog.preview_label.text, "func _init(p_speed: float, p_name: String, p_secret: String) -> void")
+
+	dialog.filter_buttons[GDSExMemberCategories.PRIVATE_VARIABLES].button_pressed = false
+	_expect(problems, "rows with the private filter off", _dialog_visible_rows(dialog), "speed, health")
+	_expect(problems, "hidden rows still count", dialog.preview_label.text, "func _init(p_speed: float, p_name: String, p_secret: String) -> void")
+	dialog.none_button.pressed.emit()
+	_expect(problems, "none only clears visible rows", dialog.preview_label.text, "func _init(p_name: String, p_secret: String) -> void")
+	dialog.all_button.pressed.emit()
+	_expect(problems, "all only checks visible rows", dialog.preview_label.text, "func _init(p_speed: float, p_health: int, p_name: String, p_secret: String) -> void")
+	dialog.filter_buttons[GDSExMemberCategories.PRIVATE_VARIABLES].button_pressed = true
+	_expect(problems, "rows with every filter on", _dialog_visible_rows(dialog), "speed, health, _name, _secret")
+
+	_type_dialog_name(dialog, "heal")
+	_expect(problems, "message for an existing function", dialog.validation_label.text, "• The class already has a function named 'heal'.")
+	_expect(problems, "generate disabled on error", dialog.get_ok_button().disabled, true)
+	_expect(problems, "name in red on error", dialog.name_edit.has_theme_color_override("font_color"), true)
+	_expect(problems, "message in the error color", dialog.validation_label.get_theme_color("font_color"), GDSExInitFunctionDialog.LEVEL_FALLBACK_COLORS[2])
+	dialog.name_edit.text_submitted.emit("heal")
+	_expect(problems, "accept does nothing on error", plans.size(), 0)
+	_type_dialog_name(dialog, "")
+	_expect(problems, "message for an empty name", dialog.validation_label.text, "• Enter a function name.")
+
+	_type_dialog_name(dialog, "setup")
+	_expect(problems, "generate enabled again", dialog.get_ok_button().disabled, false)
+	_expect(problems, "name back to its normal color", dialog.name_edit.has_theme_color_override("font_color"), false)
+	dialog.variable_tree.set_selected(dialog.variable_tree.get_root().get_child(0), 0)
+	dialog.variable_tree.gui_input.emit(_key_event(KEY_SPACE))
+	_expect(problems, "space unchecks the selected row", dialog.preview_label.text, "func setup(p_health: int, p_name: String, p_secret: String) -> void")
+	dialog.variable_tree.gui_input.emit(_key_event(KEY_SPACE))
+	_expect(problems, "space checks it again and does not generate", [dialog.preview_label.text, plans.size()], ["func setup(p_speed: float, p_health: int, p_name: String, p_secret: String) -> void", 0])
+	dialog.variable_tree.gui_input.emit(_key_event(KEY_ENTER))
+	_expect(problems, "accept on the list generates", plans.size(), 1)
+	_expect(problems, "dialog hidden after generating", dialog.visible, false)
+	if plans.size() == 1:
+		GDSExEditApplier.apply(editor, plans[0])
+		_expect(problems, "generated function", editor.text.contains("func setup(p_speed: float, p_health: int, p_name: String, p_secret: String) -> void:\n\tspeed = p_speed\n\thealth = p_health\n\t_name = p_name\n\t_secret = p_secret"), true)
+	dialog.free()
+
+	editor.text = DIALOG_NODE_SAMPLE
+	var node_dialog := GDSExInitFunctionDialog.new()
+	node_dialog.setup(GDSExCodeContext.new(editor), func(_plan: GDSExEditPlan) -> void: pass)
+	root.add_child(node_dialog)
+	_expect(problems, "name in a node", node_dialog.name_edit.text, "initialize")
+	_expect(problems, "filters without variables are disabled", [node_dialog.filter_buttons[GDSExMemberCategories.PRIVATE_VARIABLES].disabled, node_dialog.filter_buttons[GDSExMemberCategories.PUBLIC_VARIABLES].disabled, node_dialog.filter_buttons[GDSExMemberCategories.EXPORTS].disabled], [false, true, true])
+	_type_dialog_name(node_dialog, "_init")
+	_expect(problems, "warning for _init with parameters in a node", node_dialog.validation_label.get_theme_color("font_color"), GDSExInitFunctionDialog.LEVEL_FALLBACK_COLORS[1])
+	_expect(problems, "a warning does not block", node_dialog.get_ok_button().disabled, false)
+	node_dialog.none_button.pressed.emit()
+	_expect(problems, "no warning without parameters", node_dialog.validation_label.text, "• Function name is valid.")
+	node_dialog.free()
+	editor.free()
+	return problems
+
+
+func _key_event(keycode: Key) -> InputEventKey:
+	var event := InputEventKey.new()
+	event.keycode = keycode
+	event.physical_keycode = keycode
+	event.pressed = true
+	return event
+
+
+func _type_dialog_name(dialog: GDSExInitFunctionDialog, function_name: String) -> void:
+	dialog.name_edit.text = function_name
+	dialog.name_edit.text_changed.emit(function_name)
+
+
+func _dialog_rows(dialog: GDSExInitFunctionDialog) -> String:
+	var rows := PackedStringArray()
+	for item in dialog.variable_tree.get_root().get_children():
+		rows.append("[%s] %s: %s" % ["x" if item.is_checked(0) else " ", item.get_text(0), item.get_text(1)])
+	return ", ".join(rows)
+
+
+func _dialog_visible_rows(dialog: GDSExInitFunctionDialog) -> String:
+	var rows := PackedStringArray()
+	for item in dialog.variable_tree.get_root().get_children():
+		if item.visible:
+			rows.append(item.get_text(0))
+	return ", ".join(rows)
+
+
+func _expect(problems: PackedStringArray, what: String, actual: Variant, expected: Variant) -> void:
+	if actual != expected:
+		problems.append("%s: expected %s but got %s" % [what, expected, actual])
 
 
 func _check_init_function_name(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:

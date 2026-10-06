@@ -1,0 +1,20 @@
+action: run_custom_init_dialog
+=== input
+extends Node
+
+var health : int = 0
+
+var _name : String<|>
+
+=== expected
+extends Node
+
+var health : int = 0
+
+var _name : String
+
+
+func initialize(p_name: String) -> void:
+	_name = p_name<|>
+
+=== end

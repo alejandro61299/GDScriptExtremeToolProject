@@ -1,0 +1,4 @@
+action: check_init_dialog
+=== input
+extends Node
+=== end
