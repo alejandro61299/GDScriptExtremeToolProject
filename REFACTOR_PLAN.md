@@ -16,6 +16,7 @@ Godot 4.7.2. Estado de partida: una única utilidad ("Generate Method Stub") con
 | 9 | Reordenar los miembros de una clase | Hecha |
 | 10 | Dar formato a las líneas en blanco de una clase | Hecha |
 | 11 | Ajustes en Project Settings | Hecha |
+| 12 | Acciones bajo demanda: atajo y submenú | Hecha |
 
 ## Objetivo
 
@@ -44,6 +45,7 @@ Cada fase deja el plugin funcionando y los tests en verde.
 addons/gdscript_extreme_tool/
 ├── plugin.cfg
 ├── plugin.gd
+├── code_actions_popup.gd
 ├── plugin_project_settings.gd
 ├── actions/
 │   ├── action_registry.gd
@@ -619,6 +621,27 @@ Tests:
 
 - Casos en `tests/cases/settings/`. Cabecera nueva `settings:` con un diccionario en sintaxis de Godot (`{"format/blank_lines_around_methods_and_classes": 1}`); el runner aplica esos valores a Project Settings durante el caso y los retira después.
 - `action: check_settings_registration` comprueba que se registran los 8 ajustes con su valor por defecto, que un valor cambiado se devuelve, que un tipo incorrecto cae al valor por defecto, y que el `project.godot` de desarrollo no sobrescribe ninguno (el resto de casos presupone los valores por defecto).
+
+### Fase 12 — Acciones bajo demanda: atajo y submenú (hecha)
+
+Antes, cada clic derecho en el editor de scripts construía el índice del archivo y el plan de las seis acciones para decidir cuáles mostrar, aunque solo se quisiera copiar o pegar. Medido en un M5 Pro: 1,5 ms con 66 líneas, 13 ms con 552, 22 ms con 869 y 31 ms con 1.733. Ahora el análisis solo se hace cuando se piden las acciones.
+
+- **Atajo.** `Alt` + `Intro` (`Option` + `Retorno` en macOS) abre junto al cursor un menú con las acciones disponibles, con la primera enfocada, así que `Intro` la ejecuta. Se registra con `EditorSettings.add_shortcut` en la ruta `gdscript_extreme_tool/show_code_actions` y se puede cambiar en Editor Settings > Shortcuts. Solo actúa si el editor de código del script actual tiene el foco.
+- **Clic derecho.** Una única entrada, "GDScript Extreme Tool", con un submenú que se rellena al abrirse.
+- **Sin acciones.** El menú muestra una sola línea desactivada, "No actions available here".
+
+Cómo está hecho:
+
+- `code_actions_popup.gd` (`GDSExCodeActionsPopup`, un `PopupMenu`) sirve para los dos casos: se crea con una línea desactivada, se rellena en `about_to_popup` y ejecuta la acción en `index_pressed`, reconstruyendo el contexto y el plan en ese momento.
+- `plugin.gd` atiende el atajo en `_shortcut_input` y añade el submenú con `add_context_submenu_item`. Godot libera el submenú en cada apertura del menú contextual, así que se crea uno nuevo cada vez.
+- Por qué `Alt` + `Intro` y no `Ctrl` + `.`: en Godot 4.7.2 `Ctrl` + `.` es "ir al siguiente breakpoint" en el editor de scripts y `Cmd` + `.` detiene el proyecto. `Alt` + `Intro` no lo usa ninguno de los 513 atajos del editor (comprobado en macOS) y un `CodeEdit` con el foco no lo consume.
+- `add_shortcut` conserva el atajo que haya personalizado el usuario aunque el plugin vuelva a registrar el valor por defecto en cada arranque. Al desactivar el plugin el atajo no se borra.
+
+Tests:
+
+- `action: run_first_popup_action`, con casos en `tests/cases/menu/`: el menú empieza con la línea desactivada, al abrirse lista las mismas acciones que el registro considera disponibles, y ejecutar la primera deja el resultado esperado.
+- El atajo y el submenú no se pueden probar en modo `--script`, porque el `EditorPlugin` no se instancia. Se comprobaron con un plugin de prueba en el editor sin interfaz (`--headless --editor`): abre un script, envía `Alt` + `Intro` a la ventana del editor y comprueba que aparece el menú, que `Intro` genera el método y que el menú se libera; después envía un clic derecho y comprueba que el submenú pasa de la línea desactivada a las acciones al abrirlo. Esa prueba no está en el repositorio.
+- Cuidado al repetirla: lo que una prueba cambie en `EditorSettings` (por ejemplo los eventos de un atajo) se guarda en la configuración global de Godot del usuario al cerrar el editor.
 
 ## Casos pendientes
 

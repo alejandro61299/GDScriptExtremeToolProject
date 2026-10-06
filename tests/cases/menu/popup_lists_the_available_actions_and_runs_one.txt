@@ -1,0 +1,20 @@
+action: run_first_popup_action
+=== input
+extends Node
+
+
+func run() -> void:
+	_helper(3)<|>
+
+=== expected
+extends Node
+
+
+func run() -> void:
+	_helper(3)
+
+
+func _helper(param_0: int) -> void:
+	<|pass|>
+
+=== end

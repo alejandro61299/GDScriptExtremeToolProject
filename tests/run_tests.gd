@@ -12,6 +12,7 @@ const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet
 const GDSExEditPlan = preload("res://addons/gdscript_extreme_tool/editing/edit_plan.gd")
 const GDSExEditApplier = preload("res://addons/gdscript_extreme_tool/editing/edit_applier.gd")
 const GDSExPluginProjectSettings = preload("res://addons/gdscript_extreme_tool/plugin_project_settings.gd")
+const GDSExCodeActionsPopup = preload("res://addons/gdscript_extreme_tool/code_actions_popup.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -343,6 +344,8 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_index_memory(editor)
 		"check_settings_registration":
 			return _check_settings_registration()
+		"run_first_popup_action":
+			return _check_code_actions_popup(test_case, editor)
 	var action := _find_code_action(test_case.action)
 	if action == null:
 		return PackedStringArray(["Unknown action '%s'." % test_case.action])
@@ -518,6 +521,32 @@ func _check_no_false_targets() -> PackedStringArray:
 	for path in _project_script_paths():
 		var index := GDSExSymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
 		_collect_false_targets(path, index, index.statements, generator, problems)
+	return problems
+
+
+func _check_code_actions_popup(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var actions := GDSExActionRegistry.create_actions()
+	var available_labels := PackedStringArray()
+	for action in GDSExActionRegistry.find_available(actions, GDSExCodeContext.new(editor)):
+		available_labels.append(action.get_label())
+	var popup := GDSExCodeActionsPopup.new()
+	root.add_child(popup)
+	popup.setup(editor, actions)
+	if popup.item_count != 1 or not popup.is_item_disabled(0):
+		problems.append("The popup should hold a single disabled item until it opens.")
+	popup.about_to_popup.emit()
+	var listed_labels := PackedStringArray()
+	for index in popup.item_count:
+		if not popup.is_item_disabled(index):
+			listed_labels.append(popup.get_item_text(index))
+	if listed_labels != available_labels:
+		problems.append("The popup lists %s but the available actions are %s." % [listed_labels, available_labels])
+	if available_labels.is_empty() and (popup.item_count != 1 or popup.get_item_text(0) != GDSExCodeActionsPopup.NO_ACTIONS_LABEL):
+		problems.append("Without available actions the popup should only say so.")
+	popup.index_pressed.emit(0)
+	popup.free()
+	problems.append_array(_check_edit(test_case, editor))
 	return problems
 
 

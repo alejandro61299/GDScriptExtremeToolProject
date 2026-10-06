@@ -6,7 +6,9 @@ A Godot editor plugin that adds code actions to the script editor's context menu
 
 ## Actions
 
-Right-click in the script editor. Only the actions that apply to the caret position are shown, and each one is a single undo step.
+Press **Alt+Enter** (**Option+Return** on macOS) in the script editor to open the actions at the caret, or right-click and open the **GDScript Extreme Tool** submenu. Only the actions that apply to the caret position are shown, and each one is a single undo step.
+
+The script is analyzed only when you open that menu, so a plain right-click costs nothing. To change the shortcut, search for **Show Code Actions** in **Editor Settings > Shortcuts**.
 
 | Action | What it does |
 |---|---|
