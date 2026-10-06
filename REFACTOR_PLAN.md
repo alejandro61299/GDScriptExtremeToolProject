@@ -18,6 +18,7 @@ Godot 4.7.2. Estado de partida: una única utilidad ("Generate Function Definiti
 | 11 | Ajustes en Project Settings | Hecha |
 | 12 | Acciones bajo demanda: atajo y submenú | Hecha |
 | 13 | Terminología: de «method» a «function» | Hecha |
+| 14 | Acciones Generate Init (plan propio en `GENERATE_INIT_PLAN.md`) | Pendiente |
 
 ## Objetivo
 

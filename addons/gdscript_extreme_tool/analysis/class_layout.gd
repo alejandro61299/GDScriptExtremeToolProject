@@ -5,24 +5,18 @@ const GDSExSymbolIndex = preload("res://addons/gdscript_extreme_tool/analysis/sy
 const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/source_scanner.gd")
 const GDSExBracketLayout = preload("res://addons/gdscript_extreme_tool/analysis/bracket_layout.gd")
 const GDSExTokenSpacing = preload("res://addons/gdscript_extreme_tool/analysis/token_spacing.gd")
-const GDSExTypeResolver = preload("res://addons/gdscript_extreme_tool/analysis/type_resolver.gd")
+const GDSExMemberCategories = preload("res://addons/gdscript_extreme_tool/analysis/member_categories.gd")
 const GDSExPluginProjectSettings = preload("res://addons/gdscript_extreme_tool/plugin_project_settings.gd")
 
 const COMMENT_START: String = "#"
 const REGION_START: String = "#region"
 const REGION_END: String = "#endregion"
-const EXPORT_ANNOTATION: String = "@export"
-const ONREADY_ANNOTATION: String = "@onready"
 const SUBGROUP_ANNOTATION: String = "@export_subgroup"
 const GROUP_STARTERS: Array[String] = ["@export_category", "@export_group"]
-const PRIVATE_PREFIX: String = "_"
-const INIT_FUNCTION: String = "_init"
-const EXPORTS_CATEGORY: String = "exports"
 const INDENT_CHARACTERS: String = " \t"
 
 enum GDSExPhase { STATIC, REGULAR, READY }
 
-static var _static_pattern := RegEx.create_from_string("\\bstatic\\b")
 static var _identifier_pattern := RegEx.create_from_string("(?<![\\w.])[A-Za-z_]\\w*")
 
 
@@ -223,7 +217,7 @@ static func _build_blocks(class_scope: GDSExSymbolIndex.GDSExClassScope, merges_
 			if GROUP_STARTERS.has(member.name) or (member.name == SUBGROUP_ANNOTATION and group == null):
 				blocks.append_array(tentative)
 				tentative.clear()
-				var group_header := _new_block(member.start_line, member.end_line, _category_index(EXPORTS_CATEGORY))
+				var group_header := _new_block(member.start_line, member.end_line, GDSExMemberCategories.index_of(GDSExMemberCategories.EXPORTS))
 				blocks.append(group_header)
 				group = group_header if merges_export_groups else null
 				continue
@@ -251,8 +245,8 @@ static func _member_block(member: GDSExSymbolIndex.GDSExClassMember, annotations
 	for annotation in annotations:
 		modifiers += annotation.name + " "
 	var first_line := member.start_line if annotations.is_empty() else annotations[0].start_line
-	var category_name := _category_name(member, modifiers, class_scope)
-	var category := _last_category(previous_blocks) if category_name.is_empty() else _category_index(category_name)
+	var category_name := GDSExMemberCategories.of_member(member, modifiers, class_scope)
+	var category := _last_category(previous_blocks) if category_name.is_empty() else GDSExMemberCategories.index_of(category_name)
 	var block := _new_block(first_line, member.end_line, category)
 	block.is_tall = member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.FUNCTION or member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CLASS
 	if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.VARIABLE:
@@ -283,47 +277,10 @@ static func _last_category(blocks: Array[GDSExBlock]) -> int:
 	return 0 if blocks.is_empty() else blocks[blocks.size() - 1].category
 
 
-static func _category_index(category_name: String) -> int:
-	var order := GDSExPluginProjectSettings.class_member_order()
-	var index := order.find(category_name)
-	return order.size() if index == -1 else index
-
-
-static func _category_name(member: GDSExSymbolIndex.GDSExClassMember, modifiers: String, class_scope: GDSExSymbolIndex.GDSExClassScope) -> String:
-	var is_static := _static_pattern.search(modifiers) != null
-	var is_private := member.name.begins_with(PRIVATE_PREFIX)
-	match member.kind:
-		GDSExSymbolIndex.GDSExClassMember.GDSExKind.SIGNAL:
-			return "signals"
-		GDSExSymbolIndex.GDSExClassMember.GDSExKind.CONSTANT:
-			return "constants"
-		GDSExSymbolIndex.GDSExClassMember.GDSExKind.ENUM:
-			return "enums"
-		GDSExSymbolIndex.GDSExClassMember.GDSExKind.CLASS:
-			return "inner_classes"
-		GDSExSymbolIndex.GDSExClassMember.GDSExKind.VARIABLE:
-			if is_static:
-				return "static_variables"
-			if modifiers.contains(EXPORT_ANNOTATION):
-				return EXPORTS_CATEGORY
-			if modifiers.contains(ONREADY_ANNOTATION):
-				return "onready_variables"
-			return "private_variables" if is_private else "public_variables"
-		GDSExSymbolIndex.GDSExClassMember.GDSExKind.FUNCTION:
-			if is_static:
-				return "static_private_functions" if is_private else "static_public_functions"
-			if member.name == INIT_FUNCTION:
-				return "init"
-			if GDSExTypeResolver.is_engine_callback(class_scope, member.name):
-				return "engine_functions"
-			return "private_functions" if is_private else "public_functions"
-	return ""
-
-
 static func _phase(modifiers: String) -> GDSExPhase:
-	if _static_pattern.search(modifiers) != null:
+	if GDSExMemberCategories.is_static(modifiers):
 		return GDSExPhase.STATIC
-	return GDSExPhase.READY if modifiers.contains(ONREADY_ANNOTATION) else GDSExPhase.REGULAR
+	return GDSExPhase.READY if modifiers.contains(GDSExMemberCategories.ONREADY_ANNOTATION) else GDSExPhase.REGULAR
 
 
 static func _merge_regions(blocks: Array[GDSExBlock], lines: PackedStringArray, body_first: int, body_last: int) -> Array[GDSExBlock]:

@@ -4,8 +4,10 @@ extends RefCounted
 const GDSExSymbolIndex = preload("res://addons/gdscript_extreme_tool/analysis/symbol_index.gd")
 const GDSExEditPlan = preload("res://addons/gdscript_extreme_tool/editing/edit_plan.gd")
 const GDSExIndentation = preload("res://addons/gdscript_extreme_tool/editing/indentation.gd")
+const GDSExMemberCategories = preload("res://addons/gdscript_extreme_tool/analysis/member_categories.gd")
+const GDSExPluginProjectSettings = preload("res://addons/gdscript_extreme_tool/plugin_project_settings.gd")
 
-const BLANK_LINES_AROUND_FUNCTIONS: int = 2
+const COMMENT_START: String = "#"
 const BLANK_LINES_AFTER_CLASS_HEADER: int = 1
 const BLANK_LINES_AROUND_VARIABLE_GROUP: int = 1
 
@@ -17,15 +19,34 @@ static func new_function(target_class: GDSExSymbolIndex.GDSExClassScope, scope_i
 	return end_of_class(target_class, lines, indent_unit)
 
 
+static func function_by_order(class_scope: GDSExSymbolIndex.GDSExClassScope, function_name: String, lines: PackedStringArray, indent_unit: String) -> GDSExEditPlan.GDSExInsertionPoint:
+	var category := GDSExMemberCategories.index_of(GDSExMemberCategories.of_function(function_name, false, class_scope))
+	var first_member: GDSExSymbolIndex.GDSExClassMember = null
+	var previous_member: GDSExSymbolIndex.GDSExClassMember = null
+	for member in class_scope.members:
+		var member_category := GDSExMemberCategories.of_member(member, member.modifiers, class_scope)
+		if member_category.is_empty():
+			continue
+		if first_member == null:
+			first_member = member
+		if GDSExMemberCategories.index_of(member_category) <= category:
+			previous_member = member
+	if previous_member != null:
+		return _member_point(class_scope, previous_member.end_line + 1, GDSExPluginProjectSettings.blank_lines_around_functions_and_classes(), lines, indent_unit)
+	if first_member == null:
+		return class_header(class_scope, lines, indent_unit)
+	return _member_point(class_scope, _first_line_with_comments(first_member.start_line, class_scope, lines), GDSExPluginProjectSettings.blank_lines_around_functions_and_classes(), lines, indent_unit)
+
+
 static func after_member(member: GDSExSymbolIndex.GDSExScopeBase, class_scope: GDSExSymbolIndex.GDSExClassScope, lines: PackedStringArray, indent_unit: String) -> GDSExEditPlan.GDSExInsertionPoint:
-	return _member_point(class_scope, member.end_line + 1, BLANK_LINES_AROUND_FUNCTIONS, lines, indent_unit)
+	return _member_point(class_scope, member.end_line + 1, GDSExPluginProjectSettings.blank_lines_around_functions_and_classes(), lines, indent_unit)
 
 
 static func end_of_class(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: PackedStringArray, indent_unit: String) -> GDSExEditPlan.GDSExInsertionPoint:
 	var last_member_end := _last_member_end_line(class_scope)
 	if last_member_end == -1:
 		return class_header(class_scope, lines, indent_unit)
-	return _member_point(class_scope, last_member_end + 1, BLANK_LINES_AROUND_FUNCTIONS, lines, indent_unit)
+	return _member_point(class_scope, last_member_end + 1, GDSExPluginProjectSettings.blank_lines_around_functions_and_classes(), lines, indent_unit)
 
 
 static func class_header(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: PackedStringArray, indent_unit: String) -> GDSExEditPlan.GDSExInsertionPoint:
@@ -61,7 +82,7 @@ static func member_variable(class_scope: GDSExSymbolIndex.GDSExClassScope, lines
 	if point.line != class_scope.body_start_line:
 		point.blank_lines_before = BLANK_LINES_AROUND_VARIABLE_GROUP
 	if is_followed_by_function:
-		point.blank_lines_after = BLANK_LINES_AROUND_FUNCTIONS
+		point.blank_lines_after = GDSExPluginProjectSettings.blank_lines_around_functions_and_classes()
 	return point
 
 
@@ -70,8 +91,15 @@ static func _member_point(class_scope: GDSExSymbolIndex.GDSExClassScope, line: i
 	point.line = line
 	point.indent_text = _member_indent_text(class_scope, lines, indent_unit)
 	point.blank_lines_before = blank_lines_before
-	point.blank_lines_after = BLANK_LINES_AROUND_FUNCTIONS
+	point.blank_lines_after = GDSExPluginProjectSettings.blank_lines_around_functions_and_classes()
 	return point
+
+
+static func _first_line_with_comments(member_line: int, class_scope: GDSExSymbolIndex.GDSExClassScope, lines: PackedStringArray) -> int:
+	var line := member_line
+	while line - 1 > class_scope.header_end_line and lines[line - 1].strip_edges().begins_with(COMMENT_START):
+		line -= 1
+	return line
 
 
 static func _member_indent_text(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: PackedStringArray, indent_unit: String) -> String:
