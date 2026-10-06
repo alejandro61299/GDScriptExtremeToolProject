@@ -2,6 +2,7 @@
 extends "res://addons/gdscript_extreme_tool/actions/generate_function_action.gd"
 
 const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/source_scanner.gd")
+const GDSExPluginProjectSettings = preload("res://addons/gdscript_extreme_tool/plugin_project_settings.gd")
 
 const CONNECTED_FUNCTION_LABEL : String = "Generate Connected Function"
 const CONNECTION_TEMPLATE : String = ".connect(%s)"

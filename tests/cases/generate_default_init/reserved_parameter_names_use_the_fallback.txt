@@ -1,0 +1,36 @@
+action: generate_default_init
+settings: {"naming/generated_param_format": "{name}"}
+=== input
+extends RefCounted
+
+var total : int = 0
+
+var _health : int
+var _range : int
+var _total : int<|>
+var _int : int
+var _node : int
+var _self : int
+
+=== expected
+extends RefCounted
+
+var total : int = 0
+
+var _health : int
+var _range : int
+var _total : int
+var _int : int
+var _node : int
+var _self : int
+
+
+func _init(health: int, param_1: int, param_2: int, param_3: int, node: int, param_5: int) -> void:
+	_health = health
+	_range = param_1
+	_total = param_2
+	_int = param_3
+	_node = node
+	_self = param_5<|>
+
+=== end

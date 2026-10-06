@@ -5,7 +5,7 @@ Dos acciones nuevas que comparten la misma lógica: generar una función inicial
 | Paso | Contenido | Estado |
 |---|---|---|
 | I1 | Categoría de miembro compartida y punto de inserción según el orden de miembros | Hecha |
-| I2 | Lógica común y acción "Generate Default Init Definition" | Pendiente |
+| I2 | Lógica común y acción "Generate Default Init Definition" | Hecha |
 | I3 | Validación del nombre de la función | Pendiente |
 | I4 | Acciones con diálogo y acción Custom sin interfaz | Pendiente |
 | I5 | Diálogo de "Generate Custom Init Definition..." | Pendiente |
@@ -129,7 +129,7 @@ Hoy una acción devuelve su plan al instante con `build_plan(context)`. La Custo
 
 - **`analysis/member_categories.gd`** (nuevo, I1). La clasificación de un miembro en su categoría de `order/class_member_order`, que hoy vive dentro de `class_layout.gd`. La usan el reordenado, el punto de inserción y la lista de variables.
 - **`editing/placement.gd`** (I1). Función nueva que da el punto de inserción de una función nueva según su categoría: detrás del último miembro cuya categoría va antes o es la misma.
-- **`analysis/init_function.gd`** (nuevo, I2 e I3). Lógica sin interfaz: variables elegibles con su grupo y tipo, texto de la firma, plan de edición a partir de un nombre y una lista de variables, y validación del nombre.
+- **`actions/init_function.gd`** (nuevo, I2 e I3). Lógica sin interfaz: variables elegibles con su grupo y tipo, texto de la firma, plan de edición a partir de un nombre y una lista de variables, y validación del nombre.
 - **`plugin_project_settings.gd`** (I3). Ajuste nuevo `naming/alternative_init_function_name`.
 - **`actions/generate_default_init_action.gd`** (nuevo, I2).
 - **`actions/code_action.gd`** (I4). Función nueva `create_dialog(context)`, que por defecto devuelve `null`. El menú (`code_actions_popup.gd`) abre el diálogo si la acción devuelve uno y aplica el plan cuando el diálogo confirma.
@@ -161,9 +161,19 @@ Hecho el 2026-10-06:
 
 Verificación: casos en `tests/cases/generate_default_init/`. Como mínimo: caso básico, tipos inferidos y sin tipo, variables con valor inicial, exclusión de `static`, `@onready`, `@export`, públicas y constantes, clase interna, colocación en una clase ordenada y en una desordenada, nombres de parámetro repetidos o que coinciden con algo integrado, formato de parámetro cambiado por ajustes, y los tres casos en que no se ofrece.
 
+Hecho el 2026-10-06:
+
+- `actions/init_function.gd` (`GDSExInitFunction`) va en `actions/` y no en `analysis/` como decía el plan, porque construye el plan de edición y usa el punto de inserción. Da las variables elegibles con su grupo y tipo, la firma y el plan.
+- `analysis/param_names.gd` (`GDSExParamNames`) reúne el formato de los nombres de parámetro que antes tenía "Generate Function Definition"; las dos acciones lo comparten. La comprobación de nombres reservados solo la hace la acción nueva.
+- `GDSExMemberCategories.of_variables` clasifica las variables teniendo en cuenta un `@export` escrito en la línea de encima y sin confundirlo con `@export_group`.
+- El tipo del parámetro se obtiene resolviendo la variable como expresión, así que vale para tipos declarados e inferidos.
+- `EditApplier` coloca el cursor cuando la selección de un fragmento está vacía; antes solo seleccionaba texto.
+- 16 casos en `tests/cases/generate_default_init/`. La colocación delante del primer miembro solo se alcanza con un orden de miembros personalizado, y así se prueba.
+- Pendiente para I4: comprobar que `@onready` queda fuera. No se puede probar aquí porque `@onready` solo compila en nodos y la Default no se ofrece en nodos.
+
 ### I3 — Validación del nombre
 
-- En `init_function.gd`: nombre por defecto según la clase, lista de errores y el aviso de `Node` y `Resource`.
+- En `actions/init_function.gd`: nombre por defecto según la clase, lista de errores y el aviso de `Node` y `Resource`.
 - Ajuste `naming/alternative_init_function_name` en Project Settings y en el README.
 
 Verificación: casos con una cabecera nueva para el nombre y el resultado esperado (válido, error o aviso), uno por cada regla del apartado 4.2.

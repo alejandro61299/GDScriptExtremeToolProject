@@ -1,0 +1,31 @@
+action: generate_default_init
+=== input
+extends RefCounted
+
+var _count := 3
+var _ratio := 0.5
+var _label = "unnamed"
+var _anything<|>
+var _sizes : Array[int] = []
+var _names : Dictionary[String, int] = {}
+
+=== expected
+extends RefCounted
+
+var _count := 3
+var _ratio := 0.5
+var _label = "unnamed"
+var _anything
+var _sizes : Array[int] = []
+var _names : Dictionary[String, int] = {}
+
+
+func _init(p_count: int, p_ratio: float, p_label: String, p_anything, p_sizes: Array[int], p_names: Dictionary[String, int]) -> void:
+	_count = p_count
+	_ratio = p_ratio
+	_label = p_label
+	_anything = p_anything
+	_sizes = p_sizes
+	_names = p_names<|>
+
+=== end

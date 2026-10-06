@@ -1,0 +1,22 @@
+action: generate_default_init
+=== input
+extends RefCounted
+
+var _speed : float
+var __speed : float<|>
+var _health : int
+
+=== expected
+extends RefCounted
+
+var _speed : float
+var __speed : float
+var _health : int
+
+
+func _init(p_speed: float, param_1: float, p_health: int) -> void:
+	_speed = p_speed
+	__speed = param_1
+	_health = p_health<|>
+
+=== end

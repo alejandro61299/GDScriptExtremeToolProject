@@ -9,6 +9,7 @@ const EXPORT_ANNOTATION: String = "@export"
 const ONREADY_ANNOTATION: String = "@onready"
 const PRIVATE_PREFIX: String = "_"
 const INIT_FUNCTION: String = "_init"
+const GROUP_ANNOTATIONS: Array[String] = ["@export_category", "@export_group", "@export_subgroup"]
 
 const SIGNALS: String = "signals"
 const CONSTANTS: String = "constants"
@@ -55,6 +56,20 @@ static func of_variable(variable_name: String, modifiers: String) -> String:
 	if modifiers.contains(ONREADY_ANNOTATION):
 		return ONREADY_VARIABLES
 	return PRIVATE_VARIABLES if is_private(variable_name) else PUBLIC_VARIABLES
+
+
+static func of_variables(class_scope: GDSExSymbolIndex.GDSExClassScope) -> Dictionary[String, String]:
+	var categories: Dictionary[String, String] = {}
+	var annotations := ""
+	for member in class_scope.members:
+		if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.ANNOTATION:
+			if not GROUP_ANNOTATIONS.has(member.name):
+				annotations += member.name + " "
+			continue
+		if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.VARIABLE:
+			categories[member.name] = of_variable(member.name, member.modifiers + annotations)
+		annotations = ""
+	return categories
 
 
 static func of_function(function_name: String, is_static_function: bool, class_scope: GDSExSymbolIndex.GDSExClassScope) -> String:

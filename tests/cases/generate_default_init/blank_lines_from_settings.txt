@@ -1,0 +1,22 @@
+action: generate_default_init
+settings: {"format/blank_lines_around_functions_and_classes": 1}
+=== input
+extends RefCounted
+
+var _health : int<|>
+
+func heal() -> void:
+	pass
+
+=== expected
+extends RefCounted
+
+var _health : int
+
+func _init(p_health: int) -> void:
+	_health = p_health<|>
+
+func heal() -> void:
+	pass
+
+=== end

@@ -1,0 +1,17 @@
+action: generate_default_init
+settings: {"naming/generated_param_format": "arg_{name}"}
+=== input
+extends RefCounted
+
+var _health : int<|>
+
+=== expected
+extends RefCounted
+
+var _health : int
+
+
+func _init(arg_health: int) -> void:
+	_health = arg_health<|>
+
+=== end

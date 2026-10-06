@@ -1,0 +1,31 @@
+action: generate_default_init
+=== input
+extends Node
+
+
+class Stats:
+	var _health : int<|>
+	var _mana : int
+
+
+func _ready() -> void:
+	pass
+
+=== expected
+extends Node
+
+
+class Stats:
+	var _health : int
+	var _mana : int
+
+
+	func _init(p_health: int, p_mana: int) -> void:
+		_health = p_health
+		_mana = p_mana<|>
+
+
+func _ready() -> void:
+	pass
+
+=== end

@@ -1,0 +1,7 @@
+action: generate_default_init
+=== input
+extends Node2D
+
+var _health : int<|>
+
+=== end

@@ -157,7 +157,7 @@ static func is_function_defined(function_name: String, scope_info: GDSExSymbolIn
 
 
 static func is_engine_callback(class_scope: GDSExSymbolIndex.GDSExClassScope, function_name: String) -> bool:
-	var type_name := _engine_base_type(class_scope)
+	var type_name := engine_base_type(class_scope)
 	if not _engine_callbacks.has(type_name):
 		var callbacks: Dictionary = {}
 		if ClassDB.class_exists(type_name):
@@ -168,7 +168,7 @@ static func is_engine_callback(class_scope: GDSExSymbolIndex.GDSExClassScope, fu
 	return _engine_callbacks[type_name].has(function_name)
 
 
-static func _engine_base_type(class_scope: GDSExSymbolIndex.GDSExClassScope) -> String:
+static func engine_base_type(class_scope: GDSExSymbolIndex.GDSExClassScope) -> String:
 	var root := GDSExSymbolIndex.find_root_class(class_scope)
 	var current := class_scope
 	for depth in MAX_INHERITANCE_DEPTH:

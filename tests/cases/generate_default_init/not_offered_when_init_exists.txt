@@ -1,0 +1,11 @@
+action: generate_default_init
+=== input
+extends RefCounted
+
+var _health : int<|>
+
+
+func _init() -> void:
+	pass
+
+=== end

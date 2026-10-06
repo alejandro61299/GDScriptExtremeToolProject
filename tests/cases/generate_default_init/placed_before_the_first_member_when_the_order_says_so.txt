@@ -1,0 +1,22 @@
+action: generate_default_init
+settings: {"order/class_member_order": PackedStringArray("init", "private_variables")}
+=== input
+extends RefCounted
+## Describes the class.
+
+# Current health.
+var _health : int<|>
+
+=== expected
+extends RefCounted
+## Describes the class.
+
+
+func _init(p_health: int) -> void:
+	_health = p_health<|>
+
+
+# Current health.
+var _health : int
+
+=== end

@@ -1,0 +1,45 @@
+action: generate_default_init
+=== input
+extends RefCounted
+
+signal changed
+
+const _LIMIT : int = 10
+
+static var _instances : int = 0
+
+@export var _exported : int = 0
+@export
+var _exported_on_its_own_line : int = 0
+@export_group("Stats")
+var _health : int
+
+var speed : float = 1.0
+
+var _name : String<|>
+
+=== expected
+extends RefCounted
+
+signal changed
+
+const _LIMIT : int = 10
+
+static var _instances : int = 0
+
+@export var _exported : int = 0
+@export
+var _exported_on_its_own_line : int = 0
+@export_group("Stats")
+var _health : int
+
+var speed : float = 1.0
+
+var _name : String
+
+
+func _init(p_health: int, p_name: String) -> void:
+	_health = p_health
+	_name = p_name<|>
+
+=== end

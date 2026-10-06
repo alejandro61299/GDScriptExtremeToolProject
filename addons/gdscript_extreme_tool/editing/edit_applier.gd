@@ -198,7 +198,12 @@ static func _select_first_selection(editor: CodeEdit, resolved: Array[GDSExResol
 			continue
 		var line := _final_line(insertion, resolved) + insertion.selection_line
 		editor.remove_secondary_carets()
-		editor.select(line, insertion.selection_from, line, insertion.selection_to)
+		if insertion.selection_from == insertion.selection_to:
+			editor.deselect()
+			editor.set_caret_line(line)
+			editor.set_caret_column(insertion.selection_from)
+		else:
+			editor.select(line, insertion.selection_from, line, insertion.selection_to)
 		return true
 	return false
 

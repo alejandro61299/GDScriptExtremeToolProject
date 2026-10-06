@@ -5,14 +5,12 @@ const GDSExSymbolIndex = preload("res://addons/gdscript_extreme_tool/analysis/sy
 const GDSExCallSiteParser = preload("res://addons/gdscript_extreme_tool/analysis/call_site_parser.gd")
 const GDSExTypeResolver = preload("res://addons/gdscript_extreme_tool/analysis/type_resolver.gd")
 const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
-const GDSExPluginProjectSettings = preload("res://addons/gdscript_extreme_tool/plugin_project_settings.gd")
+const GDSExParamNames = preload("res://addons/gdscript_extreme_tool/analysis/param_names.gd")
 const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
 const GDSExPlacement = preload("res://addons/gdscript_extreme_tool/editing/placement.gd")
 
 const LABEL : String = "Generate Function Definition"
-const UNNAMED_ARGUMENT_KEYWORDS : Array[String] = ["null", "true", "false", "self"]
 const SELF_ACCESS : String = "self."
-const NAME_PLACEHOLDER : String = "{name}"
 const FUNCTION_HEADER_TEMPLATE : String = "%sfunc %s(%s) -> %s:"
 const STATIC_PREFIX : String = "static "
 const TYPED_PARAM_TEMPLATE : String = "%s: %s"
@@ -152,33 +150,11 @@ func _build_signature(target: GDSExTarget, code: String, scope_info: GDSExSymbol
 
 
 func _add_param(signature: GDSExFunctionSignature, source_name: String, type: GDSExSymbolIndex.GDSExTypeData) -> void:
-	var param_name := _format_param_name(source_name)
+	var param_name := GDSExParamNames.from_source(source_name)
 	if param_name.is_empty() or signature.param_names.has(param_name):
-		param_name = GDSExPluginProjectSettings.fallback_param_format().format({"index": signature.param_names.size()})
+		param_name = GDSExParamNames.fallback(signature.param_names.size())
 	signature.param_names.append(param_name)
 	signature.param_types.append(type)
-
-
-func _format_param_name(source_name: String) -> String:
-	if not GDSExTypeResolver.is_identifier(source_name) or UNNAMED_ARGUMENT_KEYWORDS.has(source_name):
-		return ""
-	var base_name := source_name.to_lower().lstrip("_")
-	if base_name.is_empty():
-		return ""
-	if _matches_param_format(base_name):
-		return base_name
-	return GDSExPluginProjectSettings.generated_param_format().format({"name": base_name})
-
-
-func _matches_param_format(param_name: String) -> bool:
-	var affixes := GDSExPluginProjectSettings.generated_param_format().split(NAME_PLACEHOLDER)
-	var prefix := affixes[0]
-	var suffix := affixes[1] if affixes.size() > 1 else ""
-	if prefix.is_empty() and suffix.is_empty():
-		return false
-	if param_name.length() <= prefix.length() + suffix.length():
-		return false
-	return param_name.begins_with(prefix) and param_name.ends_with(suffix)
 
 
 func _build_snippet(signature: GDSExFunctionSignature) -> GDSExSnippet:

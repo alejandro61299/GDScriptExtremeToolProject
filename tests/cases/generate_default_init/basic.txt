@@ -1,0 +1,19 @@
+action: generate_default_init
+=== input
+extends RefCounted
+
+var _health : int
+var _name : String<|>
+
+=== expected
+extends RefCounted
+
+var _health : int
+var _name : String
+
+
+func _init(p_health: int, p_name: String) -> void:
+	_health = p_health
+	_name = p_name<|>
+
+=== end

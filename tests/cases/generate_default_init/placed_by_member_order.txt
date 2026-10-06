@@ -1,0 +1,40 @@
+action: generate_default_init
+=== input
+extends RefCounted
+
+var _health : int<|>
+
+
+static func create() -> RefCounted:
+	return null
+
+
+func _to_string() -> String:
+	return "stats"
+
+
+func heal() -> void:
+	pass
+
+=== expected
+extends RefCounted
+
+var _health : int
+
+
+static func create() -> RefCounted:
+	return null
+
+
+func _init(p_health: int) -> void:
+	_health = p_health<|>
+
+
+func _to_string() -> String:
+	return "stats"
+
+
+func heal() -> void:
+	pass
+
+=== end

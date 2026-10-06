@@ -1,0 +1,9 @@
+action: generate_default_init
+=== input
+extends RefCounted
+
+@export var speed : float = 1.0
+
+var health : int = 0<|>
+
+=== end

@@ -1,0 +1,24 @@
+action: generate_default_init
+=== input
+extends RefCounted
+
+var _health : int
+
+
+func heal(amount : int) -> void:
+	_health += amount<|>
+
+=== expected
+extends RefCounted
+
+var _health : int
+
+
+func _init(p_health: int) -> void:
+	_health = p_health<|>
+
+
+func heal(amount : int) -> void:
+	_health += amount
+
+=== end
