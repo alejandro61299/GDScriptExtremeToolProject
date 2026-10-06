@@ -82,11 +82,11 @@ godot --dump-extension-api
 godot --headless --path . --script res://tools/generate_builtin_types.gd -- extension_api.json
 ```
 
-To build a release archive, set the version in `addons/gdscript_extreme_tool/plugin.cfg`, commit, tag and archive the tag. `.gitattributes` marks everything except the addon as `export-ignore`, so the archive contains only `addons/gdscript_extreme_tool`:
+To build a release archive, set the version in `addons/gdscript_extreme_tool/plugin.cfg`, add its notes to `CHANGELOG.md`, commit, tag and archive the tag. `.gitattributes` marks everything except the addon as `export-ignore`, so the archive contains only `addons/gdscript_extreme_tool`:
 
 ```
-git tag v0.1.0
-git archive --format=zip --output=gdscript_extreme_tool-0.1.0.zip v0.1.0
+git tag v0.2.0
+git archive --format=zip --output=gdscript_extreme_tool-0.2.0.zip v0.2.0
 ```
 
 ## License
