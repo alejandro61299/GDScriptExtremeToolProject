@@ -1,0 +1,9 @@
+action: check_init_function_name
+init_name: get_label
+expect_check: error
+=== input
+extends "res://addons/gdscript_extreme_tool/actions/code_action.gd"
+
+var _health : int<|>
+
+=== end

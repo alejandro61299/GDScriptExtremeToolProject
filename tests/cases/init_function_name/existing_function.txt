@@ -1,0 +1,13 @@
+action: check_init_function_name
+init_name: initialize
+expect_check: error
+=== input
+extends RefCounted
+
+var _health : int<|>
+
+
+func initialize() -> void:
+	pass
+
+=== end

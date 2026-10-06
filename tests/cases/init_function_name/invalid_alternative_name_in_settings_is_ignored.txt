@@ -1,0 +1,9 @@
+action: check_init_function_name
+settings: {"naming/alternative_init_function_name": "not valid"}
+expect_default_name: initialize
+=== input
+extends Node
+
+var _health : int<|>
+
+=== end

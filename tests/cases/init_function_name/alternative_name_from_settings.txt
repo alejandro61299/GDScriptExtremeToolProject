@@ -1,0 +1,9 @@
+action: check_init_function_name
+settings: {"naming/alternative_init_function_name": "setup"}
+expect_default_name: setup
+=== input
+extends Node
+
+var _health : int<|>
+
+=== end

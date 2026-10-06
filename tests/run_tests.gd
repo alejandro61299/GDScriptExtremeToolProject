@@ -13,6 +13,7 @@ const GDSExEditPlan = preload("res://addons/gdscript_extreme_tool/editing/edit_p
 const GDSExEditApplier = preload("res://addons/gdscript_extreme_tool/editing/edit_applier.gd")
 const GDSExPluginProjectSettings = preload("res://addons/gdscript_extreme_tool/plugin_project_settings.gd")
 const GDSExCodeActionsPopup = preload("res://addons/gdscript_extreme_tool/code_actions_popup.gd")
+const GDSExInitFunction = preload("res://addons/gdscript_extreme_tool/actions/init_function.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -38,7 +39,8 @@ const VIEW_TEXT_VISIBLE: String = "text_visible"
 const VIEW_CARET_ROW_UNCHANGED: String = "caret_row_unchanged"
 const REORDER_ACTION: String = "reorder_class_members"
 const FORMAT_ACTION: String = "format_class_members"
-const SETTING_COUNT: int = 8
+const SETTING_COUNT: int = 9
+const NAME_CHECK_LEVELS: Array[String] = ["valid", "warning", "error"]
 const BLANK_CHARACTERS: Array[String] = [" ", "\t", "\n"]
 const COLLECTION_CLOSINGS: Array[String] = ["]", "}"]
 const STRING_LITERAL_PATTERN: String = "\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\\\n]|\\\\.)*'"
@@ -113,6 +115,7 @@ class TestCase:
 	var folds: PackedInt32Array = []
 	var expected_folds: PackedInt32Array = []
 	var settings: Dictionary = {}
+	var headers: Dictionary[String, String] = {}
 
 
 class ErrorCollector extends Logger:
@@ -262,6 +265,7 @@ func _parse_case(path: String) -> TestCase:
 			section_lines.append(line)
 
 	var test_case := TestCase.new()
+	test_case.headers = headers
 	test_case.name = path.trim_prefix(CASES_ROOT + "/").get_basename()
 	test_case.action = headers.get("action", "")
 	test_case.is_pending = headers.get("status", "") == "pending"
@@ -346,6 +350,8 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_settings_registration()
 		"run_first_popup_action":
 			return _check_code_actions_popup(test_case, editor)
+		"check_init_function_name":
+			return _check_init_function_name(test_case, editor)
 	var action := _find_code_action(test_case.action)
 	if action == null:
 		return PackedStringArray(["Unknown action '%s'." % test_case.action])
@@ -521,6 +527,23 @@ func _check_no_false_targets() -> PackedStringArray:
 	for path in _project_script_paths():
 		var index := GDSExSymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
 		_collect_false_targets(path, index, index.statements, generator, problems)
+	return problems
+
+
+func _check_init_function_name(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var context := GDSExCodeContext.new(editor)
+	if test_case.headers.has("expect_default_name"):
+		var default_name := GDSExInitFunction.default_function_name(context)
+		if default_name != test_case.headers["expect_default_name"]:
+			problems.append("The default name is '%s' but '%s' was expected." % [default_name, test_case.headers["expect_default_name"]])
+	if test_case.headers.has("expect_check"):
+		var check := GDSExInitFunction.check_function_name(context, test_case.headers.get("init_name", ""), int(test_case.headers.get("init_parameters", "0")))
+		var level := NAME_CHECK_LEVELS[check.level]
+		if level != test_case.headers["expect_check"]:
+			problems.append("The name '%s' is %s (%s) but %s was expected." % [test_case.headers.get("init_name", ""), level, check.message, test_case.headers["expect_check"]])
+		if check.message.is_empty():
+			problems.append("The check has no message.")
 	return problems
 
 

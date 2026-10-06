@@ -1,0 +1,11 @@
+action: check_init_function_name
+init_name: Mode
+expect_check: error
+=== input
+extends RefCounted
+
+enum Mode { SLOW, FAST }
+
+var _health : int<|>
+
+=== end

@@ -1,0 +1,13 @@
+action: check_init_function_name
+init_name: Stats
+expect_check: error
+=== input
+extends RefCounted
+
+var _health : int<|>
+
+
+class Stats:
+	var value : int = 0
+
+=== end

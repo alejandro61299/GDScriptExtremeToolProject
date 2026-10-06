@@ -1,0 +1,11 @@
+action: check_init_function_name
+init_name: changed
+expect_check: error
+=== input
+extends RefCounted
+
+signal changed
+
+var _health : int<|>
+
+=== end

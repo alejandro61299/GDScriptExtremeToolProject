@@ -1,0 +1,11 @@
+action: check_init_function_name
+init_name: LIMIT
+expect_check: error
+=== input
+extends RefCounted
+
+const LIMIT : int = 3
+
+var _health : int<|>
+
+=== end

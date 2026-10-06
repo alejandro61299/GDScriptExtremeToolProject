@@ -6,7 +6,7 @@ Dos acciones nuevas que comparten la misma lógica: generar una función inicial
 |---|---|---|
 | I1 | Categoría de miembro compartida y punto de inserción según el orden de miembros | Hecha |
 | I2 | Lógica común y acción "Generate Default Init Definition" | Hecha |
-| I3 | Validación del nombre de la función | Pendiente |
+| I3 | Validación del nombre de la función | Hecha |
 | I4 | Acciones con diálogo y acción Custom sin interfaz | Pendiente |
 | I5 | Diálogo de "Generate Custom Init Definition..." | Pendiente |
 | I6 | Verificación en el editor y documentación | Pendiente |
@@ -86,8 +86,11 @@ Errores (línea roja en el panel de validación, nombre en rojo y Generate bloqu
 - Vacío.
 - No es un identificador válido o es una palabra reservada.
 - Ya hay una función con ese nombre en la clase.
-- Lo hereda de un script base.
-- Es un método nativo no virtual de la clase base (por ejemplo `free`): sobrescribirlo no compila. Un método virtual que la clase aún no declara (`_ready`) sí vale.
+- Ya hay otro miembro con ese nombre en la clase: variable, constante, señal, enum o clase interna.
+- Es una función de la clase del motor de la que hereda, sea normal (`get_class`, `queue_free`) o un callback (`_ready`, `_to_string`). La única excepción es `_init`.
+- Lo hereda de un script base o de una clase interna base.
+
+Lo que el compilador acepta no se marca como error: el nombre de una propiedad o señal nativa (`name`, `ready`), de una función global (`print`), de un tipo (`int`) o de una clase del motor (`Node`).
 
 Aviso (línea amarilla en el panel de validación, no bloquea):
 
@@ -177,6 +180,14 @@ Hecho el 2026-10-06:
 - Ajuste `naming/alternative_init_function_name` en Project Settings y en el README.
 
 Verificación: casos con una cabecera nueva para el nombre y el resultado esperado (válido, error o aviso), uno por cada regla del apartado 4.2.
+
+Hecho el 2026-10-06:
+
+- Antes de fijar las reglas se compiló con Godot 4.7.2 una función con cada tipo de nombre. De ahí salen dos cambios respecto al borrador: un callback del motor que la clase aún no declara (`_ready`) pasa a ser error, porque una función con parámetros no coincide con la firma del motor y no compila; y los nombres de propiedades y señales nativas, funciones globales y tipos dejan de ser error, porque sí compilan.
+- `GDSExInitFunction.default_function_name(context)` y `check_function_name(context, name, parameter_count)`, que devuelve un nivel (válido, aviso o error) y un mensaje en inglés.
+- Ajuste `naming/alternative_init_function_name` en Project Settings. Si su valor no es un identificador válido, se usa `initialize`.
+- Runner: la cabecera de cada caso queda disponible entera para las comprobaciones especiales, y `action: check_init_function_name` usa `init_name`, `init_parameters`, `expect_check` y `expect_default_name`.
+- 25 casos en `tests/cases/init_function_name/`.
 
 ### I4 — Acciones con diálogo y Custom sin interfaz
 

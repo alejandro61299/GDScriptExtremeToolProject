@@ -1,0 +1,16 @@
+action: check_init_function_name
+init_name: setup
+expect_check: error
+=== input
+extends RefCounted
+
+
+class Base:
+	func setup() -> void:
+		pass
+
+
+class Derived extends Base:
+	var _health : int<|>
+
+=== end

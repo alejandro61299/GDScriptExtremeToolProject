@@ -1,0 +1,11 @@
+action: check_init_function_name
+init_name: _init
+init_parameters: 1
+expect_default_name: _init
+expect_check: valid
+=== input
+extends RefCounted
+
+var _health : int<|>
+
+=== end

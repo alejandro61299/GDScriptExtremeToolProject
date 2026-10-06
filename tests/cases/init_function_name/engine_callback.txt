@@ -1,0 +1,9 @@
+action: check_init_function_name
+init_name: _ready
+expect_check: error
+=== input
+extends Node
+
+var _health : int<|>
+
+=== end

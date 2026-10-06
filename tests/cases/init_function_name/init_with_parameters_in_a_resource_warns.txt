@@ -1,0 +1,11 @@
+action: check_init_function_name
+init_name: _init
+init_parameters: 1
+expect_default_name: initialize
+expect_check: warning
+=== input
+extends Resource
+
+var _health : int<|>
+
+=== end

@@ -1,0 +1,9 @@
+action: check_init_function_name
+init_name: setup_stats
+expect_check: valid
+=== input
+extends RefCounted
+
+var _health : int<|>
+
+=== end

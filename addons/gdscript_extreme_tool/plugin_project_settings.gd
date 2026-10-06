@@ -4,6 +4,7 @@ extends RefCounted
 const DEFAULT_GENERATED_PARAM_FORMAT : String = "p_{name}"
 const DEFAULT_FALLBACK_PARAM_FORMAT : String = "param_{index}"
 const DEFAULT_GENERATED_SIGNAL_CALLBACK_FORMAT : String = "_on_{name}"
+const DEFAULT_ALTERNATIVE_INIT_FUNCTION_NAME : String = "initialize"
 const DEFAULT_BLANK_LINES_AROUND_FUNCTIONS_AND_CLASSES : int = 2
 const DEFAULT_BLANK_LINES_BETWEEN_MEMBER_CATEGORIES : int = 1
 const DEFAULT_MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY : int = 1
@@ -30,6 +31,7 @@ const SECTION : String = "gdscript_extreme_tool"
 const GENERATED_PARAM_FORMAT_KEY : String = "naming/generated_param_format"
 const FALLBACK_PARAM_FORMAT_KEY : String = "naming/fallback_param_format"
 const GENERATED_SIGNAL_CALLBACK_FORMAT_KEY : String = "naming/generated_signal_callback_format"
+const ALTERNATIVE_INIT_FUNCTION_NAME_KEY : String = "naming/alternative_init_function_name"
 const BLANK_LINES_AROUND_FUNCTIONS_AND_CLASSES_KEY : String = "format/blank_lines_around_functions_and_classes"
 const BLANK_LINES_BETWEEN_MEMBER_CATEGORIES_KEY : String = "format/blank_lines_between_member_categories"
 const MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY_KEY : String = "format/max_blank_lines_inside_member_category"
@@ -66,6 +68,11 @@ static func generated_signal_callback_format() -> String:
 	return _value(GENERATED_SIGNAL_CALLBACK_FORMAT_KEY, DEFAULT_GENERATED_SIGNAL_CALLBACK_FORMAT)
 
 
+static func alternative_init_function_name() -> String:
+	var function_name : String = _value(ALTERNATIVE_INIT_FUNCTION_NAME_KEY, DEFAULT_ALTERNATIVE_INIT_FUNCTION_NAME)
+	return function_name if function_name.is_valid_ascii_identifier() else DEFAULT_ALTERNATIVE_INIT_FUNCTION_NAME
+
+
 static func blank_lines_around_functions_and_classes() -> int:
 	return maxi(0, _value(BLANK_LINES_AROUND_FUNCTIONS_AND_CLASSES_KEY, DEFAULT_BLANK_LINES_AROUND_FUNCTIONS_AND_CLASSES))
 
@@ -96,6 +103,7 @@ static func _defaults() -> Dictionary[String, Variant]:
 		GENERATED_PARAM_FORMAT_KEY: DEFAULT_GENERATED_PARAM_FORMAT,
 		FALLBACK_PARAM_FORMAT_KEY: DEFAULT_FALLBACK_PARAM_FORMAT,
 		GENERATED_SIGNAL_CALLBACK_FORMAT_KEY: DEFAULT_GENERATED_SIGNAL_CALLBACK_FORMAT,
+		ALTERNATIVE_INIT_FUNCTION_NAME_KEY: DEFAULT_ALTERNATIVE_INIT_FUNCTION_NAME,
 		BLANK_LINES_AROUND_FUNCTIONS_AND_CLASSES_KEY: DEFAULT_BLANK_LINES_AROUND_FUNCTIONS_AND_CLASSES,
 		BLANK_LINES_BETWEEN_MEMBER_CATEGORIES_KEY: DEFAULT_BLANK_LINES_BETWEEN_MEMBER_CATEGORIES,
 		MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY_KEY: DEFAULT_MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY,

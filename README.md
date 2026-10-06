@@ -41,6 +41,7 @@ Open **Project > Project Settings** and look for the **GDScript Extreme Tool** s
 | `naming/generated_param_format` | `p_{name}` | Name of a generated parameter when the argument has a name. |
 | `naming/fallback_param_format` | `param_{index}` | Name of a generated parameter otherwise. |
 | `naming/generated_signal_callback_format` | `_on_{name}` | Name of a generated signal callback. |
+| `naming/alternative_init_function_name` | `initialize` | Name proposed for a custom init function when `_init` is not suitable. |
 | `format/blank_lines_around_functions_and_classes` | `2` | Blank lines around functions and inner classes. |
 | `format/blank_lines_between_member_categories` | `1` | Blank lines between members of different categories. |
 | `format/max_blank_lines_inside_member_category` | `1` | Blank lines kept between members of the same category. |
