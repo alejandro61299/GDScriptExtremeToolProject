@@ -1,0 +1,20 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	self._helper(1)<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	self._helper(1)
+
+
+func _helper(param_0: int) -> void:
+	<|pass|>
+
+=== end

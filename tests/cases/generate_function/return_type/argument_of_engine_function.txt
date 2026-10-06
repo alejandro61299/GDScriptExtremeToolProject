@@ -1,0 +1,20 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	add_child(_make_node())<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	add_child(_make_node())
+
+
+func _make_node() -> Node:
+	<|return Node.new()|>
+
+=== end

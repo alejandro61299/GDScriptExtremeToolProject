@@ -1,0 +1,9 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	get_parent().foo_bar()<|>
+
+=== end

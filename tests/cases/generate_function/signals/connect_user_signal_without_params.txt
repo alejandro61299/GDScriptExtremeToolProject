@@ -1,0 +1,28 @@
+action: generate_function
+=== input
+extends Node
+
+class Foo extends RefCounted:
+	signal changed()
+
+
+func test() -> void:
+	var foo : Foo = Foo.new()
+	foo.changed.connect(_on_<|>changed)
+
+=== expected
+extends Node
+
+class Foo extends RefCounted:
+	signal changed()
+
+
+func test() -> void:
+	var foo : Foo = Foo.new()
+	foo.changed.connect(_on_changed)
+
+
+func _on_changed() -> void:
+	<|pass|>
+
+=== end

@@ -1,0 +1,37 @@
+action: generate_function
+=== input
+extends Node
+
+const CONST_1 : Node = null
+const CONST_2 : int = 1
+
+var my_var_1 : Dictionary = {}
+
+class EmptyClass:
+	extends Object
+
+
+func test() -> void:
+	var empty_class : EmptyClass = EmptyClass.new()
+	empty_class.new_method_1(CONST_1, my_var_1)<|>
+
+=== expected
+extends Node
+
+const CONST_1 : Node = null
+const CONST_2 : int = 1
+
+var my_var_1 : Dictionary = {}
+
+class EmptyClass:
+	extends Object
+
+	func new_method_1(p_const_1: Node, p_my_var_1: Dictionary) -> void:
+		<|pass|>
+
+
+func test() -> void:
+	var empty_class : EmptyClass = EmptyClass.new()
+	empty_class.new_method_1(CONST_1, my_var_1)
+
+=== end

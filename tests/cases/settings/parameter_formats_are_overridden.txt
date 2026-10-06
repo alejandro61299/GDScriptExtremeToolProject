@@ -1,4 +1,4 @@
-action: generate_method
+action: generate_function
 settings: {"naming/generated_param_format": "arg_{name}", "naming/fallback_param_format": "value_{index}"}
 === input
 extends Node

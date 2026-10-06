@@ -1,0 +1,20 @@
+action: generate_function
+=== input
+extends Node2D
+
+
+func test() -> void:
+	_use(position)<|>
+
+=== expected
+extends Node2D
+
+
+func test() -> void:
+	_use(position)
+
+
+func _use(p_position: Vector2) -> void:
+	<|pass|>
+
+=== end

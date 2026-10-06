@@ -1,0 +1,20 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	print(_get_x())<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	print(_get_x())
+
+
+func _get_x() -> Variant:
+	<|return null|>
+
+=== end

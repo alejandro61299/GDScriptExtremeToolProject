@@ -1,0 +1,20 @@
+action: generate_function
+=== input
+extends "res://addons/gdscript_extreme_tool/actions/code_action.gd"
+
+
+func test() -> void:
+	print(get_label(), _helper())<|>
+
+=== expected
+extends "res://addons/gdscript_extreme_tool/actions/code_action.gd"
+
+
+func test() -> void:
+	print(get_label(), _helper())
+
+
+func _helper() -> Variant:
+	<|return null|>
+
+=== end

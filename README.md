@@ -2,21 +2,21 @@
 
 <img src="icon.svg" width="128" alt="GDScript Extreme Tool icon">
 
-A Godot editor plugin that adds code actions to the script editor's context menu: it generates methods, variables and signal callbacks from the code under the caret, reorders the members of a class and formats it.
+A Godot editor plugin that adds code actions to the script editor's context menu: it generates functions, variables and signal callbacks from the code under the caret, reorders the members of a class and formats it.
 
 ## Actions
 
-Press **Alt+Enter** (**Option+Return** on macOS) in the script editor to open the actions at the caret, or right-click and open the **GDScript Extreme Tool** submenu. Only the actions that apply to the caret position are shown, and each one is a single undo step.
+Press **Alt+Enter** (**Option+Return** on macOS) in the script editor to open the actions at the caret, or right-click and open the **Script Extreme Tools** submenu. Only the actions that apply to the caret position are shown, and each one is a single undo step.
 
 The script is analyzed only when you open that menu, so a plain right-click costs nothing. To change the shortcut, search for **Show Code Actions** in **Editor Settings > Shortcuts**.
 
 | Action | What it does |
 |---|---|
-| Generate Method Stub | Creates the method for an undefined call, with parameter names and types inferred from the arguments and the return type inferred from where the call is used. |
+| Generate Function Definition | Creates the function for an undefined call, with parameter names and types inferred from the arguments and the return type inferred from where the call is used. |
 | Generate Local Variable | Declares the undefined identifier under the caret at the start of its scope, typed from how it is used. |
 | Generate Class Variable | Declares the undefined identifier as a member variable of the class. |
 | Generate Connected Function | On a signal, writes `signal.connect(_on_signal)` and creates the callback with the signal's parameters. |
-| Reorder Class Members | Sorts the members of the class under the caret: signals, constants, static variables, enums, exports, onready, public and private variables, inner classes, static methods, `_init`, engine callbacks, public and private methods. |
+| Reorder Class Members | Sorts the members of the class under the caret: signals, constants, static variables, enums, exports, onready, public and private variables, inner classes, static functions, `_init`, engine callbacks, public and private functions. |
 | Format Class Members | Normalizes blank lines between members and around comments, puts the closing bracket of multiline arrays, dictionaries and lambda arguments on its own line, adds trailing commas, and removes extra spaces between tokens and at the end of lines. It never changes the order of the code. |
 
 Inner classes, lambdas and nested blocks are handled as their own scopes. Reordering and formatting apply to the class under the caret and do not enter its inner classes.
@@ -41,7 +41,7 @@ Open **Project > Project Settings** and look for the **GDScript Extreme Tool** s
 | `naming/generated_param_format` | `p_{name}` | Name of a generated parameter when the argument has a name. |
 | `naming/fallback_param_format` | `param_{index}` | Name of a generated parameter otherwise. |
 | `naming/generated_signal_callback_format` | `_on_{name}` | Name of a generated signal callback. |
-| `format/blank_lines_around_methods_and_classes` | `2` | Blank lines around methods and inner classes. |
+| `format/blank_lines_around_functions_and_classes` | `2` | Blank lines around functions and inner classes. |
 | `format/blank_lines_between_member_categories` | `1` | Blank lines between members of different categories. |
 | `format/max_blank_lines_inside_member_category` | `1` | Blank lines kept between members of the same category. |
 | `format/max_blank_lines_outside_members` | `1` | Blank lines kept around the comments at the start and the end of a class. |
@@ -53,7 +53,7 @@ Only the values you change are saved, in the `[gdscript_extreme_tool]` section o
 [gdscript_extreme_tool]
 
 naming/generated_param_format="arg_{name}"
-format/blank_lines_around_methods_and_classes=1
+format/blank_lines_around_functions_and_classes=1
 ```
 
 The defaults are the `DEFAULT_` constants in `addons/gdscript_extreme_tool/plugin_project_settings.gd`. A value of the wrong type is ignored and its default is used.

@@ -1,0 +1,26 @@
+action: generate_function
+=== input
+extends Node
+
+class Foo extends RefCounted:
+	pass
+
+
+func test() -> void:
+	var foo : Foo = _get_foo(&"a", "b", [1, 0], {}, null)<|>
+
+=== expected
+extends Node
+
+class Foo extends RefCounted:
+	pass
+
+
+func test() -> void:
+	var foo : Foo = _get_foo(&"a", "b", [1, 0], {}, null)
+
+
+func _get_foo(param_0: StringName, param_1: String, param_2: Array, param_3: Dictionary, param_4: Object) -> Foo:
+	<|return Foo.new()|>
+
+=== end

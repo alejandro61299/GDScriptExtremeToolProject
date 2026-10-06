@@ -1,0 +1,24 @@
+action: generate_function
+=== input
+extends Node
+
+signal changed(values : Array[int], names : Dictionary[int, StringName])
+
+
+func test() -> void:
+	changed.connect(_on_changed)<|>
+
+=== expected
+extends Node
+
+signal changed(values : Array[int], names : Dictionary[int, StringName])
+
+
+func test() -> void:
+	changed.connect(_on_changed)
+
+
+func _on_changed(p_values: Array[int], p_names: Dictionary[int, StringName]) -> void:
+	<|pass|>
+
+=== end

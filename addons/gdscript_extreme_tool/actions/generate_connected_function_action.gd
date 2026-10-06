@@ -1,5 +1,5 @@
 @tool
-extends "res://addons/gdscript_extreme_tool/actions/generate_method_action.gd"
+extends "res://addons/gdscript_extreme_tool/actions/generate_function_action.gd"
 
 const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/source_scanner.gd")
 
@@ -46,7 +46,7 @@ func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
 		target.target_class = context.scope_info.class_scope
 		target.signal_member = connection.signal_member
 		var snippet := _build_snippet(_build_signature(target, code, context.scope_info))
-		plan.reveal(plan.insert(GDSExPlacement.new_method(target.target_class, context.scope_info, context.lines, context.indent_unit), snippet))
+		plan.reveal(plan.insert(GDSExPlacement.new_function(target.target_class, context.scope_info, context.lines, context.indent_unit), snippet))
 	return plan
 
 
@@ -105,7 +105,7 @@ func _connection_tail_end(code: String, expression_end: int) -> int:
 	var word_end := index + 1
 	while word_end < code.length() and GDSExSourceScanner.is_identifier_character(code[word_end]):
 		word_end += 1
-	if not GDSExTypeResolver.CONNECT_METHOD.begins_with(code.substr(index + 1, word_end - index - 1)):
+	if not GDSExTypeResolver.CONNECT_FUNCTION.begins_with(code.substr(index + 1, word_end - index - 1)):
 		return -1
 	index = GDSExSourceScanner.skip_spaces(code, word_end)
 	if index >= code.length():

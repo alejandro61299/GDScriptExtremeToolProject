@@ -1,0 +1,10 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	var n: Node = Node.new()
+	n.foo_bar()<|>
+
+=== end

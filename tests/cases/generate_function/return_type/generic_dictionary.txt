@@ -1,0 +1,20 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	var dict : Dictionary[int, StringName] = new_method_2()<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var dict : Dictionary[int, StringName] = new_method_2()
+
+
+func new_method_2() -> Dictionary[int, StringName]:
+	<|return {}|>
+
+=== end

@@ -1,0 +1,30 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	if true:
+		var item: int = 1
+		_use(item)<|>
+	else:
+		var item: String = ""
+		print(item)
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	if true:
+		var item: int = 1
+		_use(item)
+	else:
+		var item: String = ""
+		print(item)
+
+
+func _use(p_item: int) -> void:
+	<|pass|>
+
+=== end

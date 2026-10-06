@@ -1,0 +1,21 @@
+action: generate_function
+compile_check: skip
+=== input
+extends Node
+
+
+func test() -> void:
+	_first(_sec<|>ond())
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	_first(_second())
+
+
+func _second() -> Variant:
+	<|return null|>
+
+=== end

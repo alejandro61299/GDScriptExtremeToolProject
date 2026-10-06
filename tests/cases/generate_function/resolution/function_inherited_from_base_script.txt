@@ -1,0 +1,9 @@
+action: generate_function
+=== input
+extends "res://addons/gdscript_extreme_tool/actions/code_action.gd"
+
+
+func test() -> void:
+	print(get_label())<|>
+
+=== end

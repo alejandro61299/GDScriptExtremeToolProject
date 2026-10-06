@@ -1,0 +1,22 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	var total : int = _count() + 1<|>
+	print(total)
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var total : int = _count() + 1
+	print(total)
+
+
+func _count() -> Variant:
+	<|return null|>
+
+=== end

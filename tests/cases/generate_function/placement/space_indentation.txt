@@ -1,0 +1,29 @@
+action: generate_function
+indent: spaces
+=== input
+extends Node
+
+class Foo:
+    var a: int = 0
+
+
+func test() -> void:
+    var f: Foo = Foo.new()
+    f.bar()<|>
+
+=== expected
+extends Node
+
+class Foo:
+    var a: int = 0
+
+
+    func bar() -> void:
+        <|pass|>
+
+
+func test() -> void:
+    var f: Foo = Foo.new()
+    f.bar()
+
+=== end

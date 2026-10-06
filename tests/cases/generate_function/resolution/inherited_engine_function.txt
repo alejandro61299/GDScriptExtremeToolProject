@@ -1,0 +1,9 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	queue_free()<|>
+
+=== end

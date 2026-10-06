@@ -1,0 +1,22 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test(label : String) -> void:
+	if label.begins_with(_prefix()):<|>
+		pass
+
+=== expected
+extends Node
+
+
+func test(label : String) -> void:
+	if label.begins_with(_prefix()):
+		pass
+
+
+func _prefix() -> String:
+	<|return ""|>
+
+=== end

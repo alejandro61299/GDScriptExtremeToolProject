@@ -1,0 +1,30 @@
+action: generate_function
+=== input
+extends Node
+
+
+func helper(value : int) -> void:
+	print(value)
+
+
+class Worker extends RefCounted:
+	func run() -> void:
+		helper(1)<|>
+
+=== expected
+extends Node
+
+
+func helper(value : int) -> void:
+	print(value)
+
+
+class Worker extends RefCounted:
+	func run() -> void:
+		helper(1)
+
+
+	func helper(param_0: int) -> void:
+		<|pass|>
+
+=== end

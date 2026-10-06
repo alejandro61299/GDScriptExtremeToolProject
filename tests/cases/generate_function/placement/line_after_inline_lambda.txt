@@ -1,0 +1,22 @@
+action: generate_function
+=== input
+extends Node
+
+
+func a() -> void:
+	var cb = func(): return 1
+	_use(cb)<|>
+
+=== expected
+extends Node
+
+
+func a() -> void:
+	var cb = func(): return 1
+	_use(cb)
+
+
+func _use(p_cb: Callable) -> void:
+	<|pass|>
+
+=== end

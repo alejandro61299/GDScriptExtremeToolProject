@@ -1,0 +1,24 @@
+action: generate_function
+=== input
+extends Node
+
+signal done(value : int)
+
+
+func test() -> void:
+	done.connect(self._on_done)<|>
+
+=== expected
+extends Node
+
+signal done(value : int)
+
+
+func test() -> void:
+	done.connect(self._on_done)
+
+
+func _on_done(p_value: int) -> void:
+	<|pass|>
+
+=== end

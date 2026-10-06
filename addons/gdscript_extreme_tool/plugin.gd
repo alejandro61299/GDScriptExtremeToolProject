@@ -6,7 +6,7 @@ const GDSExCodeAction = preload("res://addons/gdscript_extreme_tool/actions/code
 const GDSExCodeActionsPopup = preload("res://addons/gdscript_extreme_tool/code_actions_popup.gd")
 const GDSExPluginProjectSettings = preload("res://addons/gdscript_extreme_tool/plugin_project_settings.gd")
 
-const SUBMENU_LABEL : String = "GDScript Extreme Tool"
+const SUBMENU_LABEL : String = "Script Extreme Tools"
 const SHORTCUT_PATH : String = "gdscript_extreme_tool/show_code_actions"
 const SHORTCUT_NAME : String = "Show Code Actions"
 

@@ -1,0 +1,391 @@
+action: generate_function
+viewport_lines: 8
+scroll_to_line: 164
+expect_view: caret_visible
+=== input
+extends Node
+
+
+func filler_0() -> void:
+	pass
+
+
+func filler_1() -> void:
+	pass
+
+
+func filler_2() -> void:
+	pass
+
+
+func filler_3() -> void:
+	pass
+
+
+func filler_4() -> void:
+	pass
+
+
+func filler_5() -> void:
+	pass
+
+
+func filler_6() -> void:
+	pass
+
+
+func filler_7() -> void:
+	pass
+
+
+func filler_8() -> void:
+	pass
+
+
+func filler_9() -> void:
+	pass
+
+
+func filler_10() -> void:
+	pass
+
+
+func filler_11() -> void:
+	pass
+
+
+func filler_12() -> void:
+	pass
+
+
+func filler_13() -> void:
+	pass
+
+
+func filler_14() -> void:
+	pass
+
+
+func filler_15() -> void:
+	pass
+
+
+func filler_16() -> void:
+	pass
+
+
+func filler_17() -> void:
+	pass
+
+
+func filler_18() -> void:
+	pass
+
+
+func filler_19() -> void:
+	pass
+
+
+func filler_20() -> void:
+	pass
+
+
+func filler_21() -> void:
+	pass
+
+
+func filler_22() -> void:
+	pass
+
+
+func filler_23() -> void:
+	pass
+
+
+func filler_24() -> void:
+	pass
+
+
+func filler_25() -> void:
+	pass
+
+
+func filler_26() -> void:
+	pass
+
+
+func filler_27() -> void:
+	pass
+
+
+func filler_28() -> void:
+	pass
+
+
+func filler_29() -> void:
+	pass
+
+
+func filler_30() -> void:
+	pass
+
+
+func filler_31() -> void:
+	pass
+
+
+func filler_32() -> void:
+	pass
+
+
+func filler_33() -> void:
+	pass
+
+
+func filler_34() -> void:
+	pass
+
+
+func filler_35() -> void:
+	pass
+
+
+func filler_36() -> void:
+	pass
+
+
+func filler_37() -> void:
+	pass
+
+
+func filler_38() -> void:
+	pass
+
+
+func filler_39() -> void:
+	pass
+
+
+func last() -> void:
+	_new_method()<|>
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+
+
+func after() -> void:
+	pass
+
+=== expected
+extends Node
+
+
+func filler_0() -> void:
+	pass
+
+
+func filler_1() -> void:
+	pass
+
+
+func filler_2() -> void:
+	pass
+
+
+func filler_3() -> void:
+	pass
+
+
+func filler_4() -> void:
+	pass
+
+
+func filler_5() -> void:
+	pass
+
+
+func filler_6() -> void:
+	pass
+
+
+func filler_7() -> void:
+	pass
+
+
+func filler_8() -> void:
+	pass
+
+
+func filler_9() -> void:
+	pass
+
+
+func filler_10() -> void:
+	pass
+
+
+func filler_11() -> void:
+	pass
+
+
+func filler_12() -> void:
+	pass
+
+
+func filler_13() -> void:
+	pass
+
+
+func filler_14() -> void:
+	pass
+
+
+func filler_15() -> void:
+	pass
+
+
+func filler_16() -> void:
+	pass
+
+
+func filler_17() -> void:
+	pass
+
+
+func filler_18() -> void:
+	pass
+
+
+func filler_19() -> void:
+	pass
+
+
+func filler_20() -> void:
+	pass
+
+
+func filler_21() -> void:
+	pass
+
+
+func filler_22() -> void:
+	pass
+
+
+func filler_23() -> void:
+	pass
+
+
+func filler_24() -> void:
+	pass
+
+
+func filler_25() -> void:
+	pass
+
+
+func filler_26() -> void:
+	pass
+
+
+func filler_27() -> void:
+	pass
+
+
+func filler_28() -> void:
+	pass
+
+
+func filler_29() -> void:
+	pass
+
+
+func filler_30() -> void:
+	pass
+
+
+func filler_31() -> void:
+	pass
+
+
+func filler_32() -> void:
+	pass
+
+
+func filler_33() -> void:
+	pass
+
+
+func filler_34() -> void:
+	pass
+
+
+func filler_35() -> void:
+	pass
+
+
+func filler_36() -> void:
+	pass
+
+
+func filler_37() -> void:
+	pass
+
+
+func filler_38() -> void:
+	pass
+
+
+func filler_39() -> void:
+	pass
+
+
+func last() -> void:
+	_new_method()
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+	print(1)
+
+
+func _new_method() -> void:
+	<|pass|>
+
+
+func after() -> void:
+	pass
+
+=== end

@@ -1,0 +1,26 @@
+action: generate_function
+=== input
+extends Node
+
+
+func multi(
+	a: int,
+	b: int,
+) -> void:
+	_use(a)<|>
+
+=== expected
+extends Node
+
+
+func multi(
+	a: int,
+	b: int,
+) -> void:
+	_use(a)
+
+
+func _use(p_a: int) -> void:
+	<|pass|>
+
+=== end

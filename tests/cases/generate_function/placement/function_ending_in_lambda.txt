@@ -1,0 +1,22 @@
+action: generate_function
+=== input
+extends Node
+
+
+func a() -> void:
+	var f = func():
+		_new_method()<|>
+
+=== expected
+extends Node
+
+
+func a() -> void:
+	var f = func():
+		_new_method()
+
+
+func _new_method() -> void:
+	<|pass|>
+
+=== end

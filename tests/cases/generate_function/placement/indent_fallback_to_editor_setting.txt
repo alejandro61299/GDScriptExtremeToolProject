@@ -1,0 +1,17 @@
+action: generate_function
+indent: spaces
+=== input
+extends Node
+
+var count : int = _make()<|>
+
+=== expected
+extends Node
+
+var count : int = _make()
+
+
+func _make() -> int:
+    <|return 0|>
+
+=== end

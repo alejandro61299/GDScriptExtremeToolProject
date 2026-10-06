@@ -1,6 +1,6 @@
 # Plan de refactorización — GDScript Extreme Tool
 
-Godot 4.7.2. Estado de partida: una única utilidad ("Generate Method Stub") con la inserción acoplada a "método nuevo en una clase" y un índice de símbolos que calcula mal dónde termina cada miembro, sobre todo con lambdas y métodos anidados.
+Godot 4.7.2. Estado de partida: una única utilidad ("Generate Function Definition" (antes "Generate Method Stub")) con la inserción acoplada a "método nuevo en una clase" y un índice de símbolos que calcula mal dónde termina cada miembro, sobre todo con lambdas y métodos anidados.
 
 | Fase | Contenido | Estado |
 |---|---|---|
@@ -17,6 +17,7 @@ Godot 4.7.2. Estado de partida: una única utilidad ("Generate Method Stub") con
 | 10 | Dar formato a las líneas en blanco de una clase | Hecha |
 | 11 | Ajustes en Project Settings | Hecha |
 | 12 | Acciones bajo demanda: atajo y submenú | Hecha |
+| 13 | Terminología: de «method» a «function» | Hecha |
 
 ## Objetivo
 
@@ -51,7 +52,7 @@ addons/gdscript_extreme_tool/
 │   ├── action_registry.gd
 │   ├── code_action.gd
 │   ├── code_context.gd
-│   ├── generate_method_action.gd
+│   ├── generate_function_action.gd
 │   ├── variable_action.gd
 │   ├── generate_local_variable_action.gd
 │   ├── generate_class_variable_action.gd
@@ -313,7 +314,7 @@ func _add_to_list(item : Object) -> void:
 Cada caso es un `.txt` en `tests/cases/`:
 
 ```
-action: generate_method
+action: generate_function
 status: pending
 indent: spaces
 === input
@@ -376,7 +377,7 @@ indent: spaces
 
 ### Fase 4 — Acciones y menú (hecha)
 
-- `actions/code_context.gd`, `code_action.gd`, `action_registry.gd` y `generate_method_action.gd`. `stub_generator.gd` está borrado.
+- `actions/code_context.gd`, `code_action.gd`, `action_registry.gd` y `generate_function_action.gd`. `stub_generator.gd` está borrado.
 - `plugin.gd` ya no conoce ninguna utilidad concreta: pide las acciones al registro y solo muestra las disponibles.
 - Los tests pasan por el registro, igual que el menú. Además comprueban la disponibilidad: si el caso espera un cambio, la acción tiene que ofrecerse; si no espera ninguno, no.
 - La comprobación de scripts del proyecto falla ahora si alguno no compila, incluido el del plugin.
@@ -519,7 +520,7 @@ Las cantidades son ajustes de la sección `format/`, con sus valores por defecto
 
 | Entre | Líneas en blanco | Constante |
 |---|---|---|
-| Un método o una clase interna y cualquier otro miembro | 2 | `DEFAULT_BLANK_LINES_AROUND_METHODS_AND_CLASSES` |
+| Un método o una clase interna y cualquier otro miembro | 2 | `DEFAULT_BLANK_LINES_AROUND_FUNCTIONS_AND_CLASSES` |
 | Miembros de categorías distintas (las de `DEFAULT_CLASS_MEMBER_ORDER`) | 1 | `DEFAULT_BLANK_LINES_BETWEEN_MEMBER_CATEGORIES` |
 | Miembros de la misma categoría | Las que hubiera, con un máximo de 1 | `DEFAULT_MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY` |
 
@@ -603,7 +604,7 @@ La configuración se edita en Project > Project Settings, sección "GDScript Ext
 | `naming/generated_param_format` | `DEFAULT_GENERATED_PARAM_FORMAT` |
 | `naming/fallback_param_format` | `DEFAULT_FALLBACK_PARAM_FORMAT` |
 | `naming/generated_signal_callback_format` | `DEFAULT_GENERATED_SIGNAL_CALLBACK_FORMAT` |
-| `format/blank_lines_around_methods_and_classes` | `DEFAULT_BLANK_LINES_AROUND_METHODS_AND_CLASSES` |
+| `format/blank_lines_around_functions_and_classes` | `DEFAULT_BLANK_LINES_AROUND_FUNCTIONS_AND_CLASSES` |
 | `format/blank_lines_between_member_categories` | `DEFAULT_BLANK_LINES_BETWEEN_MEMBER_CATEGORIES` |
 | `format/max_blank_lines_inside_member_category` | `DEFAULT_MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY` |
 | `format/max_blank_lines_outside_members` | `DEFAULT_MAX_BLANK_LINES_OUTSIDE_MEMBERS` |
@@ -619,7 +620,7 @@ Reglas:
 
 Tests:
 
-- Casos en `tests/cases/settings/`. Cabecera nueva `settings:` con un diccionario en sintaxis de Godot (`{"format/blank_lines_around_methods_and_classes": 1}`); el runner aplica esos valores a Project Settings durante el caso y los retira después.
+- Casos en `tests/cases/settings/`. Cabecera nueva `settings:` con un diccionario en sintaxis de Godot (`{"format/blank_lines_around_functions_and_classes": 1}`); el runner aplica esos valores a Project Settings durante el caso y los retira después.
 - `action: check_settings_registration` comprueba que se registran los 8 ajustes con su valor por defecto, que un valor cambiado se devuelve, que un tipo incorrecto cae al valor por defecto, y que el `project.godot` de desarrollo no sobrescribe ninguno (el resto de casos presupone los valores por defecto).
 
 ### Fase 12 — Acciones bajo demanda: atajo y submenú (hecha)
@@ -627,7 +628,7 @@ Tests:
 Antes, cada clic derecho en el editor de scripts construía el índice del archivo y el plan de las seis acciones para decidir cuáles mostrar, aunque solo se quisiera copiar o pegar. Medido en un M5 Pro: 1,5 ms con 66 líneas, 13 ms con 552, 22 ms con 869 y 31 ms con 1.733. Ahora el análisis solo se hace cuando se piden las acciones.
 
 - **Atajo.** `Alt` + `Intro` (`Option` + `Retorno` en macOS) abre junto al cursor un menú con las acciones disponibles, con la primera enfocada, así que `Intro` la ejecuta. Se registra con `EditorSettings.add_shortcut` en la ruta `gdscript_extreme_tool/show_code_actions` y se puede cambiar en Editor Settings > Shortcuts. Solo actúa si el editor de código del script actual tiene el foco.
-- **Clic derecho.** Una única entrada, "GDScript Extreme Tool", con un submenú que se rellena al abrirse.
+- **Clic derecho.** Una única entrada, "Script Extreme Tools", con un submenú que se rellena al abrirse.
 - **Sin acciones.** El menú muestra una sola línea desactivada, "No actions available here".
 
 Cómo está hecho:
@@ -642,6 +643,20 @@ Tests:
 - `action: run_first_popup_action`, con casos en `tests/cases/menu/`: el menú empieza con la línea desactivada, al abrirse lista las mismas acciones que el registro considera disponibles, y ejecutar la primera deja el resultado esperado.
 - El atajo y el submenú no se pueden probar en modo `--script`, porque el `EditorPlugin` no se instancia. Se comprobaron con un plugin de prueba en el editor sin interfaz (`--headless --editor`): abre un script, envía `Alt` + `Intro` a la ventana del editor y comprueba que aparece el menú, que `Intro` genera el método y que el menú se libera; después envía un clic derecho y comprueba que el submenú pasa de la línea desactivada a las acciones al abrirlo. Esa prueba no está en el repositorio.
 - Cuidado al repetirla: lo que una prueba cambie en `EditorSettings` (por ejemplo los eventos de un atajo) se guarda en la configuración global de Godot del usuario al cerrar el editor.
+
+### Fase 13 — Terminología: de «method» a «function» (hecha)
+
+GDScript declara con `func` y la documentación de Godot habla de funciones, así que todo nombre propio del plugin que decía «method» pasa a «function». La versión 0.1.0 fue interna y nadie la descargó, por lo que también cambian los valores que se guardan en `project.godot`.
+
+- **Acción:** "Generate Method Stub" es ahora "Generate Function Definition". Archivo `generate_function_action.gd`, alias `GDSExGenerateFunctionAction`, casos en `tests/cases/generate_function/` con `action: generate_function`.
+- **Ajuste:** `format/blank_lines_around_functions_and_classes`, con su constante `DEFAULT_BLANK_LINES_AROUND_FUNCTIONS_AND_CLASSES`, su clave `_KEY` y su función de acceso.
+- **Categorías de `order/class_member_order`:** `static_public_functions`, `static_private_functions`, `engine_functions`, `public_functions` y `private_functions`.
+- **Código:** el índice (`GDSExClassScope.functions`, `GDSExKind.FUNCTION`), `GDSExFunctionSignature`, `GDSExPlacement.new_function`, `GDSExBuiltinTypes.FUNCTIONS` y el resto de identificadores, variables locales incluidas. El generador `tools/generate_builtin_types.gd` ya escribe `const FUNCTIONS`.
+- **Tests:** 31 archivos y carpetas de casos renombrados. El código de ejemplo dentro de los casos no se ha tocado.
+- **Lo que conserva «method»:** los nombres que son del motor y no del plugin: `get_script_method_list`, `class_get_method_list`, `METHOD_FLAG_*`, `MethodFlags`, la clave `"methods"` del volcado `extension_api.json` y los nombres de la tabla generada de tipos básicos.
+- **Menú contextual:** la entrada del clic derecho se llama ahora "Script Extreme Tools".
+
+En las fases anteriores de este documento se han actualizado los nombres de archivos, ajustes y constantes; el texto en español sigue diciendo «método» donde habla del concepto.
 
 ## Casos pendientes
 

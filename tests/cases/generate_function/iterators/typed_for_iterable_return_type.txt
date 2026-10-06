@@ -1,0 +1,22 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	for value: int in _values():<|>
+		print(value)
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	for value: int in _values():
+		print(value)
+
+
+func _values() -> Array[int]:
+	<|return []|>
+
+=== end

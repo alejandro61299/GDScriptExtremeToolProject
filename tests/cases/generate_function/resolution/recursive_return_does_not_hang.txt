@@ -1,0 +1,28 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	_use(loop())<|>
+
+
+func loop():
+	return loop()
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	_use(loop())
+
+
+func _use(param_0) -> void:
+	<|pass|>
+
+
+func loop():
+	return loop()
+
+=== end

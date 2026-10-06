@@ -8,8 +8,8 @@ const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/langu
 const GDSExBuiltinTypes = preload("res://addons/gdscript_extreme_tool/analysis/builtin_types.gd")
 
 const MEMBER_ACCESS: String = "."
-const CONNECT_METHOD: String = "connect"
-const EMIT_METHOD: String = "emit"
+const CONNECT_FUNCTION: String = "connect"
+const EMIT_FUNCTION: String = "emit"
 const AWAIT_PREFIX: String = "await "
 const TERNARY_CONDITION: String = " if "
 const TERNARY_ALTERNATIVE: String = " else "
@@ -48,7 +48,7 @@ static var _engine_callbacks: Dictionary[String, Dictionary] = {}
 
 
 class GDSExMember:
-	enum GDSExKind { VARIABLE, METHOD, SIGNAL }
+	enum GDSExKind { VARIABLE, FUNCTION, SIGNAL }
 
 	var kind: GDSExKind = GDSExKind.VARIABLE
 	var type: GDSExSymbolIndex.GDSExTypeData
@@ -118,8 +118,8 @@ static func find_class_member(class_scope: GDSExSymbolIndex.GDSExClassScope, mem
 	var root := GDSExSymbolIndex.find_root_class(class_scope)
 	var current := class_scope
 	for depth in MAX_INHERITANCE_DEPTH:
-		if current.methods.has(member_name):
-			return _method_member(current.methods[member_name][0])
+		if current.functions.has(member_name):
+			return _function_member(current.functions[member_name][0])
 		if current.vars.has(member_name):
 			return _symbol_member(current.vars[member_name])
 		if current.signals.has(member_name):
@@ -156,16 +156,16 @@ static func is_function_defined(function_name: String, scope_info: GDSExSymbolIn
 	return find_class_member(scope_info.class_scope, function_name) != null
 
 
-static func is_engine_callback(class_scope: GDSExSymbolIndex.GDSExClassScope, method_name: String) -> bool:
+static func is_engine_callback(class_scope: GDSExSymbolIndex.GDSExClassScope, function_name: String) -> bool:
 	var type_name := _engine_base_type(class_scope)
 	if not _engine_callbacks.has(type_name):
 		var callbacks: Dictionary = {}
 		if ClassDB.class_exists(type_name):
-			for method in ClassDB.class_get_method_list(type_name):
-				if method["flags"] & METHOD_FLAG_VIRTUAL != 0:
-					callbacks[method["name"]] = true
+			for function in ClassDB.class_get_method_list(type_name):
+				if function["flags"] & METHOD_FLAG_VIRTUAL != 0:
+					callbacks[function["name"]] = true
 		_engine_callbacks[type_name] = callbacks
-	return _engine_callbacks[type_name].has(method_name)
+	return _engine_callbacks[type_name].has(function_name)
 
 
 static func _engine_base_type(class_scope: GDSExSymbolIndex.GDSExClassScope) -> String:
@@ -298,10 +298,10 @@ static func _assigned_type(statement_code: String, expression: String, scope_inf
 static func _expected_argument_type(parent: GDSExCallSiteParser.GDSExCallSite, index: int, expression: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExSymbolIndex.GDSExTypeData:
 	if index == -1 or not _is_whole(parent.arguments[index].text, expression):
 		return null
-	if not parent.receiver.is_empty() and (parent.name == CONNECT_METHOD or parent.name == EMIT_METHOD):
+	if not parent.receiver.is_empty() and (parent.name == CONNECT_FUNCTION or parent.name == EMIT_FUNCTION):
 		var signal_member := resolve_signal(parent.receiver, scope_info)
 		if signal_member != null:
-			if parent.name == CONNECT_METHOD:
+			if parent.name == CONNECT_FUNCTION:
 				return GDSExSymbolIndex.make_type(GDSExLanguage.CALLABLE_TYPE_NAME) if index == 0 else null
 			return signal_member.param_types[index] if index < signal_member.param_types.size() else null
 	var member: GDSExMember
@@ -309,7 +309,7 @@ static func _expected_argument_type(parent: GDSExCallSiteParser.GDSExCallSite, i
 		member = find_class_member(scope_info.class_scope, parent.name)
 	else:
 		member = find_member(resolve_expression(parent.receiver, scope_info), parent.name)
-	if member == null or member.kind != GDSExMember.GDSExKind.METHOD or index >= member.param_types.size():
+	if member == null or member.kind != GDSExMember.GDSExKind.FUNCTION or index >= member.param_types.size():
 		return null
 	return member.param_types[index]
 
@@ -582,7 +582,7 @@ static func _resolve_bare_call(function_name: String, scope_info: GDSExSymbolInd
 	if GDSExLanguage.GLOBAL_FUNCTIONS.has(function_name):
 		return _resolved_return(GDSExSymbolIndex.make_type(GDSExLanguage.GLOBAL_FUNCTIONS[function_name]), scope_info)
 	var member := find_class_member(scope_info.class_scope, function_name)
-	if member != null and member.kind == GDSExMember.GDSExKind.METHOD:
+	if member != null and member.kind == GDSExMember.GDSExKind.FUNCTION:
 		return _resolved_member(member, true, scope_info)
 	return GDSExResolved.new()
 
@@ -648,7 +648,7 @@ static func _resolved_member(member: GDSExMember, is_call: bool, scope_info: GDS
 	match member.kind:
 		GDSExMember.GDSExKind.SIGNAL:
 			return _resolved_name(GDSExLanguage.SIGNAL_TYPE_NAME, scope_info)
-		GDSExMember.GDSExKind.METHOD:
+		GDSExMember.GDSExKind.FUNCTION:
 			if is_call:
 				var return_type := member.type
 				if return_type == null and member.function != null:
@@ -730,12 +730,12 @@ static func _constant_member(type: GDSExSymbolIndex.GDSExTypeData) -> GDSExMembe
 	return member
 
 
-static func _method_member(method: GDSExSymbolIndex.GDSExFunctionScope) -> GDSExMember:
+static func _function_member(function: GDSExSymbolIndex.GDSExFunctionScope) -> GDSExMember:
 	var member := GDSExMember.new()
-	member.kind = GDSExMember.GDSExKind.METHOD
-	member.type = method.return_type
-	member.function = method
-	_add_params(member, method.params)
+	member.kind = GDSExMember.GDSExKind.FUNCTION
+	member.type = function.return_type
+	member.function = function
+	_add_params(member, function.params)
 	return member
 
 
@@ -753,11 +753,11 @@ static func _add_params(member: GDSExMember, params: Dictionary) -> void:
 
 
 static func _find_builtin_member(type: GDSExSymbolIndex.GDSExTypeData, member_name: String) -> GDSExMember:
-	var methods: Dictionary = GDSExBuiltinTypes.METHODS.get(type.name, {})
-	if methods.has(member_name):
-		var signature: PackedStringArray = (methods[member_name] as String).split(GDSExBuiltinTypes.SIGNATURE_SEPARATOR)
+	var functions: Dictionary = GDSExBuiltinTypes.FUNCTIONS.get(type.name, {})
+	if functions.has(member_name):
+		var signature: PackedStringArray = (functions[member_name] as String).split(GDSExBuiltinTypes.SIGNATURE_SEPARATOR)
 		var member := GDSExMember.new()
-		member.kind = GDSExMember.GDSExKind.METHOD
+		member.kind = GDSExMember.GDSExKind.FUNCTION
 		member.type = GDSExSymbolIndex.make_type(signature[0])
 		for argument_type in signature[1].split(GDSExBuiltinTypes.ARGUMENT_SEPARATOR, false):
 			member.param_names.append("")
@@ -798,9 +798,9 @@ static func _load_script(path: String) -> Script:
 
 
 static func _find_script_member(script: Script, member_name: String) -> GDSExMember:
-	for method in script.get_script_method_list():
-		if method["name"] == member_name:
-			return _engine_callable_member(GDSExMember.GDSExKind.METHOD, method)
+	for function in script.get_script_method_list():
+		if function["name"] == member_name:
+			return _engine_callable_member(GDSExMember.GDSExKind.FUNCTION, function)
 	for signal_info in script.get_script_signal_list():
 		if signal_info["name"] == member_name:
 			return _engine_callable_member(GDSExMember.GDSExKind.SIGNAL, signal_info)
@@ -825,9 +825,9 @@ static func _type_of_value(value: Variant) -> GDSExSymbolIndex.GDSExTypeData:
 static func _find_engine_member(type_name: String, member_name: String) -> GDSExMember:
 	if not ClassDB.class_exists(type_name):
 		return null
-	for method in ClassDB.class_get_method_list(type_name):
-		if method["name"] == member_name:
-			return _engine_callable_member(GDSExMember.GDSExKind.METHOD, method)
+	for function in ClassDB.class_get_method_list(type_name):
+		if function["name"] == member_name:
+			return _engine_callable_member(GDSExMember.GDSExKind.FUNCTION, function)
 	if ClassDB.class_has_signal(type_name, member_name):
 		return _engine_callable_member(GDSExMember.GDSExKind.SIGNAL, ClassDB.class_get_signal(type_name, member_name))
 	for property in ClassDB.class_get_property_list(type_name):
@@ -841,7 +841,7 @@ static func _find_engine_member(type_name: String, member_name: String) -> GDSEx
 static func _engine_callable_member(kind: GDSExMember.GDSExKind, info: Dictionary) -> GDSExMember:
 	var member := GDSExMember.new()
 	member.kind = kind
-	if kind == GDSExMember.GDSExKind.METHOD:
+	if kind == GDSExMember.GDSExKind.FUNCTION:
 		member.type = _type_from_info(info["return"], true)
 	for argument: Dictionary in info["args"]:
 		member.param_names.append(argument["name"])

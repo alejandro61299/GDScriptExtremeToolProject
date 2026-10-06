@@ -19,12 +19,12 @@ func _initialize() -> void:
 		return
 	var api: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(arguments[0]))
 	var header: Dictionary = api["header"]
-	var methods := PackedStringArray()
+	var functions := PackedStringArray()
 	var members := PackedStringArray()
 	var indexing := PackedStringArray()
 	for builtin_class: Dictionary in api["builtin_classes"]:
 		var type_name: String = builtin_class["name"]
-		_append_group(methods, type_name, builtin_class.get("methods", []), _method_signature)
+		_append_group(functions, type_name, builtin_class.get("methods", []), _function_signature)
 		_append_group(members, type_name, builtin_class.get("members", []), _member_type)
 		if builtin_class.has("indexing_return_type"):
 			indexing.append(FLAT_ENTRY_TEMPLATE % [type_name, builtin_class["indexing_return_type"]])
@@ -45,9 +45,9 @@ func _initialize() -> void:
 		"const SIGNATURE_SEPARATOR: String = \"|\"",
 		"const ARGUMENT_SEPARATOR: String = \",\"",
 		"",
-		"const METHODS: Dictionary[String, Dictionary] = {",
+		"const FUNCTIONS: Dictionary[String, Dictionary] = {",
 	])
-	output.append_array(methods)
+	output.append_array(functions)
 	output.append_array(["}", "", "const MEMBERS: Dictionary[String, Dictionary] = {"])
 	output.append_array(members)
 	output.append_array(["}", "", "const INDEXING: Dictionary[String, String] = {"])
@@ -72,11 +72,11 @@ func _append_group(output: PackedStringArray, type_name: String, entries: Array,
 	output.append(GROUP_CLOSE)
 
 
-func _method_signature(method: Dictionary) -> String:
+func _function_signature(function: Dictionary) -> String:
 	var argument_types := PackedStringArray()
-	for argument: Dictionary in method.get("arguments", []):
+	for argument: Dictionary in function.get("arguments", []):
 		argument_types.append(argument["type"])
-	return "%s|%s" % [method.get("return_type", VOID_TYPE_NAME), ",".join(argument_types)]
+	return "%s|%s" % [function.get("return_type", VOID_TYPE_NAME), ",".join(argument_types)]
 
 
 func _member_type(member: Dictionary) -> String:

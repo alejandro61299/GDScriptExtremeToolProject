@@ -1,0 +1,22 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test(count : int) -> void:
+	for index in count:
+		_use(index)<|>
+
+=== expected
+extends Node
+
+
+func test(count : int) -> void:
+	for index in count:
+		_use(index)
+
+
+func _use(p_index: int) -> void:
+	<|pass|>
+
+=== end

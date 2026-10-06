@@ -1,0 +1,24 @@
+action: generate_function
+=== input
+extends Node
+
+# Remember to call func foo() later.
+
+
+func test() -> void:
+	foo()<|>
+
+=== expected
+extends Node
+
+# Remember to call func foo() later.
+
+
+func test() -> void:
+	foo()
+
+
+func foo() -> void:
+	<|pass|>
+
+=== end

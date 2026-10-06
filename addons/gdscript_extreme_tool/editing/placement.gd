@@ -5,12 +5,12 @@ const GDSExSymbolIndex = preload("res://addons/gdscript_extreme_tool/analysis/sy
 const GDSExEditPlan = preload("res://addons/gdscript_extreme_tool/editing/edit_plan.gd")
 const GDSExIndentation = preload("res://addons/gdscript_extreme_tool/editing/indentation.gd")
 
-const BLANK_LINES_AROUND_METHODS: int = 2
+const BLANK_LINES_AROUND_FUNCTIONS: int = 2
 const BLANK_LINES_AFTER_CLASS_HEADER: int = 1
 const BLANK_LINES_AROUND_VARIABLE_GROUP: int = 1
 
 
-static func new_method(target_class: GDSExSymbolIndex.GDSExClassScope, scope_info: GDSExSymbolIndex.GDSExScopeInfo, lines: PackedStringArray, indent_unit: String) -> GDSExEditPlan.GDSExInsertionPoint:
+static func new_function(target_class: GDSExSymbolIndex.GDSExClassScope, scope_info: GDSExSymbolIndex.GDSExScopeInfo, lines: PackedStringArray, indent_unit: String) -> GDSExEditPlan.GDSExInsertionPoint:
 	var enclosing_member := _enclosing_member(target_class, scope_info)
 	if enclosing_member != null:
 		return after_member(enclosing_member, target_class, lines, indent_unit)
@@ -18,14 +18,14 @@ static func new_method(target_class: GDSExSymbolIndex.GDSExClassScope, scope_inf
 
 
 static func after_member(member: GDSExSymbolIndex.GDSExScopeBase, class_scope: GDSExSymbolIndex.GDSExClassScope, lines: PackedStringArray, indent_unit: String) -> GDSExEditPlan.GDSExInsertionPoint:
-	return _member_point(class_scope, member.end_line + 1, BLANK_LINES_AROUND_METHODS, lines, indent_unit)
+	return _member_point(class_scope, member.end_line + 1, BLANK_LINES_AROUND_FUNCTIONS, lines, indent_unit)
 
 
 static func end_of_class(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: PackedStringArray, indent_unit: String) -> GDSExEditPlan.GDSExInsertionPoint:
 	var last_member_end := _last_member_end_line(class_scope)
 	if last_member_end == -1:
 		return class_header(class_scope, lines, indent_unit)
-	return _member_point(class_scope, last_member_end + 1, BLANK_LINES_AROUND_METHODS, lines, indent_unit)
+	return _member_point(class_scope, last_member_end + 1, BLANK_LINES_AROUND_FUNCTIONS, lines, indent_unit)
 
 
 static func class_header(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: PackedStringArray, indent_unit: String) -> GDSExEditPlan.GDSExInsertionPoint:
@@ -43,10 +43,10 @@ static func scope_start(scope: GDSExSymbolIndex.GDSExScopeBase) -> GDSExEditPlan
 static func member_variable(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: PackedStringArray, indent_unit: String) -> GDSExEditPlan.GDSExInsertionPoint:
 	var last_variable: GDSExSymbolIndex.GDSExClassMember = null
 	var last_declaration: GDSExSymbolIndex.GDSExClassMember = null
-	var is_followed_by_method := false
+	var is_followed_by_function := false
 	for member in class_scope.members:
-		if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.METHOD or member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CLASS:
-			is_followed_by_method = true
+		if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.FUNCTION or member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CLASS:
+			is_followed_by_function = true
 			break
 		if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.VARIABLE:
 			last_variable = member
@@ -60,8 +60,8 @@ static func member_variable(class_scope: GDSExSymbolIndex.GDSExClassScope, lines
 	point.line = (class_scope.header_end_line if last_declaration == null else last_declaration.end_line) + 1
 	if point.line != class_scope.body_start_line:
 		point.blank_lines_before = BLANK_LINES_AROUND_VARIABLE_GROUP
-	if is_followed_by_method:
-		point.blank_lines_after = BLANK_LINES_AROUND_METHODS
+	if is_followed_by_function:
+		point.blank_lines_after = BLANK_LINES_AROUND_FUNCTIONS
 	return point
 
 
@@ -70,7 +70,7 @@ static func _member_point(class_scope: GDSExSymbolIndex.GDSExClassScope, line: i
 	point.line = line
 	point.indent_text = _member_indent_text(class_scope, lines, indent_unit)
 	point.blank_lines_before = blank_lines_before
-	point.blank_lines_after = BLANK_LINES_AROUND_METHODS
+	point.blank_lines_after = BLANK_LINES_AROUND_FUNCTIONS
 	return point
 
 
@@ -91,9 +91,9 @@ static func _enclosing_member(target_class: GDSExSymbolIndex.GDSExClassScope, sc
 
 static func _last_member_end_line(class_scope: GDSExSymbolIndex.GDSExClassScope) -> int:
 	var last_end := -1
-	for method_name in class_scope.methods:
-		for method: GDSExSymbolIndex.GDSExFunctionScope in class_scope.methods[method_name]:
-			last_end = maxi(last_end, method.end_line)
+	for function_name in class_scope.functions:
+		for function: GDSExSymbolIndex.GDSExFunctionScope in class_scope.functions[function_name]:
+			last_end = maxi(last_end, function.end_line)
 	for variable_name in class_scope.vars:
 		var variable: GDSExSymbolIndex.GDSExVariableSymbol = class_scope.vars[variable_name]
 		last_end = maxi(last_end, variable.end_line)

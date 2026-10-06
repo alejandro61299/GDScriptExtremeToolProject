@@ -83,8 +83,8 @@ static func _add_class_member(class_scope: GDSExSymbolIndex.GDSExClassScope, sta
 		member.kind = GDSExSymbolIndex.GDSExClassMember.GDSExKind.CLASS
 		member.name = _class_pattern.search(code).get_string(1)
 	elif _starts_with_function(code):
-		_add_method(class_scope, statement, code)
-		member.kind = GDSExSymbolIndex.GDSExClassMember.GDSExKind.METHOD
+		_add_function(class_scope, statement, code)
+		member.kind = GDSExSymbolIndex.GDSExClassMember.GDSExKind.FUNCTION
 		member.name = _parse_function_header(code).name
 	elif _signal_pattern.search(code) != null:
 		_add_signal(class_scope, code)
@@ -157,20 +157,20 @@ static func _add_inner_class(parent: GDSExSymbolIndex.GDSExClassScope, statement
 		_add_class_members(inner, body.statements, lines)
 
 
-static func _add_method(class_scope: GDSExSymbolIndex.GDSExClassScope, statement: GDSExSourceScanner.GDSExStatement, code: String) -> void:
+static func _add_function(class_scope: GDSExSymbolIndex.GDSExClassScope, statement: GDSExSourceScanner.GDSExStatement, code: String) -> void:
 	var body := _own_block(statement, true)
-	var method := _create_function_scope(code, false, statement.first_line, statement.last_line, body)
-	method.is_static = _static_function_pattern.search(statement.code) != null
-	method.attach_to(class_scope)
-	if not method.name.is_empty():
-		if not class_scope.methods.has(method.name):
-			class_scope.methods[method.name] = []
-		class_scope.methods[method.name].append(method)
+	var function := _create_function_scope(code, false, statement.first_line, statement.last_line, body)
+	function.is_static = _static_function_pattern.search(statement.code) != null
+	function.attach_to(class_scope)
+	if not function.name.is_empty():
+		if not class_scope.functions.has(function.name):
+			class_scope.functions[function.name] = []
+		class_scope.functions[function.name].append(function)
 	if body == null:
-		_record_inline_return(method, code, statement.first_line)
+		_record_inline_return(function, code, statement.first_line)
 	else:
-		_add_body_statements(method, body.statements)
-	_add_lambdas(method, statement, body)
+		_add_body_statements(function, body.statements)
+	_add_lambdas(function, statement, body)
 
 
 static func _add_signal(class_scope: GDSExSymbolIndex.GDSExClassScope, code: String) -> void:

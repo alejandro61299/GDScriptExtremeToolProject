@@ -1,0 +1,22 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	var a := 5
+	_use(a)<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	var a := 5
+	_use(a)
+
+
+func _use(p_a: int) -> void:
+	<|pass|>
+
+=== end

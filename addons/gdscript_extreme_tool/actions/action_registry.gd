@@ -3,7 +3,7 @@ extends RefCounted
 
 const GDSExCodeAction = preload("res://addons/gdscript_extreme_tool/actions/code_action.gd")
 const GDSExCodeContext = preload("res://addons/gdscript_extreme_tool/actions/code_context.gd")
-const GDSExGenerateMethodAction = preload("res://addons/gdscript_extreme_tool/actions/generate_method_action.gd")
+const GDSExGenerateFunctionAction = preload("res://addons/gdscript_extreme_tool/actions/generate_function_action.gd")
 const GDSExGenerateLocalVariableAction = preload("res://addons/gdscript_extreme_tool/actions/generate_local_variable_action.gd")
 const GDSExGenerateClassVariableAction = preload("res://addons/gdscript_extreme_tool/actions/generate_class_variable_action.gd")
 const GDSExGenerateConnectedFunctionAction = preload("res://addons/gdscript_extreme_tool/actions/generate_connected_function_action.gd")
@@ -13,7 +13,7 @@ const GDSExFormatClassMembersAction = preload("res://addons/gdscript_extreme_too
 
 static func create_actions() -> Array[GDSExCodeAction]:
 	var actions: Array[GDSExCodeAction] = []
-	actions.append(GDSExGenerateMethodAction.new())
+	actions.append(GDSExGenerateFunctionAction.new())
 	actions.append(GDSExGenerateLocalVariableAction.new())
 	actions.append(GDSExGenerateClassVariableAction.new())
 	actions.append(GDSExGenerateConnectedFunctionAction.new())

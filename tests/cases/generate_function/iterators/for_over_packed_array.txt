@@ -1,0 +1,22 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test(points : PackedVector2Array) -> void:
+	for point in points:
+		_use(point)<|>
+
+=== expected
+extends Node
+
+
+func test(points : PackedVector2Array) -> void:
+	for point in points:
+		_use(point)
+
+
+func _use(p_point: Vector2) -> void:
+	<|pass|>
+
+=== end

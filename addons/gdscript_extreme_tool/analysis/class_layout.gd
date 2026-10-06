@@ -16,7 +16,7 @@ const ONREADY_ANNOTATION: String = "@onready"
 const SUBGROUP_ANNOTATION: String = "@export_subgroup"
 const GROUP_STARTERS: Array[String] = ["@export_category", "@export_group"]
 const PRIVATE_PREFIX: String = "_"
-const INIT_METHOD: String = "_init"
+const INIT_FUNCTION: String = "_init"
 const EXPORTS_CATEGORY: String = "exports"
 const INDENT_CHARACTERS: String = " \t"
 
@@ -183,7 +183,7 @@ static func _own_statements(class_scope: GDSExSymbolIndex.GDSExClassScope, state
 static func _bracket_rewrites(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray) -> Dictionary[int, PackedStringArray]:
 	var formatted: Array[GDSExSourceScanner.GDSExStatement] = []
 	for member in class_scope.members:
-		var holds_code := member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.VARIABLE or member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CONSTANT or member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.METHOD
+		var holds_code := member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.VARIABLE or member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CONSTANT or member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.FUNCTION
 		if holds_code and member.end_line > member.start_line:
 			_collect_statements(GDSExSourceScanner.find_statement_at(statements, member.start_line), formatted)
 	return GDSExBracketLayout.rewrite(formatted, lines)
@@ -254,7 +254,7 @@ static func _member_block(member: GDSExSymbolIndex.GDSExClassMember, annotations
 	var category_name := _category_name(member, modifiers, class_scope)
 	var category := _last_category(previous_blocks) if category_name.is_empty() else _category_index(category_name)
 	var block := _new_block(first_line, member.end_line, category)
-	block.is_tall = member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.METHOD or member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CLASS
+	block.is_tall = member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.FUNCTION or member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CLASS
 	if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.VARIABLE:
 		block.provided[member.name] = _phase(modifiers)
 	return block
@@ -309,14 +309,14 @@ static func _category_name(member: GDSExSymbolIndex.GDSExClassMember, modifiers:
 			if modifiers.contains(ONREADY_ANNOTATION):
 				return "onready_variables"
 			return "private_variables" if is_private else "public_variables"
-		GDSExSymbolIndex.GDSExClassMember.GDSExKind.METHOD:
+		GDSExSymbolIndex.GDSExClassMember.GDSExKind.FUNCTION:
 			if is_static:
-				return "static_private_methods" if is_private else "static_public_methods"
-			if member.name == INIT_METHOD:
+				return "static_private_functions" if is_private else "static_public_functions"
+			if member.name == INIT_FUNCTION:
 				return "init"
 			if GDSExTypeResolver.is_engine_callback(class_scope, member.name):
-				return "engine_methods"
-			return "private_methods" if is_private else "public_methods"
+				return "engine_functions"
+			return "private_functions" if is_private else "public_functions"
 	return ""
 
 
@@ -521,12 +521,12 @@ static func _has_header(class_scope: GDSExSymbolIndex.GDSExClassScope) -> bool:
 static func _leading_gap(block: GDSExBlock, existing: int, is_at_top: bool) -> int:
 	if is_at_top:
 		return mini(existing, GDSExPluginProjectSettings.max_blank_lines_outside_members())
-	return GDSExPluginProjectSettings.blank_lines_around_methods_and_classes() if block.is_tall else GDSExPluginProjectSettings.blank_lines_between_member_categories()
+	return GDSExPluginProjectSettings.blank_lines_around_functions_and_classes() if block.is_tall else GDSExPluginProjectSettings.blank_lines_between_member_categories()
 
 
 static func _standard_gap(previous: GDSExBlock, block: GDSExBlock, existing: int) -> int:
 	if previous.is_tall or block.is_tall:
-		return GDSExPluginProjectSettings.blank_lines_around_methods_and_classes()
+		return GDSExPluginProjectSettings.blank_lines_around_functions_and_classes()
 	if previous.category != block.category:
 		return GDSExPluginProjectSettings.blank_lines_between_member_categories()
 	return mini(existing, GDSExPluginProjectSettings.max_blank_lines_inside_member_category())

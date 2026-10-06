@@ -109,7 +109,7 @@ class GDSExBlockScope extends GDSExScopeBase:
 
 
 class GDSExClassMember:
-	enum GDSExKind { VARIABLE, CONSTANT, SIGNAL, ENUM, METHOD, CLASS, ANNOTATION, OTHER }
+	enum GDSExKind { VARIABLE, CONSTANT, SIGNAL, ENUM, FUNCTION, CLASS, ANNOTATION, OTHER }
 
 	var kind: GDSExKind = GDSExKind.VARIABLE
 	var name: String = ""
@@ -123,7 +123,7 @@ class GDSExClassScope extends GDSExScopeBase:
 	var header_end_line: int = -1
 	var members: Array[GDSExClassMember] = []
 	var vars: Dictionary = {}
-	var methods: Dictionary = {}
+	var functions: Dictionary = {}
 	var signals: Dictionary = {}
 	var inner_classes: Dictionary = {}
 	var extends_line: int = -1

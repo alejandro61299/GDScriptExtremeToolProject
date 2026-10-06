@@ -1,0 +1,20 @@
+action: generate_function
+=== input
+extends Node2D
+
+
+func test(label : String, color : Color) -> void:
+	_use(label.length(), label.to_upper(), position.x, color.r, position.normalized(), label.split(","))<|>
+
+=== expected
+extends Node2D
+
+
+func test(label : String, color : Color) -> void:
+	_use(label.length(), label.to_upper(), position.x, color.r, position.normalized(), label.split(","))
+
+
+func _use(param_0: int, param_1: String, param_2: float, param_3: float, param_4: Vector2, param_5: PackedStringArray) -> void:
+	<|pass|>
+
+=== end

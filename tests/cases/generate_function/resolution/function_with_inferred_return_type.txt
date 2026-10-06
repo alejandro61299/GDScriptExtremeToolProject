@@ -1,0 +1,28 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	_use(compute())<|>
+
+
+func compute():
+	return 5
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	_use(compute())
+
+
+func _use(param_0: int) -> void:
+	<|pass|>
+
+
+func compute():
+	return 5
+
+=== end

@@ -1,0 +1,22 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test(text : String) -> void:
+	for character in text:
+		_use(character)<|>
+
+=== expected
+extends Node
+
+
+func test(text : String) -> void:
+	for character in text:
+		_use(character)
+
+
+func _use(p_character: String) -> void:
+	<|pass|>
+
+=== end

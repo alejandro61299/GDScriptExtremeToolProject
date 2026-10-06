@@ -1,0 +1,28 @@
+action: generate_function
+=== input
+extends Node
+
+const CONST_2 : int = 1
+
+var my_var_1 : Dictionary = {}
+
+
+func test() -> void:
+	new_method_1(CONST_2, my_var_1)<|>
+
+=== expected
+extends Node
+
+const CONST_2 : int = 1
+
+var my_var_1 : Dictionary = {}
+
+
+func test() -> void:
+	new_method_1(CONST_2, my_var_1)
+
+
+func new_method_1(p_const_2: int, p_my_var_1: Dictionary) -> void:
+	<|pass|>
+
+=== end

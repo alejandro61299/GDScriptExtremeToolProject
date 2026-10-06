@@ -1,0 +1,20 @@
+action: generate_function
+=== input
+extends Node
+
+
+func total() -> float:
+	return _compute()<|>
+
+=== expected
+extends Node
+
+
+func total() -> float:
+	return _compute()
+
+
+func _compute() -> float:
+	<|return 0.0|>
+
+=== end

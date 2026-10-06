@@ -1,0 +1,37 @@
+action: generate_function
+=== input
+extends Node
+
+const CONST_1 : Node = null
+const CONST_2 : int = 1
+
+var my_var_1 : Dictionary = {}
+
+class EmptyClass:
+	extends Object
+
+
+func test() -> void:
+	var empty_class : EmptyClass = EmptyClass.new()
+	var vector : Vector2 = empty_class.get_vector(CONST_2)<|>
+
+=== expected
+extends Node
+
+const CONST_1 : Node = null
+const CONST_2 : int = 1
+
+var my_var_1 : Dictionary = {}
+
+class EmptyClass:
+	extends Object
+
+	func get_vector(p_const_2: int) -> Vector2:
+		<|return Vector2(0, 0)|>
+
+
+func test() -> void:
+	var empty_class : EmptyClass = EmptyClass.new()
+	var vector : Vector2 = empty_class.get_vector(CONST_2)
+
+=== end

@@ -1,0 +1,25 @@
+action: generate_function
+=== input
+extends Node
+
+func a() -> void:
+	_new()<|>
+
+func b() -> void:
+	pass
+
+=== expected
+extends Node
+
+func a() -> void:
+	_new()
+
+
+func _new() -> void:
+	<|pass|>
+
+
+func b() -> void:
+	pass
+
+=== end

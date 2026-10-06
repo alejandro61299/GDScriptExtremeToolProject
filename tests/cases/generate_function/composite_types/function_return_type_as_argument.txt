@@ -1,0 +1,28 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	_use(_names())<|>
+
+
+func _names() -> Dictionary[int, StringName]:
+	return {}
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	_use(_names())
+
+
+func _use(param_0: Dictionary[int, StringName]) -> void:
+	<|pass|>
+
+
+func _names() -> Dictionary[int, StringName]:
+	return {}
+
+=== end

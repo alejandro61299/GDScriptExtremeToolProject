@@ -1,0 +1,20 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+	await _load()<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+	await _load()
+
+
+func _load() -> void:
+	<|pass|>
+
+=== end

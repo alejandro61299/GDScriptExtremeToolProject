@@ -1,0 +1,36 @@
+action: generate_function
+=== input
+extends Node
+
+
+func _test_methods() -> void:
+	_add_method(func():
+		var a = 10
+		var b = 20
+		_report(a, b)<|>
+	)
+
+
+func _add_method(value : Callable) -> void:
+	print(value)
+
+=== expected
+extends Node
+
+
+func _test_methods() -> void:
+	_add_method(func():
+		var a = 10
+		var b = 20
+		_report(a, b)
+	)
+
+
+func _report(p_a: int, p_b: int) -> void:
+	<|pass|>
+
+
+func _add_method(value : Callable) -> void:
+	print(value)
+
+=== end

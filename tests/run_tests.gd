@@ -3,7 +3,7 @@ extends SceneTree
 const GDSExActionRegistry = preload("res://addons/gdscript_extreme_tool/actions/action_registry.gd")
 const GDSExCodeAction = preload("res://addons/gdscript_extreme_tool/actions/code_action.gd")
 const GDSExCodeContext = preload("res://addons/gdscript_extreme_tool/actions/code_context.gd")
-const GDSExGenerateMethodAction = preload("res://addons/gdscript_extreme_tool/actions/generate_method_action.gd")
+const GDSExGenerateFunctionAction = preload("res://addons/gdscript_extreme_tool/actions/generate_function_action.gd")
 const GDSExVariableAction = preload("res://addons/gdscript_extreme_tool/actions/variable_action.gd")
 const GDSExSymbolIndex = preload("res://addons/gdscript_extreme_tool/analysis/symbol_index.gd")
 const GDSExSymbolIndexBuilder = preload("res://addons/gdscript_extreme_tool/analysis/symbol_index_builder.gd")
@@ -28,7 +28,7 @@ const SCOPES_ACTION: String = "describe_scopes"
 const SCRIPT_EXTENSION: String = "gd"
 const PROJECT_SCRIPT_ROOTS: Array[String] = ["res://addons", "res://tools"]
 const PROJECT_SCRIPTS: Array[String] = ["res://tests/run_tests.gd"]
-const INTERNAL_METHOD_PREFIX: String = "@"
+const INTERNAL_FUNCTION_PREFIX: String = "@"
 const ACTION_SCRIPT_SUFFIX: String = "_action"
 const VIEW_WIDTH: float = 900.0
 const VIEW_CARET_VISIBLE: String = "caret_visible"
@@ -517,7 +517,7 @@ func _project_script_paths() -> PackedStringArray:
 
 func _check_no_false_targets() -> PackedStringArray:
 	var problems := PackedStringArray()
-	var generator := GDSExGenerateMethodAction.new()
+	var generator := GDSExGenerateFunctionAction.new()
 	for path in _project_script_paths():
 		var index := GDSExSymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
 		_collect_false_targets(path, index, index.statements, generator, problems)
@@ -565,15 +565,15 @@ func _check_settings_registration() -> PackedStringArray:
 	if GDSExPluginProjectSettings.class_member_order() != PackedStringArray(GDSExPluginProjectSettings.DEFAULT_CLASS_MEMBER_ORDER) or GDSExPluginProjectSettings.generated_param_format() != GDSExPluginProjectSettings.DEFAULT_GENERATED_PARAM_FORMAT:
 		problems.append("The settings do not return the defaults when nothing is overridden.")
 
-	var blank_lines := GDSExPluginProjectSettings.setting_path(GDSExPluginProjectSettings.BLANK_LINES_AROUND_METHODS_AND_CLASSES_KEY)
+	var blank_lines := GDSExPluginProjectSettings.setting_path(GDSExPluginProjectSettings.BLANK_LINES_AROUND_FUNCTIONS_AND_CLASSES_KEY)
 	ProjectSettings.set_setting(blank_lines, 4)
-	if GDSExPluginProjectSettings.blank_lines_around_methods_and_classes() != 4:
+	if GDSExPluginProjectSettings.blank_lines_around_functions_and_classes() != 4:
 		problems.append("An overridden value is not returned.")
 	ProjectSettings.set_setting(blank_lines, "many")
-	if GDSExPluginProjectSettings.blank_lines_around_methods_and_classes() != GDSExPluginProjectSettings.DEFAULT_BLANK_LINES_AROUND_METHODS_AND_CLASSES:
+	if GDSExPluginProjectSettings.blank_lines_around_functions_and_classes() != GDSExPluginProjectSettings.DEFAULT_BLANK_LINES_AROUND_FUNCTIONS_AND_CLASSES:
 		problems.append("A value of the wrong type should fall back to the default.")
 	ProjectSettings.set_setting(blank_lines, -3)
-	if GDSExPluginProjectSettings.blank_lines_around_methods_and_classes() != 0:
+	if GDSExPluginProjectSettings.blank_lines_around_functions_and_classes() != 0:
 		problems.append("A negative amount of blank lines should count as zero.")
 
 	for setting_name in names:
@@ -705,11 +705,11 @@ func _collect_undefined_identifiers(path: String, index: GDSExSymbolIndex.GDSExS
 			_collect_undefined_identifiers(path, index, block.statements, action, identifier_pattern, problems)
 
 
-func _collect_false_targets(path: String, index: GDSExSymbolIndex.GDSExSymbolIndexData, statements: Array[GDSExSourceScanner.GDSExStatement], generator: GDSExGenerateMethodAction, problems: PackedStringArray) -> void:
+func _collect_false_targets(path: String, index: GDSExSymbolIndex.GDSExSymbolIndexData, statements: Array[GDSExSourceScanner.GDSExStatement], generator: GDSExGenerateFunctionAction, problems: PackedStringArray) -> void:
 	for statement in statements:
 		var scope_info := GDSExSymbolIndex.get_scope_info_for_line(index, statement.first_line)
 		for target in generator.find_targets(statement.code, scope_info):
-			problems.append("%s:%d: '%s' is defined but was taken for an undefined method." % [path, statement.first_line + 1, target.name])
+			problems.append("%s:%d: '%s' is defined but was taken for an undefined function." % [path, statement.first_line + 1, target.name])
 		for block in statement.blocks:
 			_collect_false_targets(path, index, block.statements, generator, problems)
 
@@ -717,14 +717,14 @@ func _collect_false_targets(path: String, index: GDSExSymbolIndex.GDSExSymbolInd
 func _compare_with_engine(path: String, root_class: GDSExSymbolIndex.GDSExClassScope, script: GDScript) -> PackedStringArray:
 	var problems := PackedStringArray()
 	var base_script := script.get_base_script() as GDScript
-	var inherited_methods: Array = [] if base_script == null else _names_of(base_script.get_script_method_list(), 0)
+	var inherited_functions: Array = [] if base_script == null else _names_of(base_script.get_script_method_list(), 0)
 	var inherited_variables: Array = [] if base_script == null else _names_of(base_script.get_script_property_list(), PROPERTY_USAGE_SCRIPT_VARIABLE)
-	var engine_methods := _unique(_names_of(script.get_script_method_list(), 0).filter(func(method_name: String) -> bool: return not method_name.begins_with(INTERNAL_METHOD_PREFIX)))
-	var indexed_methods := _unique(root_class.methods.keys() + inherited_methods.filter(func(method_name: String) -> bool: return not method_name.begins_with(INTERNAL_METHOD_PREFIX)))
-	engine_methods.sort()
-	indexed_methods.sort()
-	if engine_methods != indexed_methods:
-		problems.append("%s: methods differ.\n  engine: %s\n  index:  %s" % [path, engine_methods, indexed_methods])
+	var engine_functions := _unique(_names_of(script.get_script_method_list(), 0).filter(func(function_name: String) -> bool: return not function_name.begins_with(INTERNAL_FUNCTION_PREFIX)))
+	var indexed_functions := _unique(root_class.functions.keys() + inherited_functions.filter(func(function_name: String) -> bool: return not function_name.begins_with(INTERNAL_FUNCTION_PREFIX)))
+	engine_functions.sort()
+	indexed_functions.sort()
+	if engine_functions != indexed_functions:
+		problems.append("%s: functions differ.\n  engine: %s\n  index:  %s" % [path, engine_functions, indexed_functions])
 
 	var engine_signals := _names_of(script.get_script_signal_list(), 0)
 	var indexed_signals: Array = root_class.signals.keys()

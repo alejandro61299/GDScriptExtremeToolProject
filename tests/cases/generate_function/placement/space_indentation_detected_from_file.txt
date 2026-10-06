@@ -1,0 +1,22 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test() -> void:
+    var count: int = 1
+    _use(count)<|>
+
+=== expected
+extends Node
+
+
+func test() -> void:
+    var count: int = 1
+    _use(count)
+
+
+func _use(p_count: int) -> void:
+    <|pass|>
+
+=== end

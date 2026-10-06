@@ -1,0 +1,32 @@
+action: generate_function
+=== input
+extends Node
+
+class Foo:
+	var health: int:
+		set(value):
+			health = value
+
+
+func test() -> void:
+	var f: Foo = Foo.new()
+	f.bar()<|>
+
+=== expected
+extends Node
+
+class Foo:
+	var health: int:
+		set(value):
+			health = value
+
+
+	func bar() -> void:
+		<|pass|>
+
+
+func test() -> void:
+	var f: Foo = Foo.new()
+	f.bar()
+
+=== end

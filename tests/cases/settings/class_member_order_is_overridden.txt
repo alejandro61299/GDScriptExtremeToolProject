@@ -1,5 +1,5 @@
 action: reorder_class_members
-settings: {"order/class_member_order": PackedStringArray("public_methods", "public_variables", "constants", "signals")}
+settings: {"order/class_member_order": PackedStringArray("public_functions", "public_variables", "constants", "signals")}
 === input
 extends Node
 

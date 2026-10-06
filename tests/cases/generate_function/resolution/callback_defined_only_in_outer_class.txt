@@ -1,0 +1,34 @@
+action: generate_function
+=== input
+extends Node
+
+
+func _on_changed(data : int) -> void:
+	print(data)
+
+
+class Emitter extends RefCounted:
+	signal changed(data : int)
+
+	func _init() -> void:
+		changed.connect(_on_changed)<|>
+
+=== expected
+extends Node
+
+
+func _on_changed(data : int) -> void:
+	print(data)
+
+
+class Emitter extends RefCounted:
+	signal changed(data : int)
+
+	func _init() -> void:
+		changed.connect(_on_changed)
+
+
+	func _on_changed(p_data: int) -> void:
+		<|pass|>
+
+=== end

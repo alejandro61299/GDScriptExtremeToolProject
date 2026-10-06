@@ -1,0 +1,22 @@
+action: generate_function
+=== input
+extends Node
+
+
+func test(values : Array[int]) -> void:
+	for value in values:
+		_use(value)<|>
+
+=== expected
+extends Node
+
+
+func test(values : Array[int]) -> void:
+	for value in values:
+		_use(value)
+
+
+func _use(p_value: int) -> void:
+	<|pass|>
+
+=== end

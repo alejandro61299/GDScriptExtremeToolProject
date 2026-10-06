@@ -6,7 +6,7 @@ const ENGINE_VERSION: String = "4.7.2"
 const SIGNATURE_SEPARATOR: String = "|"
 const ARGUMENT_SEPARATOR: String = ","
 
-const METHODS: Dictionary[String, Dictionary] = {
+const FUNCTIONS: Dictionary[String, Dictionary] = {
 	"String": {
 		"casecmp_to": "int|String",
 		"nocasecmp_to": "int|String",
