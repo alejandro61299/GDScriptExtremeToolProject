@@ -1,0 +1,17 @@
+action: generate_custom_init
+settings: {"naming/alternative_init_function_name": "setup"}
+=== input
+extends Node
+
+var _health : int<|>
+
+=== expected
+extends Node
+
+var _health : int
+
+
+func setup(p_health: int) -> void:
+	_health = p_health<|>
+
+=== end

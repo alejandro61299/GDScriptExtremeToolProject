@@ -1,0 +1,24 @@
+action: generate_custom_init
+=== input
+extends RefCounted
+
+@export var speed : float = 1.0
+
+var health : int = 0
+
+var _name : String<|>
+
+=== expected
+extends RefCounted
+
+@export var speed : float = 1.0
+
+var health : int = 0
+
+var _name : String
+
+
+func _init(p_name: String) -> void:
+	_name = p_name<|>
+
+=== end

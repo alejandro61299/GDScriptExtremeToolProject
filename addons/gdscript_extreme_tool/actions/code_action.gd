@@ -11,3 +11,7 @@ func get_label() -> String:
 
 func build_plan(_context: GDSExCodeContext) -> GDSExEditPlan:
 	return null
+
+
+func create_dialog(_context: GDSExCodeContext, _on_plan_ready: Callable) -> Window:
+	return null

@@ -1,0 +1,31 @@
+action: generate_custom_init
+options: {"name": "setup", "variables": ["_name", "speed", "health"]}
+=== input
+extends RefCounted
+
+@export var speed : float = 1.0
+
+var health : int = 0
+var mana : int = 0
+
+var _name : String<|>
+var _secret : String
+
+=== expected
+extends RefCounted
+
+@export var speed : float = 1.0
+
+var health : int = 0
+var mana : int = 0
+
+var _name : String
+var _secret : String
+
+
+func setup(p_speed: float, p_health: int, p_name: String) -> void:
+	speed = p_speed
+	health = p_health
+	_name = p_name<|>
+
+=== end

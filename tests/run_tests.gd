@@ -14,6 +14,8 @@ const GDSExEditApplier = preload("res://addons/gdscript_extreme_tool/editing/edi
 const GDSExPluginProjectSettings = preload("res://addons/gdscript_extreme_tool/plugin_project_settings.gd")
 const GDSExCodeActionsPopup = preload("res://addons/gdscript_extreme_tool/code_actions_popup.gd")
 const GDSExInitFunction = preload("res://addons/gdscript_extreme_tool/actions/init_function.gd")
+const GDSExGenerateDefaultInitAction = preload("res://addons/gdscript_extreme_tool/actions/generate_default_init_action.gd")
+const GDSExGenerateCustomInitAction = preload("res://addons/gdscript_extreme_tool/actions/generate_custom_init_action.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -116,6 +118,21 @@ class TestCase:
 	var expected_folds: PackedInt32Array = []
 	var settings: Dictionary = {}
 	var headers: Dictionary[String, String] = {}
+
+
+class DialogTestAction extends "res://addons/gdscript_extreme_tool/actions/code_action.gd":
+	var dialog: AcceptDialog
+
+	func get_label() -> String:
+		return "Dialog Test"
+
+	func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
+		return GDSExGenerateDefaultInitAction.new().build_plan(context)
+
+	func create_dialog(context: GDSExCodeContext, on_plan_ready: Callable) -> Window:
+		dialog = AcceptDialog.new()
+		dialog.confirmed.connect(func() -> void: on_plan_ready.call(build_plan(context)))
+		return dialog
 
 
 class ErrorCollector extends Logger:
@@ -352,6 +369,10 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_code_actions_popup(test_case, editor)
 		"check_init_function_name":
 			return _check_init_function_name(test_case, editor)
+		"generate_custom_init":
+			return _check_custom_init(test_case, editor)
+		"run_dialog_action":
+			return _check_dialog_action(test_case, editor)
 	var action := _find_code_action(test_case.action)
 	if action == null:
 		return PackedStringArray(["Unknown action '%s'." % test_case.action])
@@ -527,6 +548,38 @@ func _check_no_false_targets() -> PackedStringArray:
 	for path in _project_script_paths():
 		var index := GDSExSymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
 		_collect_false_targets(path, index, index.statements, generator, problems)
+	return problems
+
+
+func _check_custom_init(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	if not test_case.headers.has("options"):
+		return _check_code_action(test_case, GDSExGenerateCustomInitAction.new(), editor)
+	var options: Dictionary = str_to_var(test_case.headers["options"])
+	var plan := GDSExInitFunction.build_plan(GDSExCodeContext.new(editor), options["name"], PackedStringArray(options["variables"]))
+	GDSExEditApplier.apply(editor, plan)
+	return _check_edit(test_case, editor)
+
+
+func _check_dialog_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var action := DialogTestAction.new()
+	var actions: Array[GDSExCodeAction] = [action]
+	var popup := GDSExCodeActionsPopup.new()
+	root.add_child(popup)
+	popup.setup(editor, actions)
+	popup.about_to_popup.emit()
+	popup.index_pressed.emit(0)
+	popup.free()
+	if editor.text != test_case.input.text:
+		problems.append("The action changed the script before its dialog was confirmed.")
+	if action.dialog == null or action.dialog.get_parent() != editor.get_window() or not action.dialog.visible:
+		problems.append("The dialog of the action is not open in the window of the editor.")
+		return problems
+	action.dialog.confirmed.emit()
+	action.dialog.hide()
+	if not action.dialog.is_queued_for_deletion():
+		problems.append("The dialog is not freed after it closes.")
+	problems.append_array(_check_edit(test_case, editor))
 	return problems
 
 

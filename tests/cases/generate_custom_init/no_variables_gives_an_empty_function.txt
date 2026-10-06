@@ -1,0 +1,17 @@
+action: generate_custom_init
+options: {"name": "setup", "variables": []}
+=== input
+extends RefCounted
+
+var _health : int<|>
+
+=== expected
+extends RefCounted
+
+var _health : int
+
+
+func setup() -> void:
+	pass<|>
+
+=== end

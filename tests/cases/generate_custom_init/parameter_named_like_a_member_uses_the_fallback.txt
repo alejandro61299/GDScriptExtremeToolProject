@@ -1,0 +1,26 @@
+action: generate_custom_init
+settings: {"naming/generated_param_format": "{name}"}
+options: {"name": "setup", "variables": ["speed", "health", "_health"]}
+=== input
+extends RefCounted
+
+var speed : float = 1.0
+var health : int = 0<|>
+
+var _health : int
+
+=== expected
+extends RefCounted
+
+var speed : float = 1.0
+var health : int = 0
+
+var _health : int
+
+
+func setup(param_0: float, param_1: int, param_2: int) -> void:
+	speed = param_0
+	health = param_1
+	_health = param_2<|>
+
+=== end

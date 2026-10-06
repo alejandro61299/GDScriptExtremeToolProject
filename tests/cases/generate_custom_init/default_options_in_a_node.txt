@@ -1,0 +1,32 @@
+action: generate_custom_init
+=== input
+extends Node
+
+var _health : int<|>
+
+
+func _ready() -> void:
+	pass
+
+
+func heal() -> void:
+	pass
+
+=== expected
+extends Node
+
+var _health : int
+
+
+func _ready() -> void:
+	pass
+
+
+func heal() -> void:
+	pass
+
+
+func initialize(p_health: int) -> void:
+	_health = p_health<|>
+
+=== end

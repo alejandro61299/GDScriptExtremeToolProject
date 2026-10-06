@@ -1,0 +1,33 @@
+action: generate_custom_init
+options: {"name": "setup", "variables": ["LIMIT", "instances", "label", "_panel", "_health"]}
+=== input
+extends Node
+
+const LIMIT : int = 3
+
+static var instances : int = 0
+
+@onready var label : Node = get_node_or_null("Label")
+@onready
+var _panel : Node = get_node_or_null("Panel")
+
+var _health : int<|>
+
+=== expected
+extends Node
+
+const LIMIT : int = 3
+
+static var instances : int = 0
+
+@onready var label : Node = get_node_or_null("Label")
+@onready
+var _panel : Node = get_node_or_null("Panel")
+
+var _health : int
+
+
+func setup(p_health: int) -> void:
+	_health = p_health<|>
+
+=== end

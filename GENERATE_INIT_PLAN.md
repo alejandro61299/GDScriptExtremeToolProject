@@ -7,7 +7,7 @@ Dos acciones nuevas que comparten la misma lógica: generar una función inicial
 | I1 | Categoría de miembro compartida y punto de inserción según el orden de miembros | Hecha |
 | I2 | Lógica común y acción "Generate Default Init Definition" | Hecha |
 | I3 | Validación del nombre de la función | Hecha |
-| I4 | Acciones con diálogo y acción Custom sin interfaz | Pendiente |
+| I4 | Acciones con diálogo y acción Custom sin interfaz | Hecha |
 | I5 | Diálogo de "Generate Custom Init Definition..." | Pendiente |
 | I6 | Verificación en el editor y documentación | Pendiente |
 
@@ -135,7 +135,7 @@ Hoy una acción devuelve su plan al instante con `build_plan(context)`. La Custo
 - **`actions/init_function.gd`** (nuevo, I2 e I3). Lógica sin interfaz: variables elegibles con su grupo y tipo, texto de la firma, plan de edición a partir de un nombre y una lista de variables, y validación del nombre.
 - **`plugin_project_settings.gd`** (I3). Ajuste nuevo `naming/alternative_init_function_name`.
 - **`actions/generate_default_init_action.gd`** (nuevo, I2).
-- **`actions/code_action.gd`** (I4). Función nueva `create_dialog(context)`, que por defecto devuelve `null`. El menú (`code_actions_popup.gd`) abre el diálogo si la acción devuelve uno y aplica el plan cuando el diálogo confirma.
+- **`actions/code_action.gd`** (I4). Función nueva `create_dialog(context, on_plan_ready)`, que por defecto devuelve `null`. El menú (`code_actions_popup.gd`) abre el diálogo si la acción devuelve uno y aplica el plan cuando el diálogo confirma.
 - **`actions/generate_custom_init_action.gd`** (nuevo, I4). `build_plan` devuelve el plan con las opciones por defecto, que es lo que usa el menú para decidir si la ofrece.
 - **`init_function_dialog.gd`** (nuevo, I5). El diálogo. No contiene lógica de generación: pide todo a `init_function.gd`.
 
@@ -195,6 +195,14 @@ Hecho el 2026-10-06:
 - Acción Custom: plan a partir de unas opciones (nombre y variables) y plan con las opciones por defecto.
 
 Verificación: casos en `tests/cases/generate_custom_init/` con una cabecera `options:` que da el nombre y las variables, sin abrir ningún diálogo. Como mínimo: otro nombre, mezcla de privadas, públicas y exports, ninguna variable, colocación como función pública y como privada, y nombre de reserva cuando el parámetro se llamaría igual que un miembro de la clase.
+
+Hecho el 2026-10-06:
+
+- `GDSExCodeAction.create_dialog(context, on_plan_ready)`: una acción que necesita datos devuelve su diálogo y, cuando el usuario confirma, llama a `on_plan_ready` con el plan. Las demás devuelven `null` y siguen como antes.
+- `code_actions_popup.gd` abre ese diálogo centrado en la ventana del editor de código y lo libera al cerrarse. Aplicar el plan pasa a ser una función estática, porque el menú ya se ha liberado cuando el diálogo confirma.
+- `actions/generate_custom_init_action.gd`: su `build_plan` da el plan con las opciones por defecto (nombre por defecto y variables privadas) y sirve para decidir si la acción se ofrece. Todavía no está en el registro, así que no aparece en el menú hasta I5.
+- Runner: `action: generate_custom_init` con cabecera `options: {"name": ..., "variables": [...]}`, y `action: run_dialog_action`, que comprueba con una acción de prueba que el script no cambia hasta confirmar, que el diálogo se abre en la ventana del editor, que al confirmar se aplica el plan y que el diálogo se libera.
+- 12 casos en `tests/cases/generate_custom_init/` y 1 en `tests/cases/menu/`. Queda cubierto lo pendiente de I2: `@onready`, `static` y constantes no se pueden elegir aunque se pidan por nombre.
 
 ### I5 — Diálogo
 

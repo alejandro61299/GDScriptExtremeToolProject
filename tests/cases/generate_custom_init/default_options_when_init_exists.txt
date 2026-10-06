@@ -1,0 +1,24 @@
+action: generate_custom_init
+=== input
+extends RefCounted
+
+var _health : int<|>
+
+
+func _init() -> void:
+	pass
+
+=== expected
+extends RefCounted
+
+var _health : int
+
+
+func _init() -> void:
+	pass
+
+
+func initialize(p_health: int) -> void:
+	_health = p_health<|>
+
+=== end

@@ -1,0 +1,13 @@
+action: generate_custom_init
+=== input
+extends RefCounted
+
+const LIMIT : int = 3
+
+static var instances : int = 0<|>
+
+
+func run() -> void:
+	pass
+
+=== end

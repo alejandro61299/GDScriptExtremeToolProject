@@ -1,0 +1,16 @@
+action: run_dialog_action
+=== input
+extends RefCounted
+
+var _health : int<|>
+
+=== expected
+extends RefCounted
+
+var _health : int
+
+
+func _init(p_health: int) -> void:
+	_health = p_health<|>
+
+=== end
