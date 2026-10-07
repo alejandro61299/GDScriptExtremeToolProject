@@ -1,0 +1,19 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	<|var total := 0
+	for item in items:
+		total += item
+	var average : float = total * factor|>
+	print(average)
+=== expected
+form: ASSIGNMENT
+signature: func _new(items: Array[int], factor: float) -> float
+call: var average : float = _new(items, factor)
+=== end

@@ -1,0 +1,11 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+
+<|func run() -> int:
+	print(1)|>
+	return 1
+=== expected
+rejected: DIFFERENT_BLOCKS
+=== end

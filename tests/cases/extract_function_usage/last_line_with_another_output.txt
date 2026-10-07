@@ -1,0 +1,15 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	<|var count := items.size()
+	var doubled := count * 2|>
+	print(count, doubled, factor)
+=== expected
+rejected: TOO_MANY_OUTPUTS
+=== end

@@ -1,0 +1,23 @@
+action: check_extraction_behavior
+=== input
+extends RefCounted
+
+var member : int = 0
+var log : Array = []
+
+
+func samples() -> Array:
+	return [[[1, 2, 3], 2.0], [[], 1.5], [[-4, 9], 0.5], [[7], -1.0]]
+
+
+func run(items : Array, factor : float) -> Variant:
+	var color := Color(0.1, 0.2, 0.3)
+	<|color.r = factor
+	log.append(color)|>
+	return color
+
+
+func state() -> Array:
+	return [member, log]
+
+=== end

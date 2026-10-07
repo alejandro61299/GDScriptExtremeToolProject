@@ -28,6 +28,7 @@ class GDSExLineReplacement:
 	var last_line: int = 0
 	var lines: PackedStringArray = []
 	var line_map: PackedInt32Array = []
+	var caret: Vector2i = Vector2i(-1, -1)
 
 
 var insertions: Array[GDSExInsertion] = []

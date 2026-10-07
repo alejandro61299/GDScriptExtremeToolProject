@@ -1,0 +1,13 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+var health : int = 0:
+	set(value):
+		<|var clamped := clampi(value, 0, 10)
+		print(clamped)|>
+		health = clamped
+=== expected
+lines 5-6
+statements 2
+=== end

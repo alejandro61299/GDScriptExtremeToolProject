@@ -1,0 +1,23 @@
+action: check_extraction_behavior
+=== input
+extends RefCounted
+
+var member : int = 0
+var log : Array = []
+
+
+func samples() -> Array:
+	return [[[1, 2, 3], 2.0], [[], 1.5], [[-4, 9], 0.5], [[7], -1.0]]
+
+
+func run(items : Array, factor : float) -> Variant:
+	var value := 10
+	<|var doubled : Array = items.map(func(value : int) -> int: return value * 2)
+	log.append(value)|>
+	return [doubled, value]
+
+
+func state() -> Array:
+	return [member, log]
+
+=== end

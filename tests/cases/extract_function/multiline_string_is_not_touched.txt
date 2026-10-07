@@ -1,0 +1,33 @@
+action: extract_function
+options: {"name": "_show"}
+=== input
+extends Node
+
+
+class Inner:
+	func run() -> void:
+		print(0)
+		<|var text := """first
+
+  second
+		third"""
+		print(text)|>
+
+=== expected
+extends Node
+
+
+class Inner:
+	func run() -> void:
+		print(0)
+		_show()<|>
+	
+	
+	func _show() -> void:
+		var text := """first
+
+  second
+		third"""
+		print(text)
+
+=== end

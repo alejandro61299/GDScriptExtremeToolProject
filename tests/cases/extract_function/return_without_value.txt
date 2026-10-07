@@ -1,0 +1,28 @@
+action: extract_function
+options: {"name": "_warn"}
+=== input
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	if items.is_empty():
+		<|print(factor)
+		return|>
+	print(items)
+
+=== expected
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	if items.is_empty():
+		_warn(factor)<|>
+		return
+	print(items)
+
+
+func _warn(factor: float) -> void:
+	print(factor)
+	return
+
+=== end

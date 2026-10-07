@@ -1,0 +1,42 @@
+action: extract_function
+options: {"name": "_sum"}
+=== input
+extends Node
+
+
+class Inner:
+	var values : Array[int] = []
+
+	func run() -> int:
+		<|var total := 0
+		for value in values:
+			total += value|>
+		return total
+
+
+func other() -> void:
+	pass
+
+=== expected
+extends Node
+
+
+class Inner:
+	var values : Array[int] = []
+
+	func run() -> int:
+		var total := _sum()<|>
+		return total
+	
+	
+	func _sum() -> int:
+		var total := 0
+		for value in values:
+			total += value
+		return total
+
+
+func other() -> void:
+	pass
+
+=== end

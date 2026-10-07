@@ -48,7 +48,9 @@ addons/gdscript_extreme_tool/
 ├── plugin.cfg
 ├── plugin.gd
 ├── code_actions_popup.gd
+├── function_name_dialog.gd
 ├── init_function_dialog.gd
+├── extract_function_dialog.gd
 ├── plugin_project_settings.gd
 ├── actions/
 │   ├── action_registry.gd
@@ -59,10 +61,13 @@ addons/gdscript_extreme_tool/
 │   ├── generate_local_variable_action.gd
 │   ├── generate_class_variable_action.gd
 │   ├── generate_connected_function_action.gd
+│   ├── function_name_check.gd
 │   ├── init_function.gd
 │   ├── generate_default_init_action.gd
 │   ├── generate_custom_init_action.gd
 │   ├── add_explicit_type_action.gd
+│   ├── extract_function.gd
+│   ├── extract_function_action.gd
 │   ├── reorder_class_members_action.gd
 │   └── format_class_members_action.gd
 ├── analysis/
@@ -74,9 +79,11 @@ addons/gdscript_extreme_tool/
 │   ├── member_categories.gd
 │   ├── param_names.gd
 │   ├── source_scanner.gd
+│   ├── statement_range.gd
 │   ├── symbol_index.gd
 │   ├── symbol_index_builder.gd
 │   ├── token_spacing.gd
+│   ├── variable_usage.gd
 │   ├── call_site_parser.gd
 │   └── type_resolver.gd
 └── editing/

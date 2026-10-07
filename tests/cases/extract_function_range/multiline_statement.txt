@@ -1,0 +1,14 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+
+func run(items : Array[int]) -> int:
+	<|var table := {
+		"a" : 1,
+	}|>
+	return table.size() + items.size()
+=== expected
+lines 5-7
+statements 1
+=== end

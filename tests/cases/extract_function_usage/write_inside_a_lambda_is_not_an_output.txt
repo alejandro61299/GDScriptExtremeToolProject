@@ -1,0 +1,20 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	var total := 0
+	<|var callback := func() -> void:
+		total = 5
+	callback.call()
+	print(total)|>
+	print(total, items, factor)
+=== expected
+form: PLAIN
+signature: func _new(total: int) -> void
+call: _new(total)
+=== end

@@ -1,0 +1,19 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+
+class Base:
+	func run() -> void:
+		pass
+
+
+class Child extends Base:
+	func run() -> void:
+		<|super.run()
+		print(1)|>
+		print(2)
+=== expected
+lines 11-12
+statements 2
+=== end

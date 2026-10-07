@@ -1,0 +1,13 @@
+action: describe_extraction
+=== input
+extends Node
+
+
+static func run(items : Array[int]) -> void:
+	<|print(items)|>
+	print(1)
+=== expected
+form: PLAIN
+signature: static func _new(items: Array[int]) -> void
+call: _new(items)
+=== end

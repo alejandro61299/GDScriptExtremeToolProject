@@ -1,0 +1,13 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+<|var first := 1
+var second := 2|>
+
+
+func run() -> int:
+	return first + second
+=== expected
+rejected: NOT_IN_FUNCTION
+=== end

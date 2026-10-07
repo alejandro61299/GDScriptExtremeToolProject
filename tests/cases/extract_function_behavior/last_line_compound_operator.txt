@@ -1,0 +1,23 @@
+action: check_extraction_behavior
+=== input
+extends RefCounted
+
+var member : int = 0
+var log : Array = []
+
+
+func samples() -> Array:
+	return [[[1, 2, 3], 2.0], [[], 1.5], [[-4, 9], 0.5], [[7], -1.0]]
+
+
+func run(items : Array, factor : float) -> Variant:
+	var total := 5
+	<|var bonus := items.size() * 3
+	total += bonus|>
+	return total * factor
+
+
+func state() -> Array:
+	return [member, log]
+
+=== end

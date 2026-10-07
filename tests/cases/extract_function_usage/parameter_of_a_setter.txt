@@ -1,0 +1,13 @@
+action: describe_extraction
+=== input
+extends Node
+
+var health : int = 0:
+	set(value):
+		<|print(value)|>
+		health = value
+=== expected
+form: PLAIN
+signature: func _new(value: int) -> void
+call: _new(value)
+=== end

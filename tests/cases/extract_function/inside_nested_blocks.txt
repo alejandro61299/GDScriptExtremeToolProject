@@ -1,0 +1,33 @@
+action: extract_function
+options: {"name": "_show"}
+=== input
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	for item in items:
+		if item > 0:
+			<|var doubled := item * 2
+			if doubled > 10:
+				print(doubled)
+			print(factor)|>
+	print(items)
+
+=== expected
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	for item in items:
+		if item > 0:
+			_show(item, factor)<|>
+	print(items)
+
+
+func _show(item: int, factor: float) -> void:
+	var doubled := item * 2
+	if doubled > 10:
+		print(doubled)
+	print(factor)
+
+=== end

@@ -10,6 +10,7 @@ const GDSExGenerateConnectedFunctionAction = preload("res://addons/gdscript_extr
 const GDSExGenerateDefaultInitAction = preload("res://addons/gdscript_extreme_tool/actions/generate_default_init_action.gd")
 const GDSExGenerateCustomInitAction = preload("res://addons/gdscript_extreme_tool/actions/generate_custom_init_action.gd")
 const GDSExAddExplicitTypeAction = preload("res://addons/gdscript_extreme_tool/actions/add_explicit_type_action.gd")
+const GDSExExtractFunctionAction = preload("res://addons/gdscript_extreme_tool/actions/extract_function_action.gd")
 const GDSExReorderClassMembersAction = preload("res://addons/gdscript_extreme_tool/actions/reorder_class_members_action.gd")
 const GDSExFormatClassMembersAction = preload("res://addons/gdscript_extreme_tool/actions/format_class_members_action.gd")
 
@@ -23,6 +24,7 @@ static func create_actions() -> Array[GDSExCodeAction]:
 	actions.append(GDSExGenerateDefaultInitAction.new())
 	actions.append(GDSExGenerateCustomInitAction.new())
 	actions.append(GDSExAddExplicitTypeAction.new())
+	actions.append(GDSExExtractFunctionAction.new())
 	actions.append(GDSExReorderClassMembersAction.new())
 	actions.append(GDSExFormatClassMembersAction.new())
 	return actions

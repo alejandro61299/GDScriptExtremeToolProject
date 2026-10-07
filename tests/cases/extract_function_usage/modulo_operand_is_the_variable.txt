@@ -1,0 +1,17 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	var divisor := 3
+	<|print(items.size() % divisor)|>
+	print(factor)
+=== expected
+form: PLAIN
+signature: func _new(items: Array[int], divisor: int) -> void
+call: _new(items, divisor)
+=== end

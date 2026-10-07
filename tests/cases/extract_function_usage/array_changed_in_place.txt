@@ -1,0 +1,19 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	var local_names : Array[String] = []
+	<|local_names.append("a")
+	local_names[0] = "b"
+	print(local_names)|>
+	print(local_names, items, factor)
+=== expected
+form: PLAIN
+signature: func _new(local_names: Array[String]) -> void
+call: _new(local_names)
+=== end

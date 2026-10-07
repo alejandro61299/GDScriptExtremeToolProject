@@ -348,6 +348,7 @@ static func _parse_variable(code: String, statement: GDSExSourceScanner.GDSExSta
 	var variable := GDSExSymbolIndex.GDSExVariableSymbol.new()
 	variable.name = variable_match.get_string(2)
 	variable.is_const = variable_match.get_string(1) == CONSTANT_KEYWORD
+	variable.is_untyped = not variable.is_const and not tail.begins_with(GDSExSymbolIndex.TYPE_ANNOTATION)
 	variable.type = declaration.type
 	variable.value_code = declaration.value
 	if declaration.type == null and not declaration.value.is_empty():

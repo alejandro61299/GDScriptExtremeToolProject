@@ -1,0 +1,14 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+
+func run() -> void:
+	<|await get_tree().process_frame
+	print(1)|>
+	print(2)
+=== expected
+lines 5-6
+statements 2
+flags: has_await
+=== end

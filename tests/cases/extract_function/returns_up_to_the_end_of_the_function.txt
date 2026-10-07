@@ -1,0 +1,27 @@
+action: extract_function
+options: {"name": "_show"}
+=== input
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	print(factor)
+	<|if items.is_empty():
+		return
+	print(items)|>
+
+=== expected
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	print(factor)
+	_show(items)<|>
+
+
+func _show(items: Array[int]) -> void:
+	if items.is_empty():
+		return
+	print(items)
+
+=== end

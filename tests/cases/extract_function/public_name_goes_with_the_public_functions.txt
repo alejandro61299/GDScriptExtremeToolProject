@@ -1,0 +1,36 @@
+action: extract_function
+options: {"name": "sum"}
+=== input
+extends Node
+
+
+func run(items : Array[int]) -> void:
+	_report(items)
+
+
+func _report(items : Array[int]) -> void:
+	<|var total := 0
+	for item in items:
+		total += item|>
+	print(total)
+
+=== expected
+extends Node
+
+
+func run(items : Array[int]) -> void:
+	_report(items)
+
+
+func sum(items: Array[int]) -> int:
+	var total := 0
+	for item in items:
+		total += item
+	return total
+
+
+func _report(items : Array[int]) -> void:
+	var total := sum(items)<|>
+	print(total)
+
+=== end

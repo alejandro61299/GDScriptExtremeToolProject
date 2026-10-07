@@ -1,0 +1,78 @@
+action: extract_function
+viewport_lines: 8
+scroll_to_line: 12
+expect_view: same_top_text
+=== input
+extends Node
+
+
+func first() -> void:
+	print(1)
+	print(2)
+	print(3)
+	print(4)
+	print(5)
+	print(6)
+	print(7)
+	print(8)
+
+
+func run(items : Array[int]) -> void:
+	print("top")
+	var total := 0
+	<|for item in items:
+		total += item|>
+	print(total)
+	print(10)
+	print(11)
+	print(12)
+	print(13)
+	print(14)
+	print(15)
+	print(16)
+	print(17)
+	print(18)
+	print(19)
+	print(20)
+	print(21)
+
+=== expected
+extends Node
+
+
+func first() -> void:
+	print(1)
+	print(2)
+	print(3)
+	print(4)
+	print(5)
+	print(6)
+	print(7)
+	print(8)
+
+
+func run(items : Array[int]) -> void:
+	print("top")
+	var total := 0
+	total = _extracted_function(items, total)
+	print(total)
+	print(10)
+	print(11)
+	print(12)
+	print(13)
+	print(14)
+	print(15)
+	print(16)
+	print(17)
+	print(18)
+	print(19)
+	print(20)
+	print(21)
+
+
+func _extracted_function(items: Array[int], total: int) -> int:
+	for item in items:
+		total += item
+	return total
+
+=== end

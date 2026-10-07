@@ -1,0 +1,10 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+
+<|func run() -> int:
+	return 1|>
+=== expected
+rejected: NOT_IN_FUNCTION
+=== end

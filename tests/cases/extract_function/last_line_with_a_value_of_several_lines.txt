@@ -1,0 +1,31 @@
+action: extract_function
+options: {"name": "_table_of"}
+=== input
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	<|var count := items.size()
+	var table := {
+		"count" : count,
+		"factor" : factor,
+	}|>
+	print(table)
+
+=== expected
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	var table := _table_of(items, factor)<|>
+	print(table)
+
+
+func _table_of(items: Array[int], factor: float) -> Dictionary:
+	var count := items.size()
+	return {
+		"count" : count,
+		"factor" : factor,
+	}
+
+=== end

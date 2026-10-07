@@ -1,0 +1,27 @@
+action: extract_function
+options: {"name": "_bonus_of"}
+=== input
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	var total := 0
+	<|var bonus := items.size() * 2
+	total += bonus # Adds the bonus|>
+	print(total * factor)
+
+=== expected
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	var total := 0
+	total += _bonus_of(items)<|>
+	print(total * factor)
+
+
+func _bonus_of(items: Array[int]) -> int:
+	var bonus := items.size() * 2
+	return bonus # Adds the bonus
+
+=== end

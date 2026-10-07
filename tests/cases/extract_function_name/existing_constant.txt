@@ -1,0 +1,33 @@
+action: check_extract_function_name
+function_name: LIMIT
+expect_check: error
+=== input
+extends Node
+
+signal changed
+
+const LIMIT : int = 3
+
+var member : int = 0
+
+
+class Base:
+	func inherited() -> void:
+		pass
+
+
+class Child extends Base:
+	func run() -> void:
+		print(1)
+
+
+func run(amount : int) -> void:
+	var total := amount * LIMIT
+	<|print(total)
+	print(member)|>
+	changed.emit()
+
+
+func _existing() -> void:
+	pass
+=== end

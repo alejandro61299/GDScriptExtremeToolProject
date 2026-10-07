@@ -17,7 +17,12 @@ const GDSExInitFunction = preload("res://addons/gdscript_extreme_tool/actions/in
 const GDSExGenerateDefaultInitAction = preload("res://addons/gdscript_extreme_tool/actions/generate_default_init_action.gd")
 const GDSExGenerateCustomInitAction = preload("res://addons/gdscript_extreme_tool/actions/generate_custom_init_action.gd")
 const GDSExInitFunctionDialog = preload("res://addons/gdscript_extreme_tool/init_function_dialog.gd")
+const GDSExFunctionNameDialog = preload("res://addons/gdscript_extreme_tool/function_name_dialog.gd")
+const GDSExExtractFunctionDialog = preload("res://addons/gdscript_extreme_tool/extract_function_dialog.gd")
+const GDSExExtractFunctionAction = preload("res://addons/gdscript_extreme_tool/actions/extract_function_action.gd")
 const GDSExMemberCategories = preload("res://addons/gdscript_extreme_tool/analysis/member_categories.gd")
+const GDSExStatementRange = preload("res://addons/gdscript_extreme_tool/analysis/statement_range.gd")
+const GDSExExtractFunction = preload("res://addons/gdscript_extreme_tool/actions/extract_function.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -30,6 +35,12 @@ const DEFAULT_INDENT_SIZE: int = 4
 const MEMORY_CHECK_BUILDS: int = 100
 const DETAILS_ARGUMENT: String = "--details"
 const SCOPES_ACTION: String = "describe_scopes"
+const EXTRACTION_RANGE_ACTION: String = "describe_extraction_range"
+const EXTRACTION_ACTION: String = "describe_extraction"
+const EXTRACTION_NAME: String = "_new"
+const EXTRACTION_SAMPLE_STEP: int = 60
+const EXTRACTION_RANGE_SIZES: Array[int] = [0, 1, 2]
+const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION]
 const SCRIPT_EXTENSION: String = "gd"
 const PROJECT_SCRIPT_ROOTS: Array[String] = ["res://addons", "res://tools"]
 const PROJECT_SCRIPTS: Array[String] = ["res://tests/run_tests.gd"]
@@ -46,6 +57,7 @@ const FORMAT_ACTION: String = "format_class_members"
 const SETTING_COUNT: int = 10
 const NAME_CHECK_LEVELS: Array[String] = ["valid", "warning", "error"]
 const DIALOG_SAMPLE: String = "extends RefCounted\n\n@export var speed : float = 1.0\n\nvar health : int = 0\n\nvar _name : String\nvar _secret : String\n\n\nfunc heal() -> void:\n\tpass\n"
+const EXTRACT_DIALOG_SAMPLE: String = "extends Node\n\n\nfunc run(items : Array[int]) -> void:\n\tvar total := 0\n\tfor item in items:\n\t\ttotal += item\n\tprint(total)\n\n\nfunc _existing() -> void:\n\tpass\n"
 const DIALOG_NODE_SAMPLE: String = "extends Node\n\nvar _health : int\n"
 const BLANK_CHARACTERS: Array[String] = [" ", "\t", "\n"]
 const COLLECTION_CLOSINGS: Array[String] = ["]", "}"]
@@ -137,6 +149,16 @@ class DialogTestAction extends "res://addons/gdscript_extreme_tool/actions/code_
 		dialog = AcceptDialog.new()
 		dialog.confirmed.connect(func() -> void: on_plan_ready.call(build_plan(context)))
 		return dialog
+
+
+class ExtractTestAction extends "res://addons/gdscript_extreme_tool/actions/code_action.gd":
+	var function_name: String = ""
+
+	func get_label() -> String:
+		return "Extract Test"
+
+	func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
+		return GDSExExtractFunction.build_plan(context, function_name)
 
 
 class ErrorCollector extends Logger:
@@ -324,7 +346,7 @@ func _check_expected_compiles(test_case: TestCase) -> PackedStringArray:
 	if test_case.skips_compile_check:
 		return problems
 	var script := GDScript.new()
-	script.source_code = test_case.input.text if test_case.action == SCOPES_ACTION else test_case.expected.text
+	script.source_code = test_case.input.text if DESCRIPTION_ACTIONS.has(test_case.action) else test_case.expected.text
 	_error_collector.take()
 	if script.reload() != OK:
 		problems.append("The script of the case is not valid GDScript.")
@@ -355,6 +377,10 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_edit(test_case, editor)
 		SCOPES_ACTION:
 			return _check_scopes(test_case, editor)
+		EXTRACTION_RANGE_ACTION:
+			return _check_description(test_case, _describe_extraction_range(editor))
+		EXTRACTION_ACTION:
+			return _check_description(test_case, _describe_extraction(editor))
 		"check_project_scripts":
 			return _check_project_scripts()
 		"check_no_false_targets":
@@ -373,14 +399,26 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_code_actions_popup(test_case, editor)
 		"check_init_function_name":
 			return _check_init_function_name(test_case, editor)
+		"check_extract_function_name":
+			return _check_extract_function_name(test_case, editor)
 		"generate_custom_init":
 			return _check_custom_init(test_case, editor)
+		"extract_function":
+			return _check_extract_function(test_case, editor)
 		"run_dialog_action":
 			return _check_dialog_action(test_case, editor)
 		"run_custom_init_dialog":
 			return _check_custom_init_dialog(test_case, editor)
 		"check_init_dialog":
 			return _check_init_dialog()
+		"check_extract_project_scripts":
+			return _check_extract_project_scripts(int(test_case.headers.get("sample_step", str(EXTRACTION_SAMPLE_STEP))))
+		"check_extraction_behavior":
+			return _check_extraction_behavior(editor)
+		"run_extract_function_dialog":
+			return _check_extract_function_dialog(test_case, editor)
+		"check_extract_dialog":
+			return _check_extract_dialog()
 	var action := _find_code_action(test_case.action)
 	if action == null:
 		return PackedStringArray(["Unknown action '%s'." % test_case.action])
@@ -473,6 +511,41 @@ func _check_scopes(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 	if actual == test_case.expected_raw:
 		return PackedStringArray()
 	return PackedStringArray(["Unexpected scopes.\n--- expected ---\n%s\n--- actual ---\n%s" % [test_case.expected_raw, actual]])
+
+
+func _check_description(test_case: TestCase, actual: String) -> PackedStringArray:
+	if actual == test_case.expected_raw:
+		return PackedStringArray()
+	return PackedStringArray(["Unexpected description.\n--- expected ---\n%s\n--- actual ---\n%s" % [test_case.expected_raw, actual]])
+
+
+func _describe_extraction_range(editor: CodeEdit) -> String:
+	var context := GDSExCodeContext.new(editor)
+	var found := GDSExStatementRange.find(context.index, context.lines, context.selection_first_line, context.selection_last_line)
+	if not found.is_valid():
+		return "rejected: %s" % GDSExStatementRange.GDSExRejection.find_key(found.rejection)
+	var description := PackedStringArray(["lines %d-%d" % [found.first_line + 1, found.last_line + 1], "statements %d" % found.statements().size()])
+	var flags := PackedStringArray()
+	for flag: String in ["has_return", "has_value_return", "ends_with_return", "reaches_function_end", "has_await"]:
+		if found.get(flag):
+			flags.append(flag)
+	if not flags.is_empty():
+		description.append("flags: %s" % ", ".join(flags))
+	return "\n".join(description)
+
+
+func _describe_extraction(editor: CodeEdit) -> String:
+	var context := GDSExCodeContext.new(editor)
+	var extraction := GDSExExtractFunction.analyze(context)
+	if extraction.rejection == GDSExExtractFunction.GDSExRejection.RANGE:
+		return "rejected: %s" % GDSExStatementRange.GDSExRejection.find_key(extraction.statement_range.rejection)
+	if not extraction.is_valid():
+		return "rejected: %s" % GDSExExtractFunction.GDSExRejection.find_key(extraction.rejection)
+	return "\n".join(PackedStringArray([
+		"form: %s" % GDSExExtractFunction.GDSExForm.find_key(extraction.form),
+		"signature: %s" % GDSExExtractFunction.signature(extraction, EXTRACTION_NAME),
+		"call: %s" % " | ".join(GDSExExtractFunction.call_lines(extraction, EXTRACTION_NAME, context.lines)),
+	]))
 
 
 func _describe_scope(scope: GDSExSymbolIndex.GDSExScopeBase, depth: int) -> PackedStringArray:
@@ -570,6 +643,15 @@ func _check_custom_init(test_case: TestCase, editor: CodeEdit) -> PackedStringAr
 	return _check_edit(test_case, editor)
 
 
+func _check_extract_function(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	if not test_case.headers.has("options"):
+		return _check_code_action(test_case, _find_code_action(test_case.action), editor)
+	var options: Dictionary = str_to_var(test_case.headers["options"])
+	var action := ExtractTestAction.new()
+	action.function_name = options["name"]
+	return _check_code_action(test_case, action, editor)
+
+
 func _check_dialog_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 	var problems := PackedStringArray()
 	var action := DialogTestAction.new()
@@ -621,6 +703,172 @@ func _check_custom_init_dialog(test_case: TestCase, editor: CodeEdit) -> PackedS
 	if dialog.visible or not dialog.is_queued_for_deletion():
 		problems.append("The dialog is not closed and freed after generating.")
 	problems.append_array(_check_edit(test_case, editor))
+	return problems
+
+
+func _check_extract_project_scripts(sample_step: int) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var editor := CodeEdit.new()
+	root.add_child(editor)
+	var range_count := 0
+	for path in _project_script_paths():
+		var source := FileAccess.get_file_as_string(path)
+		var lines := source.split("\n")
+		var ranges: Array[Vector2i] = []
+		_collect_statement_ranges(GDSExSymbolIndexBuilder.build(lines).statements, ranges)
+		for selected in ranges:
+			range_count += 1
+			if range_count % sample_step != 0:
+				continue
+			editor.text = source
+			editor.select(selected.x, 0, selected.y, lines[selected.y].length())
+			var plan := GDSExExtractFunction.build_plan(GDSExCodeContext.new(editor), EXTRACTION_NAME)
+			if plan == null:
+				continue
+			GDSExEditApplier.apply(editor, plan)
+			var script := GDScript.new()
+			script.source_code = editor.text
+			if script.reload() != OK:
+				problems.append("%s: the script does not compile after extracting lines %d-%d." % [path, selected.x + 1, selected.y + 1])
+	editor.free()
+	return problems
+
+
+func _collect_statement_ranges(statements: Array[GDSExSourceScanner.GDSExStatement], ranges: Array[Vector2i]) -> void:
+	for first in statements.size():
+		var lasts: Array[int] = [statements.size() - 1]
+		for size in EXTRACTION_RANGE_SIZES:
+			lasts.append(first + size)
+		for last in lasts:
+			if last >= first and last < statements.size():
+				var selected := Vector2i(statements[first].first_line, GDSExStatementRange.last_code_line_of(statements[last]))
+				if not ranges.has(selected):
+					ranges.append(selected)
+	for statement in statements:
+		for block in statement.blocks:
+			_collect_statement_ranges(block.statements, ranges)
+
+
+func _check_extraction_behavior(editor: CodeEdit) -> PackedStringArray:
+	var original := GDScript.new()
+	original.source_code = editor.text
+	if original.reload() != OK:
+		return PackedStringArray(["The script of the case does not compile."])
+	var plan := GDSExExtractFunction.build_plan(GDSExCodeContext.new(editor), EXTRACTION_NAME)
+	if plan == null:
+		return PackedStringArray(["The selection cannot be extracted."])
+	GDSExEditApplier.apply(editor, plan)
+	var extracted := GDScript.new()
+	extracted.source_code = editor.text
+	if extracted.reload() != OK:
+		return PackedStringArray(["The extracted script does not compile.\n%s" % _visualize(editor.text)])
+	var problems := PackedStringArray()
+	var before: Object = original.new()
+	var after: Object = extracted.new()
+	for arguments: Array in before.call("samples"):
+		var expected := _run_sample(before, arguments)
+		var actual := _run_sample(after, arguments)
+		if expected != actual:
+			problems.append("run%s gives %s after extracting instead of %s.\n%s" % [arguments, actual, expected, _visualize(editor.text)])
+	return problems
+
+
+func _run_sample(instance: Object, arguments: Array) -> String:
+	var copied_arguments := arguments.duplicate(true)
+	var result: Variant = instance.callv("run", copied_arguments)
+	var state: Variant = instance.call("state") if instance.has_method("state") else null
+	return var_to_str([result, copied_arguments, state])
+
+
+func _check_extract_function_dialog(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var popup := GDSExCodeActionsPopup.new()
+	root.add_child(popup)
+	popup.setup(editor, GDSExActionRegistry.create_actions())
+	popup.about_to_popup.emit()
+	for index in popup.item_count:
+		if popup.get_item_text(index) == GDSExExtractFunctionAction.LABEL:
+			popup.index_pressed.emit(index)
+	popup.free()
+	var dialog: GDSExExtractFunctionDialog = null
+	for child in editor.get_window().get_children():
+		if child is GDSExExtractFunctionDialog:
+			dialog = child
+	if dialog == null or not dialog.visible:
+		return PackedStringArray(["The menu did not open the extract function dialog."])
+	if editor.text != test_case.input.text:
+		problems.append("The script changed before the dialog was confirmed.")
+	if test_case.headers.has("options"):
+		var options: Dictionary = str_to_var(test_case.headers["options"])
+		_type_dialog_name(dialog, options["name"])
+	if test_case.headers.get("dialog", "accept") == "cancel":
+		dialog.get_cancel_button().pressed.emit()
+		dialog.hide()
+	else:
+		dialog.get_ok_button().pressed.emit()
+	if dialog.visible or not dialog.is_queued_for_deletion():
+		problems.append("The dialog is not closed and freed after it is answered.")
+	problems.append_array(_check_edit(test_case, editor))
+	return problems
+
+
+func _check_extract_dialog() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var editor := CodeEdit.new()
+	root.add_child(editor)
+	editor.text = EXTRACT_DIALOG_SAMPLE
+	editor.select(5, 0, 6, editor.get_line(6).length())
+	var plans: Array[GDSExEditPlan] = []
+	var dialog := GDSExExtractFunctionDialog.new()
+	dialog.setup(GDSExCodeContext.new(editor), func(plan: GDSExEditPlan) -> void: plans.append(plan))
+	root.add_child(dialog)
+	dialog.popup_centered()
+
+	_expect(problems, "initial name", dialog.name_edit.text, "_extracted_function")
+	_expect(problems, "initial signature", dialog.signature_label.text, "func _extracted_function(items: Array[int], total: int) -> int")
+	_expect(problems, "initial call", dialog.call_label.text, "total = _extracted_function(items, total)")
+	_expect(problems, "initial message", dialog.validation_label.text, "• Function name is valid.")
+	_expect(problems, "extract enabled at start", dialog.get_ok_button().disabled, false)
+
+	_type_dialog_name(dialog, "_sum")
+	_expect(problems, "signature after typing", dialog.signature_label.text, "func _sum(items: Array[int], total: int) -> int")
+	_expect(problems, "call after typing", dialog.call_label.text, "total = _sum(items, total)")
+
+	_type_dialog_name(dialog, "_existing")
+	_expect(problems, "message for an existing function", dialog.validation_label.text, "• The class already has a function named '_existing'.")
+	_expect(problems, "extract disabled on error", dialog.get_ok_button().disabled, true)
+	_expect(problems, "name in red on error", dialog.name_edit.has_theme_color_override("font_color"), true)
+	_expect(problems, "message in the error color", dialog.validation_label.get_theme_color("font_color"), GDSExFunctionNameDialog.LEVEL_FALLBACK_COLORS[2])
+	dialog.name_edit.text_submitted.emit("_existing")
+	_expect(problems, "accept does nothing on error", plans.size(), 0)
+	_type_dialog_name(dialog, "")
+	_expect(problems, "message for an empty name", dialog.validation_label.text, "• Enter a function name.")
+
+	_type_dialog_name(dialog, "sum")
+	_expect(problems, "warning for a public name", dialog.validation_label.get_theme_color("font_color"), GDSExFunctionNameDialog.LEVEL_FALLBACK_COLORS[1])
+	_expect(problems, "a warning does not block", dialog.get_ok_button().disabled, false)
+	_expect(problems, "name back to its normal color", dialog.name_edit.has_theme_color_override("font_color"), false)
+	_type_dialog_name(dialog, "total")
+	_expect(problems, "warning for the name of a variable", dialog.validation_label.text, "• The function has a variable named 'total'.")
+
+	_type_dialog_name(dialog, "_sum")
+	_expect(problems, "valid again", dialog.validation_label.get_theme_color("font_color"), GDSExFunctionNameDialog.LEVEL_FALLBACK_COLORS[0])
+	dialog.name_edit.text_submitted.emit("_sum")
+	_expect(problems, "accept on the name extracts", plans.size(), 1)
+	_expect(problems, "dialog hidden after extracting", dialog.visible, false)
+	if plans.size() == 1:
+		GDSExEditApplier.apply(editor, plans[0])
+		_expect(problems, "extracted function", editor.text.contains("\ttotal = _sum(items, total)\n\tprint(total)") and editor.text.contains("func _sum(items: Array[int], total: int) -> int:\n\tfor item in items:\n\t\ttotal += item\n\treturn total"), true)
+	dialog.free()
+
+	editor.text = "extends Node\n\n\nfunc run() -> void:\n\tif true:\n\t\tprint(1)\n\t\treturn\n\tprint(2)\n"
+	editor.select(5, 0, 6, editor.get_line(6).length())
+	var return_dialog := GDSExExtractFunctionDialog.new()
+	return_dialog.setup(GDSExCodeContext.new(editor), func(_plan: GDSExEditPlan) -> void: pass)
+	root.add_child(return_dialog)
+	_expect(problems, "call of two lines", return_dialog.call_label.text, "_extracted_function()\nreturn")
+	return_dialog.free()
+	editor.free()
 	return problems
 
 
@@ -712,7 +960,7 @@ func _key_event(keycode: Key) -> InputEventKey:
 	return event
 
 
-func _type_dialog_name(dialog: GDSExInitFunctionDialog, function_name: String) -> void:
+func _type_dialog_name(dialog: GDSExFunctionNameDialog, function_name: String) -> void:
 	dialog.name_edit.text = function_name
 	dialog.name_edit.text_changed.emit(function_name)
 
@@ -752,6 +1000,18 @@ func _check_init_function_name(test_case: TestCase, editor: CodeEdit) -> PackedS
 		if check.message.is_empty():
 			problems.append("The check has no message.")
 	return problems
+
+
+func _check_extract_function_name(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	var extraction := GDSExExtractFunction.analyze(GDSExCodeContext.new(editor))
+	if not extraction.is_valid():
+		return PackedStringArray(["The selection cannot be extracted."])
+	var function_name: String = test_case.headers.get("function_name", "")
+	var check := GDSExExtractFunction.check_function_name(extraction, function_name)
+	var level := NAME_CHECK_LEVELS[check.level]
+	if level != test_case.headers["expect_check"]:
+		return PackedStringArray(["The name '%s' is %s (%s) but %s was expected." % [function_name, level, check.message, test_case.headers["expect_check"]]])
+	return PackedStringArray(["The check has no message."]) if check.message.is_empty() else PackedStringArray()
 
 
 func _check_code_actions_popup(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
