@@ -22,6 +22,7 @@ const TYPED_PARAM_TEMPLATE: String = "%s: %s"
 const PARAM_SEPARATOR: String = ", "
 const ASSIGNMENT_TEMPLATE: String = "%s = %s"
 const EMPTY_BODY: String = "pass"
+const LINE_SEPARATOR: String = "\n"
 const ENGINE_INIT_MESSAGE: String = "Godot calls _init() without arguments in nodes and resources."
 
 
@@ -83,26 +84,32 @@ static func check_function_name(context: GDSExCodeContext, function_name: String
 	return check
 
 
-static func build_signature(context: GDSExCodeContext, function_name: String, variable_names: PackedStringArray) -> String:
-	return _signature(function_name, _select_variables(context, variable_names))
+static func function_text(context: GDSExCodeContext, function_name: String, variable_names: PackedStringArray) -> String:
+	var text := PackedStringArray()
+	for line in _function_snippet(context, function_name, variable_names).lines:
+		text.append(context.indent_unit.repeat(line.indent) + line.text)
+	return LINE_SEPARATOR.join(text)
 
 
 static func build_plan(context: GDSExCodeContext, function_name: String, variable_names: PackedStringArray) -> GDSExEditPlan:
-	var selected := _select_variables(context, variable_names)
-	var body_lines := PackedStringArray()
-	for variable in selected:
-		body_lines.append(ASSIGNMENT_TEMPLATE % [variable.name, variable.param_name])
-	if body_lines.is_empty():
-		body_lines.append(EMPTY_BODY)
-	var snippet := GDSExSnippet.new()
-	snippet.add_line(0, _signature(function_name, selected) + HEADER_END)
-	for body_line in body_lines:
-		snippet.add_line(1, body_line)
-	var last_line_length := body_lines[body_lines.size() - 1].length()
-	snippet.select(body_lines.size(), last_line_length, last_line_length)
+	var snippet := _function_snippet(context, function_name, variable_names)
+	var last_line := snippet.lines.size() - 1
+	var last_line_length := snippet.lines[last_line].text.length()
+	snippet.select(last_line, last_line_length, last_line_length)
 	var plan := GDSExEditPlan.new()
 	plan.reveal(plan.insert(GDSExPlacement.function_by_order(context.scope_info.class_scope, function_name, context.lines, context.indent_unit), snippet))
 	return plan
+
+
+static func _function_snippet(context: GDSExCodeContext, function_name: String, variable_names: PackedStringArray) -> GDSExSnippet:
+	var selected := _select_variables(context, variable_names)
+	var snippet := GDSExSnippet.new()
+	snippet.add_line(0, _signature(function_name, selected) + HEADER_END)
+	for variable in selected:
+		snippet.add_line(1, ASSIGNMENT_TEMPLATE % [variable.name, variable.param_name])
+	if selected.is_empty():
+		snippet.add_line(1, EMPTY_BODY)
+	return snippet
 
 
 static func _signature(function_name: String, selected: Array[GDSExInitVariable]) -> String:

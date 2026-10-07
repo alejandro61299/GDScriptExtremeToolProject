@@ -12,6 +12,13 @@ const EDITOR_FONTS_THEME_TYPE : StringName = &"EditorFonts"
 const SOURCE_FONT : StringName = &"source"
 const LEVEL_COLOR_NAMES : Array[StringName] = [&"success_color", &"warning_color", &"error_color"]
 const LEVEL_FALLBACK_COLORS : Array[Color] = [Color("73f280"), Color("d4c79e"), Color("ff786b")]
+const FUNCTION_TEXT : String = "New function"
+const PREVIEW_MINIMUM_HEIGHT : float = 120.0
+const HIGHLIGHTER_CLASS : StringName = &"GDScriptSyntaxHighlighter"
+const FONT_SIZE : StringName = &"font_size"
+const SOURCE_FONT_SIZE : StringName = &"source_size"
+const ACCENT_COLOR : StringName = &"accent_color"
+const ACCENT_FALLBACK_COLOR : Color = Color("569eff")
 
 var name_edit : LineEdit
 var validation_label : Label
@@ -44,6 +51,30 @@ func _build_code_label() -> Label:
 	return label
 
 
+func _add_code_preview(content : Control, title_text : String) -> CodeEdit:
+	var title_label := Label.new()
+	title_label.text = title_text
+	content.add_child(title_label)
+	var preview := CodeEdit.new()
+	preview.editable = false
+	preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	preview.custom_minimum_size.y = PREVIEW_MINIMUM_HEIGHT
+	content.add_child(preview)
+	return preview
+
+
+func _style_code_preview(preview : CodeEdit) -> void:
+	_use_source_font(preview)
+	if has_theme_font_size(SOURCE_FONT_SIZE, EDITOR_FONTS_THEME_TYPE):
+		preview.add_theme_font_size_override(FONT_SIZE, get_theme_font_size(SOURCE_FONT_SIZE, EDITOR_FONTS_THEME_TYPE))
+	if ClassDB.can_instantiate(HIGHLIGHTER_CLASS):
+		preview.syntax_highlighter = ClassDB.instantiate(HIGHLIGHTER_CLASS) as SyntaxHighlighter
+
+
+func _editor_color(color_name : StringName, fallback_color : Color) -> Color:
+	return get_theme_color(color_name, EDITOR_THEME_TYPE) if has_theme_color(color_name, EDITOR_THEME_TYPE) else fallback_color
+
+
 func _build_validation_panel() -> Control:
 	var panel := PanelContainer.new()
 	validation_label = _build_code_label()
@@ -61,11 +92,6 @@ func _use_source_font(control : Control) -> void:
 		control.add_theme_font_override(FONT, get_theme_font(SOURCE_FONT, EDITOR_FONTS_THEME_TYPE))
 
 
-func _show_code(label : Label, code : String) -> void:
-	label.text = code
-	label.tooltip_text = code
-
-
 func _show_name_check(name_check : GDSExFunctionNameCheck.GDSExNameCheck) -> void:
 	_name_check = name_check
 	var level_color := _level_color(name_check.level)
@@ -80,9 +106,7 @@ func _show_name_check(name_check : GDSExFunctionNameCheck.GDSExNameCheck) -> voi
 
 
 func _level_color(level : GDSExFunctionNameCheck.GDSExNameCheck.GDSExLevel) -> Color:
-	if has_theme_color(LEVEL_COLOR_NAMES[level], EDITOR_THEME_TYPE):
-		return get_theme_color(LEVEL_COLOR_NAMES[level], EDITOR_THEME_TYPE)
-	return LEVEL_FALLBACK_COLORS[level]
+	return _editor_color(LEVEL_COLOR_NAMES[level], LEVEL_FALLBACK_COLORS[level])
 
 
 func _submit() -> void:

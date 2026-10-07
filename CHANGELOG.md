@@ -10,6 +10,7 @@
 
 ### Changed
 
+- The dialog of Generate Custom Init Definition... shows the whole function it will generate, with the colors and the font of the script editor, as the dialog of Extract Function... does. Its filters show clearly which ones are on and which ones have no variables.
 - Format spaces commas and brackets everywhere, not only in collections:
   - No space before a comma and one after it, in calls, parameters, signals, annotations, type hints and `match` patterns.
   - No spaces right inside parentheses and square brackets: `print( first )` becomes `print(first)`.

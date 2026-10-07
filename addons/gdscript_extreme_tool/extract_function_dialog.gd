@@ -7,15 +7,8 @@ const GDSExExtractFunction = preload("res://addons/gdscript_extreme_tool/actions
 const TITLE : String = "Extract Function"
 const EXTRACT_TEXT : String = "Extract"
 const RESULT_TEXT : String = "Result"
-const FUNCTION_TEXT : String = "New function"
 const CALLER_TEXT : String = "Changed function"
 const MINIMUM_SIZE : Vector2i = Vector2i(680, 560)
-const PREVIEW_MINIMUM_HEIGHT : float = 120.0
-const HIGHLIGHTER_CLASS : StringName = &"GDScriptSyntaxHighlighter"
-const FONT_SIZE : StringName = &"font_size"
-const SOURCE_FONT_SIZE : StringName = &"source_size"
-const ACCENT_COLOR : StringName = &"accent_color"
-const CALL_LINE_FALLBACK_COLOR : Color = Color("569eff")
 const CALL_LINE_OPACITY : float = 0.18
 
 var form_button : OptionButton
@@ -35,8 +28,8 @@ func _init() -> void:
 	add_child(content)
 	content.add_child(_build_name_row())
 	content.add_child(_build_form_row())
-	function_preview = _add_preview(content, FUNCTION_TEXT)
-	caller_preview = _add_preview(content, CALLER_TEXT)
+	function_preview = _add_code_preview(content, FUNCTION_TEXT)
+	caller_preview = _add_code_preview(content, CALLER_TEXT)
 	content.add_child(_build_validation_panel())
 	confirmed.connect(_on_confirmed)
 	visibility_changed.connect(_focus_name)
@@ -44,12 +37,8 @@ func _init() -> void:
 
 func _ready() -> void:
 	_use_scaled_size(MINIMUM_SIZE)
-	for preview : CodeEdit in [function_preview, caller_preview]:
-		_use_source_font(preview)
-		if has_theme_font_size(SOURCE_FONT_SIZE, EDITOR_FONTS_THEME_TYPE):
-			preview.add_theme_font_size_override(FONT_SIZE, get_theme_font_size(SOURCE_FONT_SIZE, EDITOR_FONTS_THEME_TYPE))
-		if ClassDB.can_instantiate(HIGHLIGHTER_CLASS):
-			preview.syntax_highlighter = ClassDB.instantiate(HIGHLIGHTER_CLASS) as SyntaxHighlighter
+	_style_code_preview(function_preview)
+	_style_code_preview(caller_preview)
 	_refresh()
 
 
@@ -82,18 +71,6 @@ func _build_form_row() -> Control:
 	return row
 
 
-func _add_preview(content : Control, title_text : String) -> CodeEdit:
-	var label := Label.new()
-	label.text = title_text
-	content.add_child(label)
-	var preview := CodeEdit.new()
-	preview.editable = false
-	preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	preview.custom_minimum_size.y = PREVIEW_MINIMUM_HEIGHT
-	content.add_child(preview)
-	return preview
-
-
 func _refresh() -> void:
 	if _alternatives.is_empty() or not get_selected_alternative().is_valid():
 		return
@@ -107,8 +84,7 @@ func _refresh() -> void:
 func _mark_call_lines(extraction : GDSExExtractFunction.GDSExExtraction) -> void:
 	var first_line := GDSExExtractFunction.caller_call_line(extraction)
 	var line_count := GDSExExtractFunction.call_lines(extraction, name_edit.text, _context.lines).size()
-	var mark_color := get_theme_color(ACCENT_COLOR, EDITOR_THEME_TYPE) if has_theme_color(ACCENT_COLOR, EDITOR_THEME_TYPE) else CALL_LINE_FALLBACK_COLOR
-	mark_color.a = CALL_LINE_OPACITY
+	var mark_color := Color(_editor_color(ACCENT_COLOR, ACCENT_FALLBACK_COLOR), CALL_LINE_OPACITY)
 	for line in range(first_line, mini(first_line + line_count, caller_preview.get_line_count())):
 		caller_preview.set_line_background_color(line, mark_color)
 	caller_preview.set_line_as_center_visible.call_deferred(mini(first_line, caller_preview.get_line_count() - 1))

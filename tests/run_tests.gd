@@ -926,21 +926,26 @@ func _check_init_dialog() -> PackedStringArray:
 
 	_expect(problems, "initial name", dialog.name_edit.text, "_init")
 	_expect(problems, "rows", _dialog_rows(dialog), "[ ] speed: float, [ ] health: int, [x] _name: String, [x] _secret: String")
-	_expect(problems, "initial preview", dialog.preview_label.text, "func _init(p_name: String, p_secret: String) -> void")
+	_expect(problems, "initial preview", dialog.function_preview.text, "func _init(p_name: String, p_secret: String) -> void:\n\t_name = p_name\n\t_secret = p_secret")
+	_expect(problems, "preview is read only", dialog.function_preview.editable, false)
+	var private_filter := dialog.filter_buttons[GDSExMemberCategories.PRIVATE_VARIABLES]
+	var selected_style := private_filter.get_theme_stylebox("pressed") as StyleBoxFlat
+	_expect(problems, "selected filter is filled with the accent color", [private_filter.has_theme_stylebox_override("pressed"), selected_style.draw_center, selected_style.bg_color.a > 0.0, selected_style.border_color], [true, true, true, GDSExFunctionNameDialog.ACCENT_FALLBACK_COLOR])
+	_expect(problems, "available filters have no tooltip", private_filter.tooltip_text, "")
 	_expect(problems, "initial message", dialog.validation_label.text, "• Function name is valid.")
 	_expect(problems, "generate enabled at start", dialog.get_ok_button().disabled, false)
 
 	dialog.variable_tree.get_root().get_child(0).set_checked(0, true)
 	dialog.variable_tree.item_edited.emit()
-	_expect(problems, "preview after checking a row", dialog.preview_label.text, "func _init(p_speed: float, p_name: String, p_secret: String) -> void")
+	_expect(problems, "preview after checking a row", _first_line(dialog.function_preview), "func _init(p_speed: float, p_name: String, p_secret: String) -> void")
 
 	dialog.filter_buttons[GDSExMemberCategories.PRIVATE_VARIABLES].button_pressed = false
 	_expect(problems, "rows with the private filter off", _dialog_visible_rows(dialog), "speed, health")
-	_expect(problems, "hidden rows still count", dialog.preview_label.text, "func _init(p_speed: float, p_name: String, p_secret: String) -> void")
+	_expect(problems, "hidden rows still count", _first_line(dialog.function_preview), "func _init(p_speed: float, p_name: String, p_secret: String) -> void")
 	dialog.none_button.pressed.emit()
-	_expect(problems, "none only clears visible rows", dialog.preview_label.text, "func _init(p_name: String, p_secret: String) -> void")
+	_expect(problems, "none only clears visible rows", _first_line(dialog.function_preview), "func _init(p_name: String, p_secret: String) -> void")
 	dialog.all_button.pressed.emit()
-	_expect(problems, "all only checks visible rows", dialog.preview_label.text, "func _init(p_speed: float, p_health: int, p_name: String, p_secret: String) -> void")
+	_expect(problems, "all only checks visible rows", _first_line(dialog.function_preview), "func _init(p_speed: float, p_health: int, p_name: String, p_secret: String) -> void")
 	dialog.filter_buttons[GDSExMemberCategories.PRIVATE_VARIABLES].button_pressed = true
 	_expect(problems, "rows with every filter on", _dialog_visible_rows(dialog), "speed, health, _name, _secret")
 
@@ -959,9 +964,9 @@ func _check_init_dialog() -> PackedStringArray:
 	_expect(problems, "name back to its normal color", dialog.name_edit.has_theme_color_override("font_color"), false)
 	dialog.variable_tree.set_selected(dialog.variable_tree.get_root().get_child(0), 0)
 	dialog.variable_tree.gui_input.emit(_key_event(KEY_SPACE))
-	_expect(problems, "space unchecks the selected row", dialog.preview_label.text, "func setup(p_health: int, p_name: String, p_secret: String) -> void")
+	_expect(problems, "space unchecks the selected row", _first_line(dialog.function_preview), "func setup(p_health: int, p_name: String, p_secret: String) -> void")
 	dialog.variable_tree.gui_input.emit(_key_event(KEY_SPACE))
-	_expect(problems, "space checks it again and does not generate", [dialog.preview_label.text, plans.size()], ["func setup(p_speed: float, p_health: int, p_name: String, p_secret: String) -> void", 0])
+	_expect(problems, "space checks it again and does not generate", [_first_line(dialog.function_preview), plans.size()], ["func setup(p_speed: float, p_health: int, p_name: String, p_secret: String) -> void", 0])
 	dialog.variable_tree.gui_input.emit(_key_event(KEY_ENTER))
 	_expect(problems, "accept on the list generates", plans.size(), 1)
 	_expect(problems, "dialog hidden after generating", dialog.visible, false)
@@ -975,6 +980,9 @@ func _check_init_dialog() -> PackedStringArray:
 	node_dialog.setup(GDSExCodeContext.new(editor), func(_plan: GDSExEditPlan) -> void: pass)
 	root.add_child(node_dialog)
 	_expect(problems, "name in a node", node_dialog.name_edit.text, "initialize")
+	var unavailable_filter := node_dialog.filter_buttons[GDSExMemberCategories.PUBLIC_VARIABLES]
+	var unavailable_style := unavailable_filter.get_theme_stylebox("disabled") as StyleBoxFlat
+	_expect(problems, "unavailable filter is an empty outline", [unavailable_style.draw_center, unavailable_filter.get_theme_color("font_disabled_color"), unavailable_filter.tooltip_text], [false, GDSExInitFunctionDialog.UNAVAILABLE_FALLBACK_COLOR, "The class has no variables of this group."])
 	_expect(problems, "filters without variables are disabled", [node_dialog.filter_buttons[GDSExMemberCategories.PRIVATE_VARIABLES].disabled, node_dialog.filter_buttons[GDSExMemberCategories.PUBLIC_VARIABLES].disabled, node_dialog.filter_buttons[GDSExMemberCategories.EXPORTS].disabled], [false, true, true])
 	_type_dialog_name(node_dialog, "_init")
 	_expect(problems, "warning for _init with parameters in a node", node_dialog.validation_label.get_theme_color("font_color"), GDSExInitFunctionDialog.LEVEL_FALLBACK_COLORS[1])
@@ -987,10 +995,14 @@ func _check_init_dialog() -> PackedStringArray:
 	var empty_dialog := GDSExInitFunctionDialog.new()
 	empty_dialog.setup(GDSExCodeContext.new(editor), func(_plan: GDSExEditPlan) -> void: pass)
 	root.add_child(empty_dialog)
-	_expect(problems, "dialog of a class without variables", [_dialog_rows(empty_dialog), empty_dialog.preview_label.text, empty_dialog.get_ok_button().disabled], ["", "func _init() -> void", false])
+	_expect(problems, "dialog of a class without variables", [_dialog_rows(empty_dialog), _first_line(empty_dialog.function_preview), empty_dialog.get_ok_button().disabled], ["", "func _init() -> void", false])
 	empty_dialog.free()
 	editor.free()
 	return problems
+
+
+func _first_line(preview: CodeEdit) -> String:
+	return preview.get_line(0).trim_suffix(":")
 
 
 func _key_event(keycode: Key) -> InputEventKey:
