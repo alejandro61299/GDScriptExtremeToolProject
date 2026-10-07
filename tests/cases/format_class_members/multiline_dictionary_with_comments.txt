@@ -17,10 +17,10 @@ extends Node<|>
 
 var person : Dictionary = {
 	# First comment
-	"Name": "Bob",
+	"Name" : "Bob",
 	# Second comment
-	"Age": 27,
-	"Job": "	Mechanic",
+	"Age" : 27,
+	"Job" : "	Mechanic",
 }
 
 === end

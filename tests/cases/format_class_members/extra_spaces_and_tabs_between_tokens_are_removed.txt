@@ -22,9 +22,12 @@ func run(amount :  int,	name  : String) ->  int:
 === expected
 extends Node<|>
 
-signal changed( value : int )
+signal changed(value : int)
 
-enum Mode {SLOW, FAST}
+enum Mode {
+	SLOW,
+	FAST,
+}
 
 @export var speed : float = 1.0
 
@@ -36,7 +39,7 @@ func run(amount : int, name : String) -> int:
 		var local : int = 4
 		return local + x
 	if amount > 1 and name != "":
-		return callback.call( amount )
+		return callback.call(amount)
 	return 0
 
 === end

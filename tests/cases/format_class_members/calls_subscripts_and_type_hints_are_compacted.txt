@@ -9,4 +9,14 @@ var sizes : Dictionary[ String , int ] = {}
 func run( first : int , second : int ) -> int:
 	return max( values[ first ] , second )
 
+=== expected
+extends Node<|>
+
+var values : Array[int] = [1, 2]
+var sizes : Dictionary[String, int] = {}
+
+
+func run(first : int, second : int) -> int:
+	return max(values[first], second)
+
 === end

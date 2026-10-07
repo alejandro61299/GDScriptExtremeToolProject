@@ -138,7 +138,8 @@ func _collect_gap(statement: GDSExSourceScanner.GDSExStatement, groups: GDSExBra
 func _collect_group(statement: GDSExSourceScanner.GDSExStatement, pieces: GDSExPieceMap, group: GDSExBracketGroups.GDSExGroup) -> void:
 	var opening := pieces.position_at(group.open_offset)
 	var closing := pieces.position_at(group.close_offset)
-	if opening.x == closing.x:
+	var has_items := GDSExSourceScanner.skip_spaces(statement.code, group.open_offset + 1) != group.close_offset
+	if opening.x == closing.x and not (group.is_enum and has_items):
 		if group.is_collection:
 			_remove_trailing_separator(statement.code, pieces, group)
 		return
@@ -149,6 +150,8 @@ func _collect_group(statement: GDSExSourceScanner.GDSExStatement, pieces: GDSExP
 	if not group.is_collection:
 		return
 	_break_after_opening(statement.code, pieces, group, opening)
+	if group.is_enum:
+		_break_after_separators(statement.code, pieces, group, opening)
 	if lambda != null:
 		if not lambda.statements.is_empty():
 			_add_separator(_code_end(lambda.statements[lambda.statements.size() - 1]))
@@ -195,6 +198,14 @@ func _break_after_opening(code: String, pieces: GDSExPieceMap, group: GDSExBrack
 	var first_offset := GDSExSourceScanner.skip_spaces(code, group.open_offset + 1)
 	if first_offset < piece.offset + piece.length:
 		_edits_of(opening.x).breaks[opening.y + first_offset - group.open_offset] = _new_rule(GDSExIndent.CHILD, opening, null)
+
+
+func _break_after_separators(code: String, pieces: GDSExPieceMap, group: GDSExBracketGroups.GDSExGroup, opening: Vector2i) -> void:
+	for separator in group.separator_offsets:
+		var piece := pieces.piece_at(separator)
+		var next_offset := GDSExSourceScanner.skip_spaces(code, separator + 1)
+		if next_offset < piece.offset + piece.length and next_offset != group.close_offset:
+			_edits_of(piece.line).breaks[piece.column + next_offset - piece.offset] = _new_rule(GDSExIndent.CHILD, opening, null)
 
 
 func _add_separator(position: Vector2i) -> void:

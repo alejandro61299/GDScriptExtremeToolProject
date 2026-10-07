@@ -1,0 +1,20 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var person : Dictionary = {"Name" :	 "Bob", "Age" : 	27	,}
+var wide : Dictionary = {   "Name": "Ann" 	}
+var spaced : Dictionary = { "Name": "Eve" }
+var empty : Dictionary = { }
+var nested : Array = [{"inner": {}}, {"other": {1: 2}}]
+
+=== expected
+extends Node<|>
+
+var person : Dictionary = { "Name" : "Bob", "Age" : 27 }
+var wide : Dictionary = { "Name" : "Ann" }
+var spaced : Dictionary = { "Name" : "Eve" }
+var empty : Dictionary = {}
+var nested : Array = [{ "inner" : {} }, { "other" : { 1 : 2 } }]
+
+=== end

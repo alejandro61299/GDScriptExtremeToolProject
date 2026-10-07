@@ -2,14 +2,24 @@
 
 ## Unreleased
 
+### Added
+
+- Setting `format/max_blank_lines_inside_functions`, `1` by default: Format keeps at most that many blank lines in a row inside a function, and inside any other member that spans several lines. Blank lines inside a multiline string are never removed.
+
 ### Changed
 
+- Format spaces commas and brackets everywhere, not only in collections:
+  - No space before a comma and one after it, in calls, parameters, signals, annotations, type hints and `match` patterns.
+  - No spaces right inside parentheses and square brackets: `print( first )` becomes `print(first)`.
+  - No space between a name and the bracket of its call or subscript: `print ("foo")` becomes `print("foo")`, `table ["key"]` becomes `table["key"]` and `func (value)` becomes `func(value)`.
+  - One space between a keyword and a bracket: `if(ready)` becomes `if (ready)` and `return[1]` becomes `return [1]`.
 - Format lays out arrays, dictionaries and enums as the GDScript style guide does:
-  - On one line: no spaces inside the brackets or before a comma, one space after each comma and no trailing comma.
+  - Arrays and dictionaries on one line: no space before a comma, one space after it and no trailing comma. An array has no spaces inside its brackets; a dictionary keeps one inside its braces, `{ "key": value }`, and none when it is empty.
+  - Enums always have one item per line, so an enum written on one line is expanded.
   - On several lines: the items start below the opening bracket with one indentation level, comments get the indentation of the items, the blank lines between them are removed, and the closing bracket goes on its own line after a trailing comma.
   - The lines of an item that spans several lines, and the body of a lambda used as an item, move with it.
-  - The colon of a dictionary key gets one space after it. Before it, each dictionary keeps the style most of its keys use, `"key": value` or `"key" : value`, and `"key": value` when they are tied.
-- Format now applies these rules to enums too, and to collections written on one line.
+  - The colon of a dictionary key has one space before it and one after it: `"key" : value`.
+- Format now applies these rules to collections written on one line too.
 
 ### Fixed
 

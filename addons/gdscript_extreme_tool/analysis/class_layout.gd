@@ -139,14 +139,35 @@ static func _new_draft(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: Pac
 
 
 static func _code_rewrites(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray, line_ranges: Array[Vector2i], indent_unit: String) -> Dictionary[int, PackedStringArray]:
-	var tidied_lines := GDSExTokenSpacing.tidy(_own_statements(class_scope, statements), lines, line_ranges)
+	var own_statements := _own_statements(class_scope, statements)
+	var tidied_lines := GDSExTokenSpacing.tidy(own_statements, lines, line_ranges)
 	var tidied_statements := statements if tidied_lines == lines else GDSExSourceScanner.new().scan(tidied_lines)
 	var rewrites := GDSExBracketLayout.new(tidied_lines, indent_unit).rewrite(_member_statements(class_scope, tidied_statements))
 	for line_range in line_ranges:
 		for line in range(line_range.x, line_range.y + 1):
 			if tidied_lines[line] != lines[line] and not rewrites.has(line):
 				rewrites[line] = PackedStringArray([tidied_lines[line]])
+	_remove_extra_blank_lines(class_scope, statements, own_statements, lines, rewrites)
 	return rewrites
+
+
+static func _remove_extra_blank_lines(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], own_statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray, rewrites: Dictionary[int, PackedStringArray]) -> void:
+	var string_lines: Dictionary[int, bool] = {}
+	for statement in own_statements:
+		for line in statement.string_lines:
+			string_lines[line] = true
+	var max_blank_lines := GDSExPluginProjectSettings.max_blank_lines_inside_functions()
+	for statement in _scope_statements(class_scope, statements, false):
+		if _is_class_header(class_scope, statement):
+			continue
+		var blank_lines := 0
+		for line in range(statement.first_line, statement.last_line + 1):
+			if string_lines.has(line) or not _is_blank(lines[line]):
+				blank_lines = 0
+			elif not rewrites.has(line):
+				blank_lines += 1
+				if blank_lines > max_blank_lines:
+					rewrites[line] = PackedStringArray()
 
 
 static func _own_line_ranges(class_scope: GDSExSymbolIndex.GDSExClassScope, first_line: int, last_line: int) -> Array[Vector2i]:

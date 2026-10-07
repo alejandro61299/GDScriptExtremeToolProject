@@ -1,0 +1,25 @@
+action: format_class_members
+bookmarks: 5, 7
+expect_bookmarks: 5, 10
+=== input
+extends Node
+
+
+class Inner:
+	enum Mode { SLOW, FAST }<|>
+
+	var mode : Mode = Mode.SLOW
+
+=== expected
+extends Node
+
+
+class Inner:
+	enum Mode {<|>
+		SLOW,
+		FAST,
+	}
+	
+	var mode : Mode = Mode.SLOW
+
+=== end

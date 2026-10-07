@@ -1,0 +1,53 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var callback : Callable = func() -> void:
+	print(1)
+
+
+	print(2)
+
+
+func run() -> void:
+
+
+	var total := 0
+	
+		
+
+	if total > 0:
+		print(total)
+
+
+		print(total)
+	print("""first
+
+
+
+last""")
+
+=== expected
+extends Node<|>
+
+var callback : Callable = func() -> void:
+	print(1)
+
+	print(2)
+
+
+func run() -> void:
+
+	var total := 0
+	
+	if total > 0:
+		print(total)
+
+		print(total)
+	print("""first
+
+
+
+last""")
+
+=== end

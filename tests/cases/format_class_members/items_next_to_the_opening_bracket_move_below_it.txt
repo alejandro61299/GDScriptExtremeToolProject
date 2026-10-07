@@ -26,9 +26,9 @@ var grid : Array = [
 ]
 var people : Array = [
 	{
-		"name": "Bob",
+		"name" : "Bob",
 	}, {
-		"name": "Ann",
+		"name" : "Ann",
 	},
 ]
 

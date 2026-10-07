@@ -1,0 +1,63 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var levels : Array = [{"name" :"Intro" ,"waves": [ 1 , 2 ,] ,} ,
+				{
+
+	# Second level
+		"name" : "Boss",
+				"waves": [
+
+		3,
+	# Last wave
+						[ 4 ,5 ],
+
+					{"hp":10 , "loot" : [ "gold" , "gem" ,]}
+				]
+		}]
+
+
+func run() -> Array:
+	return [{
+	"items": [
+	[1 ,2],
+			{"deep" :[
+		3,
+		4]}
+	]}]
+
+=== expected
+extends Node<|>
+
+var levels : Array = [
+	{ "name" : "Intro", "waves" : [1, 2] },
+	{
+		# Second level
+		"name" : "Boss",
+		"waves" : [
+			3,
+			# Last wave
+			[4, 5],
+			{ "hp" : 10, "loot" : ["gold", "gem"] },
+		],
+	},
+]
+
+
+func run() -> Array:
+	return [
+		{
+			"items" : [
+				[1, 2],
+				{
+					"deep" : [
+						3,
+						4,
+					],
+				},
+			],
+		},
+	]
+
+=== end

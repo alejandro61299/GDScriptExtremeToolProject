@@ -6,7 +6,7 @@ extends Node
 func run() -> Array:<|>
 	var deep : Array = [
 			func() -> int:
-				var inner : Array = [1 ,
+				var inner : Array = [1,
 2]
 				return inner.size()
 	,

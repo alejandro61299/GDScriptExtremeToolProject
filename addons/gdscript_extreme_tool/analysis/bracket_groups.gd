@@ -6,6 +6,10 @@ const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/langu
 
 const ARRAY_OPENING: String = "["
 const DICTIONARY_OPENING: String = "{"
+const DICTIONARY_CLOSING: String = "}"
+const ENUM_KEYWORD: String = "enum"
+const WORD_SEPARATOR: String = " "
+const TAB: String = "\t"
 const ELEMENT_SEPARATOR: String = ","
 const KEY_SEPARATOR: String = ":"
 const ASSIGNMENT: String = "="
@@ -21,12 +25,8 @@ class GDSExGroup:
 	var open_offset: int = 0
 	var close_offset: int = 0
 	var is_collection: bool = false
+	var is_enum: bool = false
 	var separator_offsets: PackedInt32Array = []
-	var key_count: int = 0
-	var spaced_key_count: int = 0
-
-	func spaces_keys() -> bool:
-		return spaced_key_count * 2 > key_count
 
 
 class GDSExGroups:
@@ -43,14 +43,6 @@ class GDSExGroups:
 		if offset < 0 or offset >= roles.size():
 			return GDSExRole.NONE
 		return roles[offset] as GDSExRole
-
-	func opens_collection(offset: int) -> bool:
-		var group := group_at(offset + 1)
-		return group != null and group.is_collection and group.open_offset == offset
-
-	func closes_collection(offset: int) -> bool:
-		var group := group_at(offset)
-		return group != null and group.is_collection and group.close_offset == offset
 
 
 static func has_collection_brackets(code: String) -> bool:
@@ -71,6 +63,7 @@ static func find(code: String) -> GDSExGroups:
 			var group := GDSExGroup.new()
 			group.open_offset = offset
 			group.is_collection = _is_collection_literal(code, offset)
+			group.is_enum = current == NO_GROUP and character == DICTIONARY_OPENING and _declares_enum(code, offset)
 			open_indices.append(found.groups.size())
 			keyed_elements.append(false)
 			found.groups.append(group)
@@ -88,24 +81,24 @@ static func find(code: String) -> GDSExGroups:
 				found.roles[offset] = GDSExRole.ELEMENT_SEPARATOR
 				keyed_elements[element] = false
 			elif (character == KEY_SEPARATOR or character == ASSIGNMENT) and not keyed_elements[element] and code[group.open_offset] == DICTIONARY_OPENING:
-				keyed_elements[element] = _read_key_separator(code, offset, group, found)
+				keyed_elements[element] = _read_key_separator(code, offset, found)
 	return found if open_indices.is_empty() else GDSExGroups.new()
+
+
+static func _declares_enum(code: String, open_offset: int) -> bool:
+	return code.substr(0, open_offset).replace(TAB, WORD_SEPARATOR).split(WORD_SEPARATOR, false).has(ENUM_KEYWORD)
 
 
 static func _is_pair(opening: String, closing: String) -> bool:
 	return GDSExSourceScanner.OPENING_BRACKETS.find(opening) == GDSExSourceScanner.CLOSING_BRACKETS.find(closing)
 
 
-static func _read_key_separator(code: String, offset: int, group: GDSExGroup, found: GDSExGroups) -> bool:
-	var character := code[offset]
+static func _read_key_separator(code: String, offset: int, found: GDSExGroups) -> bool:
 	var is_followed_by_assignment := offset + 1 < code.length() and code[offset + 1] == ASSIGNMENT
-	if character == ASSIGNMENT:
+	if code[offset] == ASSIGNMENT:
 		return not is_followed_by_assignment and not OPERATOR_CHARACTERS.contains(code[offset - 1])
 	if not is_followed_by_assignment:
 		found.roles[offset] = GDSExRole.KEY_SEPARATOR
-		group.key_count += 1
-		if BLANK_CHARACTERS.contains(code[offset - 1]):
-			group.spaced_key_count += 1
 	return true
 
 

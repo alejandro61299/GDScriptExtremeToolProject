@@ -1,0 +1,28 @@
+action: format_class_members
+settings: {"format/max_blank_lines_inside_functions": 2}
+=== input
+extends Node
+
+
+func run() -> void:<|>
+	print(1)
+
+
+
+	print(2)
+
+	print(3)
+
+=== expected
+extends Node
+
+
+func run() -> void:<|>
+	print(1)
+
+
+	print(2)
+
+	print(3)
+
+=== end

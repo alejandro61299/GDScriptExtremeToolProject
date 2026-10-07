@@ -1,0 +1,24 @@
+action: format_class_members
+bookmarks: 5, 7, 9
+expect_bookmarks: 5, 7
+=== input
+extends Node
+
+
+func run() -> void:
+	print(1)
+
+
+
+	print(2)<|>
+
+=== expected
+extends Node
+
+
+func run() -> void:
+	print(1)
+
+	print(2)<|>
+
+=== end

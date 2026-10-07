@@ -14,10 +14,10 @@ var aligned : Dictionary = {
 === expected
 extends Node<|>
 
-var spaced : Dictionary = {"alpha" : 1, "beta" : 2, "gamma" : 3}
-var tight : Dictionary = {"alpha": 1, "beta": 2, "gamma": 3}
-var tied : Dictionary = {"alpha": 1, "beta": 2}
-var nested : Dictionary = {"outer" : {"inner": 1}, "other" : 2}
+var spaced : Dictionary = { "alpha" : 1, "beta" : 2, "gamma" : 3 }
+var tight : Dictionary = { "alpha" : 1, "beta" : 2, "gamma" : 3 }
+var tied : Dictionary = { "alpha" : 1, "beta" : 2 }
+var nested : Dictionary = { "outer" : { "inner" : 1 }, "other" : 2 }
 var aligned : Dictionary = {
 	"a" : 1,
 	"bbb" : 2,

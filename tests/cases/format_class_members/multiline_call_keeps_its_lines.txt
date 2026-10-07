@@ -1,0 +1,26 @@
+action: format_class_members
+=== input
+extends Node
+
+
+func run() -> int:<|>
+	return max( 1 ,
+			2 ,
+			# Last one
+
+			3
+	)
+
+=== expected
+extends Node
+
+
+func run() -> int:<|>
+	return max(1,
+			2,
+			# Last one
+
+			3
+	)
+
+=== end

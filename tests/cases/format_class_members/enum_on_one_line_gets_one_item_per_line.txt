@@ -1,0 +1,33 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+enum Mode {SLOW,	 FAST,	 TURBO,}
+enum Other {  ALPHA,	  BETA = 4,		 GAMMA } # Trailing comment
+enum { FIRST , SECOND }
+enum Single { ONLY }
+enum Empty { }
+
+=== expected
+extends Node<|>
+
+enum Mode {
+	SLOW,
+	FAST,
+	TURBO,
+}
+enum Other {
+	ALPHA,
+	BETA = 4,
+	GAMMA,
+} # Trailing comment
+enum {
+	FIRST,
+	SECOND,
+}
+enum Single {
+	ONLY,
+}
+enum Empty {}
+
+=== end

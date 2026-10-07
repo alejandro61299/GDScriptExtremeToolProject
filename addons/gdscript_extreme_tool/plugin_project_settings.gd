@@ -9,6 +9,7 @@ const DEFAULT_BLANK_LINES_AROUND_FUNCTIONS_AND_CLASSES : int = 2
 const DEFAULT_BLANK_LINES_BETWEEN_MEMBER_CATEGORIES : int = 1
 const DEFAULT_MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY : int = 1
 const DEFAULT_MAX_BLANK_LINES_OUTSIDE_MEMBERS : int = 1
+const DEFAULT_MAX_BLANK_LINES_INSIDE_FUNCTIONS : int = 1
 const DEFAULT_CLASS_MEMBER_ORDER : Array[String] = [
 	"signals",
 	"constants",
@@ -36,6 +37,7 @@ const BLANK_LINES_AROUND_FUNCTIONS_AND_CLASSES_KEY : String = "format/blank_line
 const BLANK_LINES_BETWEEN_MEMBER_CATEGORIES_KEY : String = "format/blank_lines_between_member_categories"
 const MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY_KEY : String = "format/max_blank_lines_inside_member_category"
 const MAX_BLANK_LINES_OUTSIDE_MEMBERS_KEY : String = "format/max_blank_lines_outside_members"
+const MAX_BLANK_LINES_INSIDE_FUNCTIONS_KEY : String = "format/max_blank_lines_inside_functions"
 const CLASS_MEMBER_ORDER_KEY : String = "order/class_member_order"
 const BLANK_LINES_RANGE : String = "0,10,1"
 
@@ -89,6 +91,10 @@ static func max_blank_lines_outside_members() -> int:
 	return maxi(0, _value(MAX_BLANK_LINES_OUTSIDE_MEMBERS_KEY, DEFAULT_MAX_BLANK_LINES_OUTSIDE_MEMBERS))
 
 
+static func max_blank_lines_inside_functions() -> int:
+	return maxi(0, _value(MAX_BLANK_LINES_INSIDE_FUNCTIONS_KEY, DEFAULT_MAX_BLANK_LINES_INSIDE_FUNCTIONS))
+
+
 static func class_member_order() -> PackedStringArray:
 	return _value(CLASS_MEMBER_ORDER_KEY, PackedStringArray(DEFAULT_CLASS_MEMBER_ORDER))
 
@@ -108,6 +114,7 @@ static func _defaults() -> Dictionary[String, Variant]:
 		BLANK_LINES_BETWEEN_MEMBER_CATEGORIES_KEY: DEFAULT_BLANK_LINES_BETWEEN_MEMBER_CATEGORIES,
 		MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY_KEY: DEFAULT_MAX_BLANK_LINES_INSIDE_MEMBER_CATEGORY,
 		MAX_BLANK_LINES_OUTSIDE_MEMBERS_KEY: DEFAULT_MAX_BLANK_LINES_OUTSIDE_MEMBERS,
+		MAX_BLANK_LINES_INSIDE_FUNCTIONS_KEY: DEFAULT_MAX_BLANK_LINES_INSIDE_FUNCTIONS,
 		CLASS_MEMBER_ORDER_KEY: PackedStringArray(DEFAULT_CLASS_MEMBER_ORDER),
 	}
 

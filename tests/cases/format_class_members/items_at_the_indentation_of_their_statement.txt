@@ -26,8 +26,8 @@ var numbers : Array = [
 
 func run() -> Dictionary:
 	var person : Dictionary = {
-		"name": "Bob",
-		"age": 27,
+		"name" : "Bob",
+		"age" : 27,
 	}
 	return person
 

@@ -18,4 +18,20 @@ func stop() -> void:
 
 	# Disabled code at the end.
 
+=== expected
+extends Node
+
+
+func run() -> void:
+	pass<|>
+
+	# Disabled code.
+	# print("run")
+
+
+func stop() -> void:
+	pass
+
+	# Disabled code at the end.
+
 === end
