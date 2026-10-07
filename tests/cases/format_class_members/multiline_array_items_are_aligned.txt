@@ -1,0 +1,23 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var numbers : Array = 	[
+		
+			1 ,
+		3, 
+	
+	4  
+		
+	]
+
+=== expected
+extends Node<|>
+
+var numbers : Array = [
+	1,
+	3,
+	4,
+]
+
+=== end

@@ -19,7 +19,7 @@ The script is analyzed only when you open that menu, so a plain right-click cost
 | Generate Default Init Definition | Creates `_init` with one parameter for each private variable of the class and assigns them. It is not offered when the class already has `_init` or extends `Node` or `Resource`, because Godot calls their `_init` without arguments. |
 | Generate Custom Init Definition... | Opens a dialog to choose the name of the function and which variables become parameters: private, public or exported. It shows the signature as you change it and marks a name that cannot be used. |
 | Reorder Class Members | Sorts the members of the class under the caret: signals, constants, static variables, enums, exports, onready, public and private variables, inner classes, static functions, `_init`, engine callbacks, public and private functions. |
-| Format Class Members | Normalizes blank lines between members and around comments, puts the closing bracket of multiline arrays, dictionaries and lambda arguments on its own line, adds trailing commas, and removes extra spaces between tokens and at the end of lines. It never changes the order of the code. |
+| Format Class Members | Normalizes blank lines between members and around comments, lays out arrays, dictionaries and enums as the GDScript style guide does, puts the closing parenthesis of a multiline lambda argument on its own line, and removes extra spaces between tokens and at the end of lines. It never changes the order of the code. |
 
 Inner classes, lambdas and nested blocks are handled as their own scopes. Reordering, formatting and the init actions apply to the class under the caret and do not enter its inner classes.
 

@@ -23,13 +23,11 @@ extends Node
 
 const NAMES : Array[String] = [
 	"first",
-
 	"second",
 ]
 
 enum Mode {
 	SLOW,
-
 	FAST,
 }
 

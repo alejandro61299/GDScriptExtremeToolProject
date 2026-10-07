@@ -1,0 +1,26 @@
+action: format_class_members
+=== input
+extends Node
+
+
+func run(value : Variant) -> int:<|>
+	match value:
+		[1 , 2 ,]:
+			return 1
+		{"alpha" : 1 ,}:
+			return 2
+	return 0
+
+=== expected
+extends Node
+
+
+func run(value : Variant) -> int:<|>
+	match value:
+		[1, 2]:
+			return 1
+		{"alpha" : 1}:
+			return 2
+	return 0
+
+=== end

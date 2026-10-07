@@ -1,0 +1,16 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var numbers : Array = [ 1 , 	2, 3	, 	4, 		5	,]
+var empty : Array = [ ]
+var nested : Array = [ [1 ,2] , [ ] ,]
+
+=== expected
+extends Node<|>
+
+var numbers : Array = [1, 2, 3, 4, 5]
+var empty : Array = []
+var nested : Array = [[1, 2], []]
+
+=== end

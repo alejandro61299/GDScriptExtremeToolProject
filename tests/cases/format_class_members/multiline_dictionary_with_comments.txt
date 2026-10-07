@@ -1,0 +1,26 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var person : Dictionary = {
+	# First comment
+		"Name"	: "Bob",
+				# Second comment
+			"Age":	 27,
+			
+		"Job": "	Mechanic"	
+		
+	}
+
+=== expected
+extends Node<|>
+
+var person : Dictionary = {
+	# First comment
+	"Name": "Bob",
+	# Second comment
+	"Age": 27,
+	"Job": "	Mechanic",
+}
+
+=== end

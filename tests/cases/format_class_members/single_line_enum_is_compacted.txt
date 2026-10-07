@@ -1,0 +1,16 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+enum Mode {SLOW,	 FAST,	 TURBO,}
+enum Other {  ALPHA,	  BETA = 4,		 GAMMA }
+enum { FIRST , SECOND }
+
+=== expected
+extends Node<|>
+
+enum Mode {SLOW, FAST, TURBO}
+enum Other {ALPHA, BETA = 4, GAMMA}
+enum {FIRST, SECOND}
+
+=== end

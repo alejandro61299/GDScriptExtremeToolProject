@@ -1,0 +1,16 @@
+action: format_class_members
+=== input
+extends Node
+
+
+func run() -> Array:<|>
+	var deep : Array = [
+			func() -> int:
+				var inner : Array = [1 ,
+2]
+				return inner.size()
+	,
+			3]
+	return deep
+
+=== end

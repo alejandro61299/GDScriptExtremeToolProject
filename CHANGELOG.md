@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Format lays out arrays, dictionaries and enums as the GDScript style guide does:
+  - On one line: no spaces inside the brackets or before a comma, one space after each comma and no trailing comma.
+  - On several lines: the items start below the opening bracket with one indentation level, comments get the indentation of the items, the blank lines between them are removed, and the closing bracket goes on its own line after a trailing comma.
+  - The lines of an item that spans several lines, and the body of a lambda used as an item, move with it.
+  - The colon of a dictionary key gets one space after it. Before it, each dictionary keeps the style most of its keys use, `"key": value` or `"key" : value`, and `"key": value` when they are tied.
+- Format now applies these rules to enums too, and to collections written on one line.
+
+### Fixed
+
+- Items of a collection written at the indentation of their statement are no longer taken for separate statements.
+- The closing parenthesis of a lambda argument no longer gets an indentation that GDScript rejects when its call starts on a continuation line.
+
 ## 0.2.0 — 2026-10-06
 
 ### Added

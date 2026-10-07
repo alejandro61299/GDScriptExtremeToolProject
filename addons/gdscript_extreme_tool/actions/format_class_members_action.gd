@@ -11,7 +11,7 @@ func get_label() -> String:
 
 
 func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
-	var layout := GDSExClassLayout.format(context.scope_info.class_scope, context.index.statements, context.lines)
+	var layout := GDSExClassLayout.format(context.scope_info.class_scope, context.index.statements, context.lines, context.indent_unit)
 	if layout == null:
 		return null
 	var plan := GDSExEditPlan.new()

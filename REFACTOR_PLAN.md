@@ -66,6 +66,7 @@ addons/gdscript_extreme_tool/
 │   └── format_class_members_action.gd
 ├── analysis/
 │   ├── builtin_types.gd
+│   ├── bracket_groups.gd
 │   ├── bracket_layout.gd
 │   ├── class_layout.gd
 │   ├── language.gd

@@ -1,0 +1,26 @@
+action: format_class_members
+bookmarks: 5, 7, 9, 10
+expect_bookmarks: 4, 5, 7
+=== input
+extends Node
+
+enum Mode {
+
+		SLOW,
+
+		# Fast mode
+		FAST,<|>
+
+		TURBO}
+
+=== expected
+extends Node
+
+enum Mode {
+	SLOW,
+	# Fast mode
+	FAST,<|>
+	TURBO,
+}
+
+=== end

@@ -1,0 +1,30 @@
+action: format_class_members
+=== input
+extends Node
+
+
+class Inner:
+	enum Mode { SLOW ,
+	FAST }<|>
+
+	var numbers : Array = [
+	1,
+
+			2]
+
+=== expected
+extends Node
+
+
+class Inner:
+	enum Mode {
+		SLOW,
+		FAST,<|>
+	}
+	
+	var numbers : Array = [
+		1,
+		2,
+	]
+
+=== end

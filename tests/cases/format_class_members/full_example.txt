@@ -48,7 +48,7 @@ const NAMES : Array[String] = []
 
 static var instances : int = 0
 
-enum Mode { SLOW, FAST }
+enum Mode {SLOW, FAST}
 
 @export var speed : float = 1.0
 @export var label_text : String = ""

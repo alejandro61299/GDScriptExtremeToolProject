@@ -1,0 +1,52 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var callbacks : Array = [func() -> int:
+	return 1
+, func() -> int:
+		return 2
+]
+
+
+func run() -> int:
+	var value : int = _first(1,
+			_second(func() -> void:
+				pass))
+	return value
+
+
+func _first(first : int, second : int) -> int:
+	return first + second
+
+
+func _second(callback : Callable) -> int:
+	return callback.get_argument_count()
+
+=== expected
+extends Node<|>
+
+var callbacks : Array = [
+	func() -> int:
+		return 1
+, func() -> int:
+		return 2,
+]
+
+
+func run() -> int:
+	var value : int = _first(1,
+			_second(func() -> void:
+				pass
+	))
+	return value
+
+
+func _first(first : int, second : int) -> int:
+	return first + second
+
+
+func _second(callback : Callable) -> int:
+	return callback.get_argument_count()
+
+=== end

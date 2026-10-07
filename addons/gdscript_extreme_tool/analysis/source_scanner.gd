@@ -10,6 +10,12 @@ const BLOCK_OPENER: String = ":"
 const LINE_CONTINUATION: String = "\\"
 const CONTINUATION_STARTS: String = ")]},.+-*/%|&^=<>:"
 const CONTINUATION_WORDS: Array[String] = ["and", "or", "in", "is", "as"]
+const STATEMENT_KEYWORDS: Array[String] = [
+	"var", "const", "static", "func", "signal", "enum", "class", "class_name", "extends", "if", "elif", "else",
+	"for", "while", "match", "return", "pass", "break", "continue",
+]
+const ANNOTATION_START: String = "@"
+const NO_LINE: int = -1
 
 
 class GDSExBlock:
@@ -37,6 +43,8 @@ class GDSExStatement:
 	var code: String = ""
 	var pieces: Array[GDSExPiece] = []
 	var blocks: Array[GDSExBlock] = []
+	var string_lines: PackedInt32Array = []
+	var is_abandoned: bool = false
 
 	func offset_at(line: int, column: int) -> int:
 		for piece in pieces:
@@ -58,8 +66,10 @@ class GDSExFrame:
 	var resume_depth: int = 0
 
 
+var _lines: PackedStringArray = []
 var _frames: Array[GDSExFrame] = []
 var _open_statement: GDSExStatement
+var _closing_line: int = NO_LINE
 var _depth: int = 0
 var _string_delimiter: String = ""
 var _pending_frame: GDSExFrame
@@ -70,10 +80,14 @@ func scan(lines: PackedStringArray) -> Array[GDSExStatement]:
 	var root := GDSExBlock.new()
 	var root_frame := GDSExFrame.new()
 	root_frame.block = root
+	_lines = lines
+	_closing_line = NO_LINE
 	_frames.clear()
 	_frames.append(root_frame)
 	for line_index in lines.size():
 		_scan_line(lines[line_index], line_index)
+	if _open_statement != null:
+		_open_statement.is_abandoned = _depth > 0
 	while _frames.size() > 1:
 		_close_frame(_frames.pop_back())
 	_finish_block(root)
@@ -120,10 +134,13 @@ func _scan_line(raw: String, line_index: int) -> void:
 	var starts_inside_string := not _string_delimiter.is_empty()
 	var masked := _mask(raw)
 	var has_code := not masked.strip_edges().is_empty()
-	if _open_statement != null and has_code and not starts_inside_string and _abandons_open_brackets(raw, masked):
+	if _open_statement != null and has_code and not starts_inside_string and _abandons_open_brackets(raw, masked, line_index):
+		_open_statement.is_abandoned = true
 		_open_statement = null
 		_depth = 0
 	if _open_statement != null:
+		if starts_inside_string:
+			_open_statement.string_lines.append(line_index)
 		if has_code:
 			_append_code(masked, line_index)
 		return
@@ -159,25 +176,79 @@ func _scan_line(raw: String, line_index: int) -> void:
 	statement.indent_text = raw.substr(0, indent_length)
 	_frames.back().block.statements.append(statement)
 	_open_statement = statement
+	_closing_line = NO_LINE
 	_depth = 0
 	_append_code(masked, line_index)
 
 
-func _abandons_open_brackets(raw: String, masked: String) -> bool:
+func _abandons_open_brackets(raw: String, masked: String, line_index: int) -> bool:
 	if _depth == 0 or _indent_length(raw) > _open_statement.indent_text.length():
 		return false
 	var text := masked.strip_edges()
 	if CONTINUATION_STARTS.contains(text[0]):
 		return false
+	if CONTINUATION_WORDS.has(_first_word(text)) or line_index <= _closing_line:
+		return false
+	_closing_line = _find_closing_line(masked, line_index)
+	return _closing_line == NO_LINE
+
+
+func _find_closing_line(masked: String, line_index: int) -> int:
+	var delimiter := _string_delimiter
+	var depth := _depth
+	var closing_line := NO_LINE
+	var line := line_index
+	var line_masked := masked
+	var starts_inside_string := false
+	while line < _lines.size():
+		if line > line_index:
+			starts_inside_string = not _string_delimiter.is_empty()
+			line_masked = _mask(_lines[line])
+		if not starts_inside_string and _starts_another_statement(_lines[line], line_masked):
+			break
+		depth = _depth_after(line_masked, depth)
+		if depth == 0:
+			closing_line = line
+			break
+		line += 1
+	_string_delimiter = delimiter
+	return closing_line
+
+
+func _starts_another_statement(raw: String, masked: String) -> bool:
+	var text := masked.strip_edges()
+	if text.is_empty():
+		return false
+	var indent_length := _indent_length(raw)
+	if indent_length < _frames.back().indent_length:
+		return true
+	if indent_length > _open_statement.indent_text.length():
+		return false
+	return text.begins_with(ANNOTATION_START) or STATEMENT_KEYWORDS.has(_first_word(text))
+
+
+func _depth_after(masked: String, depth: int) -> int:
+	for character in masked:
+		if OPENING_BRACKETS.contains(character):
+			depth += 1
+		elif CLOSING_BRACKETS.contains(character):
+			depth -= 1
+			if depth == 0:
+				return 0
+	return depth
+
+
+func _first_word(text: String) -> String:
 	var word_end := 0
 	while word_end < text.length() and is_identifier_character(text[word_end]):
 		word_end += 1
-	return not CONTINUATION_WORDS.has(text.substr(0, word_end))
+	return text.substr(0, word_end)
 
 
 func _resume(frame: GDSExFrame, masked: String, line_index: int) -> void:
 	_pending_comments.clear()
 	_open_statement = frame.owner
+	_closing_line = NO_LINE
 	_depth = frame.resume_depth
 	_append_code(masked, line_index)
 
