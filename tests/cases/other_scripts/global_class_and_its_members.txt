@@ -1,0 +1,37 @@
+action: add_explicit_type
+requires_global_class: GDSExTestGadget, GDSExTestGadgetChild
+=== input
+extends Node
+
+
+func run(gadget : GDSExTestGadget) -> void:
+	var created := GDSExTestGadget.create()
+	var fresh := GDSExTestGadget.new()
+	var weight := gadget.weight
+	var size := gadget.size
+	var part := GDSExTestGadget.make_part()
+	var length := gadget.part.length
+	var parts := gadget.parts()
+	var circle := GDSExTestGadget.circle()
+	var limit := GDSExTestGadget.LIMIT
+	var inner := GDSExTestGadget.Part.new()
+	print(created, fresh, weight, size, part, length, parts, circle, limit, inner)
+
+=== expected
+extends Node
+
+
+func run(gadget : GDSExTestGadget) -> void:
+	var created: GDSExTestGadget = GDSExTestGadget.create()
+	var fresh: GDSExTestGadget = GDSExTestGadget.new()
+	var weight: float = gadget.weight
+	var size: GDSExTestGadget.Size = gadget.size
+	var part: GDSExTestGadget.Part = GDSExTestGadget.make_part()
+	var length: int = gadget.part.length
+	var parts: Array[GDSExTestGadget.Part] = gadget.parts()
+	var circle: GDSExTestGadget.Shapes.Circle = GDSExTestGadget.circle()
+	var limit: int = GDSExTestGadget.LIMIT
+	var inner: GDSExTestGadget.Part = GDSExTestGadget.Part.new()
+	print(created, fresh, weight, size, part, length, parts, circle, limit, inner)
+
+=== end

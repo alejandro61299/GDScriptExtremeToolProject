@@ -8,7 +8,6 @@ const GDSExBuiltinTypes = preload("res://addons/gdscript_extreme_tool/analysis/b
 const GDSExVariableUsage = preload("res://addons/gdscript_extreme_tool/analysis/variable_usage.gd")
 const GDSExBracketGroups = preload("res://addons/gdscript_extreme_tool/analysis/bracket_groups.gd")
 const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
-const GDSExScriptLibrary = preload("res://addons/gdscript_extreme_tool/analysis/script_library.gd")
 
 const NULL_LITERAL: String = "null"
 const MEMBER_ACCESS: String = "."
@@ -24,13 +23,12 @@ var _index: GDSExSymbolIndex.GDSExSymbolIndexData
 var _untyped: Dictionary[GDSExSymbolIndex.GDSExVariableSymbol, GDSExTypedVariable] = {}
 var _untyped_members: Dictionary[String, Array] = {}
 var _untyped_function_names: Dictionary[String, bool] = {}
-var _untyped_names_of_other_scripts: Dictionary[String, bool] = {}
-var _visited_script_paths: Dictionary[String, bool] = {}
 
 
 class GDSExValueType:
 	var text: String = ""
 	var is_object: bool = false
+	var is_guessed: bool = false
 
 
 class GDSExTypedVariable:
@@ -56,8 +54,7 @@ func _find(index: GDSExSymbolIndex.GDSExSymbolIndexData) -> Array[GDSExTypedVari
 		if symbol.is_untyped:
 			_untyped[symbol] = variable
 	if not _untyped.is_empty():
-		_visited_script_paths[index.script_path] = true
-		_collect_untyped_members(index.root, false)
+		_collect_untyped_members(index.root)
 		for symbol in _untyped:
 			_untyped[symbol].is_rejected = not _add_sources(_untyped[symbol], symbol.declaration.value, _scope_info(symbol.start_line))
 		_check_writes(index.statements)
@@ -74,7 +71,7 @@ func _read_variable(symbol: GDSExSymbolIndex.GDSExVariableSymbol) -> GDSExTypedV
 	if declaration == null or symbol.is_const or declaration.has_type() or not declaration.has_value():
 		return null
 	var type := _value_type(declaration.value, _scope_info(symbol.start_line))
-	if type == null:
+	if type == null or (symbol.is_untyped and type.is_guessed):
 		return null
 	var variable := GDSExTypedVariable.new()
 	variable.symbol = symbol
@@ -86,31 +83,18 @@ func _scope_info(line: int) -> GDSExSymbolIndex.GDSExScopeInfo:
 	return GDSExSymbolIndex.get_scope_info_for_line(_index, line)
 
 
-func _collect_untyped_members(class_scope: GDSExSymbolIndex.GDSExClassScope, is_another_script: bool) -> void:
+func _collect_untyped_members(class_scope: GDSExSymbolIndex.GDSExClassScope) -> void:
 	for member: GDSExSymbolIndex.GDSExVariableSymbol in class_scope.vars.values():
-		if member.is_untyped and is_another_script:
-			_untyped_names_of_other_scripts[member.name] = true
-		elif member.is_untyped:
+		if member.is_untyped:
 			if not _untyped_members.has(member.name):
 				_untyped_members[member.name] = []
 			_untyped_members[member.name].append(member)
-		_collect_untyped_members_of_script(member.script_path)
 	for function_name: String in class_scope.functions:
 		for function: GDSExSymbolIndex.GDSExFunctionScope in class_scope.functions[function_name]:
 			if function.return_type == null:
 				_untyped_function_names[function_name] = true
-	_collect_untyped_members_of_script(class_scope.base_script_path)
 	for inner_name: String in class_scope.inner_classes:
-		_collect_untyped_members(class_scope.inner_classes[inner_name], is_another_script)
-
-
-func _collect_untyped_members_of_script(script_path: String) -> void:
-	if script_path.is_empty() or _visited_script_paths.has(script_path):
-		return
-	_visited_script_paths[script_path] = true
-	var script_index := GDSExScriptLibrary.find_index(script_path)
-	if script_index != null:
-		_collect_untyped_members(script_index.root, true)
+		_collect_untyped_members(class_scope.inner_classes[inner_name])
 
 
 func _check_writes(statements: Array[GDSExSourceScanner.GDSExStatement]) -> void:
@@ -152,7 +136,7 @@ func _accepts(type: GDSExValueType, value: String, scope_info: GDSExSymbolIndex.
 	if value == NULL_LITERAL:
 		return type.is_object
 	var written := _value_type(value, scope_info)
-	if written == null:
+	if written == null or written.is_guessed:
 		return false
 	if written.text == type.text:
 		return true
@@ -174,8 +158,6 @@ func _add_sources(variable: GDSExTypedVariable, value: String, scope_info: GDSEx
 			if _untyped_function_names.has(identifier_name) or (is_member and _returns_any_value(identifier_name)):
 				return false
 		elif is_member:
-			if _untyped_names_of_other_scripts.has(identifier_name):
-				return false
 			for member: GDSExSymbolIndex.GDSExVariableSymbol in _untyped_members.get(identifier_name, []):
 				variable.sources.append(member)
 		elif not _add_source(variable, identifier_name, scope_info):
@@ -239,7 +221,9 @@ func _value_type(value: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> 
 	type.text = _enum_type_text(value, scope_info)
 	if not type.text.is_empty():
 		return type
+	var guesses_before := GDSExTypeResolver.count_guesses_from_other_scripts()
 	var resolved := GDSExTypeResolver.resolve_expression(value, scope_info)
+	type.is_guessed = GDSExTypeResolver.count_guesses_from_other_scripts() != guesses_before
 	if resolved.is_class_reference or resolved.is_preloaded or resolved.type == null:
 		return null
 	type.text = GDSExSymbolIndex.type_to_string(resolved.type)

@@ -237,6 +237,11 @@ func _collect_paths(directory: String, extension: String) -> PackedStringArray:
 
 func _run_case(path: String) -> void:
 	var test_case := _parse_case(path)
+	var missing_class := _find_missing_global_class(test_case)
+	if not missing_class.is_empty():
+		_pending.append(test_case.name)
+		print("PENDING  %s (the project does not know the global class %s yet: open it once in the editor)" % [test_case.name, missing_class])
+		return
 	var case_problems := _check_expected_compiles(test_case)
 	if not case_problems.is_empty():
 		_fail(test_case, case_problems)
@@ -256,6 +261,14 @@ func _run_case(path: String) -> void:
 	for error in _error_collector.take():
 		problems.append("Engine error: %s" % error)
 	_report(test_case, problems)
+
+
+func _find_missing_global_class(test_case: TestCase) -> String:
+	GDSExScriptLibrary.refresh({})
+	for global_name in test_case.headers.get("requires_global_class", "").split(",", false):
+		if GDSExScriptLibrary.find_global_class_path(global_name.strip_edges()).is_empty():
+			return global_name.strip_edges()
+	return ""
 
 
 func _context(editor: CodeEdit) -> GDSExCodeContext:

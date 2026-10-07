@@ -1,0 +1,22 @@
+action: add_explicit_type
+=== input
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func run() -> void:
+	var guessed = base_guess()
+	var loose = base_loose
+	var name_copy = base_name
+	print(guessed, loose, name_copy)
+
+=== expected
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func run() -> void:
+	var guessed = base_guess()
+	var loose = base_loose
+	var name_copy: String = base_name
+	print(guessed, loose, name_copy)
+
+=== end

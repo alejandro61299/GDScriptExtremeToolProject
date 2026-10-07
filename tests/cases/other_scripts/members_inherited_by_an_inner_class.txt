@@ -1,0 +1,36 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+class Worker extends "res://tests/fixtures/other_scripts/base_with_aliases.gd":
+	func run() -> void:
+		var tool := make_tool()
+		var circle := base_circle
+		print(tool, circle)
+
+
+func run(worker : Worker) -> void:
+	var power := worker.base_tool.power
+	var own_name := worker.base_name
+	var tool := worker.make_tool()
+	print(power, own_name, tool)
+
+=== expected
+extends Node
+
+
+class Worker extends "res://tests/fixtures/other_scripts/base_with_aliases.gd":
+	func run() -> void:
+		var tool: Tool = make_tool()
+		var circle: Shapes.Circle = base_circle
+		print(tool, circle)
+
+
+func run(worker : Worker) -> void:
+	var power: float = worker.base_tool.power
+	var own_name: String = worker.base_name
+	var tool: Worker.Tool = worker.make_tool()
+	print(power, own_name, tool)
+
+=== end

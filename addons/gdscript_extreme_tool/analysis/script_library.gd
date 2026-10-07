@@ -11,6 +11,8 @@ const WINDOWS_LINE_SEPARATOR: String = "\r\n"
 static var _entries: Dictionary[String, GDSExEntry] = {}
 static var _unsaved_sources: Dictionary[String, String] = {}
 static var _generation: int = 0
+static var _global_class_paths: Dictionary[String, String] = {}
+static var _global_classes_generation: int = -1
 
 
 class GDSExEntry:
@@ -41,9 +43,20 @@ static func find_index(script_path: String) -> GDSExSymbolIndex.GDSExSymbolIndex
 	return entry.index
 
 
+static func find_global_class_path(global_name: String) -> String:
+	if _global_classes_generation != _generation:
+		_global_classes_generation = _generation
+		_global_class_paths.clear()
+		for global_class in ProjectSettings.get_global_class_list():
+			_global_class_paths[global_class["class"]] = global_class["path"]
+	return _global_class_paths.get(global_name, "")
+
+
 static func clear() -> void:
 	_entries.clear()
 	_unsaved_sources = {}
+	_global_class_paths.clear()
+	_global_classes_generation = -1
 
 
 static func _has_source(script_path: String) -> bool:

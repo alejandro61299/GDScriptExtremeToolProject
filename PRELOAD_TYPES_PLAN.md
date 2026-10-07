@@ -7,7 +7,7 @@ Hoy el plugin solo conoce bien los tipos del script que se está editando. Si un
 | P1 | Biblioteca de scripts: rutas, lectura y caché | Hecha |
 | P2 | De un nombre a la clase de otro script, y sus miembros de tipo básico | Hecha |
 | P3 | Tipos del otro script nombrados desde el script actual | Hecha |
-| P4 | Herencia y clases globales por el mismo camino | Pendiente |
+| P4 | Herencia y clases globales por el mismo camino | Hecha |
 | P5 | Repaso acción por acción y reglas de seguridad | Pendiente |
 | P6 | Pruebas masivas, rendimiento y documentación | Pendiente |
 
@@ -84,6 +84,9 @@ No los ha fijado el usuario; son la forma concreta que propongo y se pueden camb
 - **D9. Scripts de prueba.** Los casos necesitan scripts reales en disco. Van en `tests/fixtures/`, que no se exporta. Uno de ellos declara un `class_name`; sus casos quedan como pendientes, con un mensaje, cuando la caché de clases globales del proyecto no lo conoce (un clon recién hecho que no ha abierto el editor).
 - **D11. Una clase escrita por su ruta se nombra con esa ruta.** `Shapes.Circle.new()` es de tipo `Shapes.Circle`: si el usuario pudo escribir esa ruta para llegar a la clase, la misma ruta vale como tipo. Salió en P2 y resuelve ya las instancias de clases internas de otro script, y también las de una clase anidada del propio script (`Outer.Nested.new()`), que antes no se reconocían.
 - **D12. A través de una clase interna del propio script.** Si la constante que carga el otro script está dentro de una clase interna que quien pregunta no ve, se escribe pasando por esa clase: `Holder.Shapes.Circle`. Va después de las constantes visibles y antes del salto por otro script. Salió en P3.
+- **D13. A través de una clase del script que hereda.** Si una clase interna del script hereda del script donde está el tipo, se escribe pasando por ella: `Worker.Tool`. Salió en P4.
+- **D14. A través del script donde está escrito el tipo.** Si ese script tiene nombre directo (un `class_name` o una constante visible), vale como salto: `GDSExTestGadget.Shapes.Circle`. Es el mismo salto único del detalle D2, sin buscar. Salió en P4.
+- **D15. El texto del usuario se respeta.** Si el nombre tal como está escrito significa lo mismo desde donde se pregunta, no se cambia por otro equivalente. Evita, por ejemplo, sustituir la constante que usó el usuario por el `class_name` del mismo script. Salió en P4.
 - **D10. Pestañas y scripts.** Godot da por separado la lista de scripts abiertos y la de pestañas, y la segunda incluye las de archivos que no son scripts. Se emparejan por orden, descartando esas. Si las cuentas no cuadran, no se lee ninguna pestaña y se usa el archivo de todos los scripts: es la dirección segura. Fuera del editor (los tests) el texto sin guardar se da a mano.
 
 ## 4. Comportamiento
@@ -272,6 +275,34 @@ En un editor sin ventana, con otra pestaña sin guardar, ejecutar "Add Explicit 
 
 Verificación: miembro heredado de un script base por ruta y por clase global, a uno y a dos niveles; alias declarado en la base; función de la base que devuelve una clase interna de la base; y los casos de clases globales con el script de prueba del detalle D9.
 
+Hecho el 2026-10-08:
+
+- **Herencia leída del texto.** La búsqueda de un miembro sigue por la clase base, esté en el archivo, en otro por ruta o sea una clase global, usando el análisis de ese script. El motor solo se consulta cuando el script base no se puede leer (detalle D4) o cuando la base es ya una clase del motor.
+- **Lo heredado se nombra corto.** Las clases internas y los enums de un script base se ven desde quien hereda con su nombre a secas (`Tool`, `Mode`), a uno o a varios niveles, y sus constantes con `preload` sirven para nombrar (`Shapes.Circle`).
+- **Clases globales.** Un `class_name` es una referencia a la clase (`Cosa.new()`, funciones estáticas, constantes) y un tipo, con sus clases internas (`Cosa.Parte`) y sus enums (`Cosa.Tamano`). La lista de clases globales se lee una vez cada vez que se abre el menú.
+- **Un solo mecanismo para nombrar.** La regla de P2 para nombres dentro del mismo script y la traducción de P3 son ahora la misma función. De ahí salieron los detalles D13, D14 y D15.
+- **Detalle D8, rehecho.** En P2 se recogían los nombres sin tipo de todos los scripts alcanzables por constantes; con clases globales eso habría obligado a leer medio proyecto. Ahora el resolvedor cuenta cada vez que usa una suposición de otro script (una función sin tipo de retorno o una variable sin tipo), y "Add Explicit Types" no tipa una variable declarada con `=` si al resolver su valor el contador se movió. Cubre igual los scripts cargados con `preload`, los scripts base y las clases globales, sin leer nada de más.
+- **Detalle D6, probado.** Con una clase global en el proyecto de pruebas ya se puede: una constante con el nombre de una clase global distinta no se usa para nombrar.
+- **Detalle D9.** `global_gadget.gd` y `global_gadget_child.gd` declaran `GDSExTestGadget` y `GDSExTestGadgetChild`. La cabecera `requires_global_class:` deja un caso como pendiente, con un aviso, si el proyecto no conoce la clase. Se lanzó `--headless --import` sobre el proyecto para que Godot las registrara; también creó los `.uid` de los scripts nuevos.
+- **Scripts de prueba:** además de los dos anteriores, `derived_base.gd` (hereda de `base_with_aliases.gd`, para los dos niveles), y `base_with_aliases.gd` gana una clase interna, un enum, una señal y miembros sin tipo.
+- **13 casos nuevos**, 797 en total: miembros heredados de un script base a uno y a dos niveles y por una clase interna que hereda, valores supuestos de un script base y de una clase global, la clase global y sus miembros, como base, a través de una clase que hereda de ella, la constante tapada por una clase global (sola y con otra constante disponible), una señal heredada, y en "Generate Function Definition" los parámetros con tipos de una clase global y que una instancia suya no es destino. Se rompió el comportamiento a propósito de siete maneras y los casos detectan las siete.
+
+Medido al cerrar el paso, sobre los scripts del proyecto:
+
+| Medida | Al empezar | Tras P3 | Ahora |
+|---|---|---|---|
+| Variables que "Add Explicit Types" deja sin tocar | 238 de 1.053 | 7 de 1.149 | 8 de 1.156 |
+| Extracciones rechazadas por tipo desconocido | 130 de 19.783 rangos | 4 de 21.395 | 6 de 21.531 |
+| Extracciones que no compilan | 0 de 9.596 | 0 de 10.641 | 0 de 10.695 |
+| Abrir el menú con los otros scripts ya leídos | 17,0 ms de media | 17,0 ms | 17,8 ms |
+| Abrir el menú la primera vez | 17,0 ms de media | 29,4 ms | 30,6 ms |
+
+Las cifras de este proyecto apenas se mueven porque no usa clases globales ni scripts base propios; suben uno o dos porque el código nuevo añade valores del tipo «algo si se cumple, si no `null`», que siguen para P6. El contraste con los tipos escritos a mano da 1.582 iguales (342 con una clase de script), los mismos 16 más concretos que el escrito y ninguno equivocado.
+
+Donde sí se nota es en el addon GUT, que usa clases globales: sigue compilando entero tras tipar (620 variables en 76 scripts), y en un editor sin ventana, con una clase global en otra pestaña sin guardar, "Add Explicit Types" escribe `var part: ProbeThing.Part = ProbeThing.part()`.
+
+En una copia del proyecto sin la caché de Godot, los 8 casos de clases globales quedan como pendientes con su aviso. En esa misma copia fallan dos casos antiguos que cargan `icon.svg`, por lo mismo: un proyecto que nunca se ha abierto no tiene los recursos importados. No es de este plan, pero conviene saberlo si algún día se ejecuta la suite en un clon limpio.
+
 ### P5 — Repaso acción por acción
 
 - **Add Explicit Types:** valores de un enum de otro script (`var k := GDSExB.Kind.ONE` da `GDSExB.Kind`); lo que devuelve un enum ya se nombra desde P3. El detalle D8 se hizo en P2.
@@ -285,7 +316,7 @@ Verificación: casos en la carpeta de cada acción, con variaciones: alias propi
 - **Contraste con lo que ya está escrito.** En los scripts del proyecto, cada declaración con tipo explícito y valor es una respuesta correcta conocida. Comprobación nueva en la suite: cuando el tipo escrito es una clase de otro script, el plugin da para el valor ese mismo tipo, una clase que hereda de él o nada. Cualquier otra cosa es un fallo. Es la única prueba que detecta un tipo más pobre de la cuenta, que compila igual.
 - Prueba completa de extracciones y el addon GUT como código ajeno con clases globales, lanzadas a mano.
 - Tiempo de abrir el menú, con la caché vacía y llena, en los scripts más grandes.
-- README, CHANGELOG, el listado de archivos de `REFACTOR_PLAN.md` y los apartados de límites de este plan y de `EXTRACT_FUNCTION_PLAN.md`.
+- README, CHANGELOG y el apartado de límites de este plan.
 
 ## 7. Cómo se mide
 

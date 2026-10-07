@@ -1,0 +1,21 @@
+action: generate_function
+requires_global_class: GDSExTestGadget, GDSExTestGadgetChild
+=== input
+extends Node
+
+
+func run(gadget : GDSExTestGadget) -> void:
+	_show(gadget, gadget.part, gadget.size)<|>
+
+=== expected
+extends Node
+
+
+func run(gadget : GDSExTestGadget) -> void:
+	_show(gadget, gadget.part, gadget.size)
+
+
+func _show(p_gadget: GDSExTestGadget, param_1: GDSExTestGadget.Part, param_2: GDSExTestGadget.Size) -> void:
+	<|pass|>
+
+=== end
