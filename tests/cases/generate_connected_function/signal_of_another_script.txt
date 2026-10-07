@@ -1,0 +1,24 @@
+action: generate_connected_function
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func setup(shapes : Shapes) -> void:
+	shapes.changed.connect(<|>)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func setup(shapes : Shapes) -> void:
+	shapes.changed.connect(_on_changed)
+
+
+func _on_changed(p_circle, p_amount: int) -> void:
+	<|pass|>
+
+=== end

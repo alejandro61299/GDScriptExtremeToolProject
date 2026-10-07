@@ -24,6 +24,7 @@ const GDSExMemberCategories = preload("res://addons/gdscript_extreme_tool/analys
 const GDSExStatementRange = preload("res://addons/gdscript_extreme_tool/analysis/statement_range.gd")
 const GDSExExtractFunction = preload("res://addons/gdscript_extreme_tool/actions/extract_function.gd")
 const GDSExScriptLibrary = preload("res://addons/gdscript_extreme_tool/analysis/script_library.gd")
+const GDSExTypeResolver = preload("res://addons/gdscript_extreme_tool/analysis/type_resolver.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -41,7 +42,11 @@ const EXTRACTION_ACTION: String = "describe_extraction"
 const EXTRACTION_NAME: String = "_new"
 const EXTRACTION_SAMPLE_STEP: int = 60
 const EXTRACTION_RANGE_SIZES: Array[int] = [0, 1, 2]
-const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION]
+const TYPES_ACTION: String = "describe_types"
+const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION, TYPES_ACTION]
+const UNSAVED_SECTION_PREFIX: String = "unsaved "
+const THIS_SCRIPT_LABEL: String = "<this script>"
+const UNKNOWN_TYPE_LABEL: String = "?"
 const SCRIPT_EXTENSION: String = "gd"
 const PROJECT_SCRIPT_ROOTS: Array[String] = ["res://addons", "res://tools"]
 const PROJECT_SCRIPTS: Array[String] = ["res://tests/run_tests.gd"]
@@ -77,6 +82,7 @@ var _passed: PackedStringArray = []
 var _pending: PackedStringArray = []
 var _failed: PackedStringArray = []
 var _script_path: String = ""
+var _unsaved_sources: Dictionary[String, String] = {}
 
 
 class MarkedText:
@@ -141,6 +147,7 @@ class TestCase:
 	var expected_folds: PackedInt32Array = []
 	var settings: Dictionary = {}
 	var headers: Dictionary[String, String] = {}
+	var unsaved_sources: Dictionary[String, String] = {}
 
 
 class DialogTestAction extends "res://addons/gdscript_extreme_tool/actions/code_action.gd":
@@ -238,8 +245,10 @@ func _run_case(path: String) -> void:
 	_error_collector.take()
 	_override_settings(test_case.settings, true)
 	_script_path = test_case.headers.get("script_path", "")
+	_unsaved_sources = test_case.unsaved_sources
 	var problems := _run_action(test_case, editor)
 	_script_path = ""
+	_unsaved_sources = {}
 	editor.free()
 	if test_case.viewport_lines > 0 and problems.is_empty():
 		problems.append_array(await _check_view(test_case))
@@ -250,7 +259,7 @@ func _run_case(path: String) -> void:
 
 
 func _context(editor: CodeEdit) -> GDSExCodeContext:
-	return GDSExCodeContext.new(editor, _script_path)
+	return GDSExCodeContext.new(editor, _script_path, _unsaved_sources)
 
 
 func _override_settings(settings: Dictionary, is_applied: bool) -> void:
@@ -345,6 +354,9 @@ func _parse_case(path: String) -> TestCase:
 	test_case.expected_bookmarks = _parse_lines(headers.get("expect_bookmarks", ""))
 	test_case.folds = _parse_lines(headers.get("folds", ""))
 	test_case.expected_folds = _parse_lines(headers.get("expect_folds", ""))
+	for section: String in sections:
+		if section.begins_with(UNSAVED_SECTION_PREFIX):
+			test_case.unsaved_sources[section.trim_prefix(UNSAVED_SECTION_PREFIX).strip_edges()] = sections[section]
 	var settings: Variant = str_to_var(headers.get("settings", "{}"))
 	if settings is Dictionary:
 		test_case.settings = settings
@@ -398,6 +410,8 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_description(test_case, _describe_extraction_range(editor))
 		EXTRACTION_ACTION:
 			return _check_description(test_case, _describe_extraction(editor))
+		TYPES_ACTION:
+			return _check_description(test_case, _describe_types(editor))
 		"check_project_scripts":
 			return _check_project_scripts()
 		"check_no_false_targets":
@@ -571,6 +585,35 @@ func _describe_extraction(editor: CodeEdit) -> String:
 	for alternative in alternatives.slice(1):
 		description.append("or %s: %s -> %s" % [GDSExExtractFunction.GDSExForm.find_key(alternative.form), GDSExExtractFunction.signature(alternative, EXTRACTION_NAME), " | ".join(GDSExExtractFunction.call_lines(alternative, EXTRACTION_NAME, context.lines))])
 	return "\n".join(description)
+
+
+func _describe_types(editor: CodeEdit) -> String:
+	var context := _context(editor)
+	var descriptions := PackedStringArray()
+	for symbol in GDSExSymbolIndex.find_variables(context.index.root):
+		if symbol.declaration == null or symbol.is_const or not symbol.declaration.has_value():
+			continue
+		var scope_info := GDSExSymbolIndex.get_scope_info_for_line(context.index, symbol.start_line)
+		var resolved := GDSExTypeResolver.resolve_expression(symbol.declaration.value, scope_info)
+		var description := "%s = %s" % [symbol.name, UNKNOWN_TYPE_LABEL if resolved.type == null else GDSExSymbolIndex.type_to_string(resolved.type)]
+		if resolved.class_scope != null:
+			description += " class %s" % _class_label(resolved.class_scope)
+		if resolved.is_class_reference:
+			description += " reference"
+		descriptions.append(description)
+	return "\n".join(descriptions)
+
+
+func _class_label(class_scope: GDSExSymbolIndex.GDSExClassScope) -> String:
+	var names := PackedStringArray()
+	var current: GDSExSymbolIndex.GDSExScopeBase = class_scope
+	while current != null and current.parent != null:
+		names.insert(0, (current as GDSExSymbolIndex.GDSExClassScope).name)
+		current = current.parent
+	var index := GDSExSymbolIndex.find_index(class_scope)
+	var is_this_script := index == null or index.script_path.is_empty() or index.script_path == _script_path
+	var file_label := THIS_SCRIPT_LABEL if is_this_script else index.script_path.get_file()
+	return file_label if names.is_empty() else "%s:%s" % [file_label, ".".join(names)]
 
 
 func _describe_scope(scope: GDSExSymbolIndex.GDSExScopeBase, depth: int) -> PackedStringArray:

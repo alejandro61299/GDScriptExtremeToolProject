@@ -1,0 +1,26 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const CycleFirst = preload("res://tests/fixtures/other_scripts/cycle_first.gd")
+
+
+func run(first : CycleFirst) -> void:
+	var count := first.second.second_count
+	var first_name := first.second.first.first_name
+	var back_name := first.other().other().first_name
+	print(count, first_name, back_name)
+
+=== expected
+extends Node
+
+const CycleFirst = preload("res://tests/fixtures/other_scripts/cycle_first.gd")
+
+
+func run(first : CycleFirst) -> void:
+	var count: int = first.second.second_count
+	var first_name: String = first.second.first.first_name
+	var back_name: String = first.other().other().first_name
+	print(count, first_name, back_name)
+
+=== end

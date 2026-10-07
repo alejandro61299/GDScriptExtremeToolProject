@@ -10,6 +10,7 @@
 
 ### Changed
 
+- The actions read the scripts loaded with `preload`. A value that comes from a static function, a constant, a member or an inner class of another script has a type now when that type is a built-in one or an engine class: `var amount := Shapes.count_of(circles)` becomes `var amount: int = ...`, and `Shapes.Circle.new()` is a `Shapes.Circle`. If the other script is open with unsaved changes, the tab is read instead of the file.
 - The dialog of Generate Custom Init Definition... shows the whole function it will generate, with the colors and the font of the script editor, as the dialog of Extract Function... does. Its filters show clearly which ones are on and which ones have no variables.
 - Format spaces commas and brackets everywhere, not only in collections:
   - No space before a comma and one after it, in calls, parameters, signals, annotations, type hints and `match` patterns.
@@ -32,6 +33,8 @@
 - An instance of a script loaded with `preload` into a constant gets the name of the constant as its type, so `GDSExSnippet.new()` is a `GDSExSnippet`, also when the constant comes from the base script.
 - A constant that loads a script by `uid://` counts as that script, like one that loads it by path.
 - The members of a base script given by a relative path, `extends "base.gd"`, are found.
+- A class or an enum nested in another class of the script is written with its full path, `Outer.Nested`, when it is used outside that class. The short name did not compile there.
+- A value created through the path of a nested class, `Outer.Nested.new()`, has that class as its type.
 - Items of a collection written at the indentation of their statement are no longer taken for separate statements.
 - The closing parenthesis of a lambda argument no longer gets an indentation that GDScript rejects when its call starts on a continuation line.
 - Running Format a second time no longer moves the description of the class to the first member. A comment that belongs to the header is now written right below it, without a blank line above, as the comments of a member are.

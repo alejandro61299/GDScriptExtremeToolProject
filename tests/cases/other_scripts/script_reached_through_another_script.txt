@@ -1,0 +1,32 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Drawing = preload("res://tests/fixtures/other_scripts/drawing.gd")
+
+
+func run() -> void:
+	var shapes := Drawing.Shapes.new()
+	var limit := Drawing.Shapes.LIMIT
+	var count := Drawing.create().count
+	var title := Drawing.new().title
+	var radius := Drawing.default_circle().radius
+	var main_area := Drawing.new().main.area()
+	print(shapes, limit, count, title, radius, main_area)
+
+=== expected
+extends Node
+
+const Drawing = preload("res://tests/fixtures/other_scripts/drawing.gd")
+
+
+func run() -> void:
+	var shapes: Drawing.Shapes = Drawing.Shapes.new()
+	var limit: int = Drawing.Shapes.LIMIT
+	var count: int = Drawing.create().count
+	var title: String = Drawing.new().title
+	var radius: float = Drawing.default_circle().radius
+	var main_area: float = Drawing.new().main.area()
+	print(shapes, limit, count, title, radius, main_area)
+
+=== end

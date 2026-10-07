@@ -1,0 +1,31 @@
+action: add_explicit_type
+compile_check: skip
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var sides := Shapes.sides()
+	var limit := Shapes.LIMIT
+	print(sides, limit)
+
+=== unsaved res://tests/fixtures/other_scripts/shapes.gd
+extends RefCounted
+
+
+static func sides() -> int:
+	return 4
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var sides: int = Shapes.sides()
+	var limit := Shapes.LIMIT
+	print(sides, limit)
+
+=== end

@@ -6,6 +6,7 @@ const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/
 const GDSExCallSiteParser = preload("res://addons/gdscript_extreme_tool/analysis/call_site_parser.gd")
 const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
 const GDSExBuiltinTypes = preload("res://addons/gdscript_extreme_tool/analysis/builtin_types.gd")
+const GDSExScriptLibrary = preload("res://addons/gdscript_extreme_tool/analysis/script_library.gd")
 
 const MEMBER_ACCESS: String = "."
 const CONNECT_FUNCTION: String = "connect"
@@ -50,7 +51,7 @@ static var _engine_callbacks: Dictionary[String, Dictionary] = {}
 
 
 class GDSExMember:
-	enum GDSExKind { VARIABLE, FUNCTION, SIGNAL }
+	enum GDSExKind { VARIABLE, FUNCTION, SIGNAL, CLASS }
 
 	var kind: GDSExKind = GDSExKind.VARIABLE
 	var type: GDSExSymbolIndex.GDSExTypeData
@@ -60,6 +61,9 @@ class GDSExMember:
 	var symbol: GDSExSymbolIndex.GDSExVariableSymbol
 	var is_constant: bool = false
 	var is_class_alias: bool = false
+	var script_path: String = ""
+	var owner_scope: GDSExSymbolIndex.GDSExClassScope
+	var class_scope: GDSExSymbolIndex.GDSExClassScope
 
 
 class GDSExResolved:
@@ -125,19 +129,17 @@ static func find_class_member(class_scope: GDSExSymbolIndex.GDSExClassScope, mem
 	var root := GDSExSymbolIndex.find_root_class(class_scope)
 	var current := class_scope
 	for depth in MAX_INHERITANCE_DEPTH:
-		if current.functions.has(member_name):
-			return _function_member(current.functions[member_name][0])
-		if current.vars.has(member_name):
-			return _symbol_member(current.vars[member_name])
-		if current.signals.has(member_name):
-			return _signal_member(current.signals[member_name])
+		var member := _find_own_member(current, member_name)
+		if member != null:
+			return member
 		var base_name := _base_class_name(current)
 		var base_class := GDSExSymbolIndex.find_class(root, base_name) if current.base_script_path.is_empty() else null
 		if base_class == null or base_class == current:
 			var base_script := _load_script(current.base_script_path if base_class == null and not current.base_script_path.is_empty() else GDSExLanguage.global_class_path(base_name))
-			if base_script != null:
-				return _find_script_member(base_script, member_name)
-			return _find_engine_member(base_name, member_name)
+			member = _find_engine_member(base_name, member_name) if base_script == null else _find_script_member(base_script, member_name)
+			if member != null:
+				member.owner_scope = current
+			return member
 		current = base_class
 	return null
 
@@ -150,7 +152,7 @@ static func resolve_signal(expression: String, scope_info: GDSExSymbolIndex.GDSE
 	tokens.remove_at(tokens.size() - 1)
 	var owner := resolve_self(scope_info) if tokens.is_empty() else resolve_expression(MEMBER_ACCESS.join(tokens), scope_info)
 	var member := find_member(owner, signal_name)
-	return member if member != null and member.kind == GDSExMember.GDSExKind.SIGNAL else null
+	return _exported_member(member, scope_info) if member != null and member.kind == GDSExMember.GDSExKind.SIGNAL else null
 
 
 static func is_function_defined(function_name: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> bool:
@@ -199,9 +201,12 @@ static func function_return_type(function: GDSExSymbolIndex.GDSExFunctionScope, 
 		return null
 	_deferred_depth += 1
 	var common: GDSExSymbolIndex.GDSExTypeData = null
+	var function_index := GDSExSymbolIndex.find_index(function)
+	if function_index == null:
+		function_index = scope_info.index
 	for index in function.return_codes.size():
 		var line := function.return_lines[index]
-		var return_scope := GDSExSymbolIndex.get_scope_info_for_scope(scope_info.index, function, line) if function.is_inline else GDSExSymbolIndex.get_scope_info_for_line(scope_info.index, line)
+		var return_scope := GDSExSymbolIndex.get_scope_info_for_scope(function_index, function, line) if function.is_inline else GDSExSymbolIndex.get_scope_info_for_line(function_index, line)
 		var returned := resolve_expression_type(function.return_codes[index], return_scope)
 		if returned == null or (common != null and GDSExSymbolIndex.type_to_string(common) != GDSExSymbolIndex.type_to_string(returned)):
 			common = null
@@ -325,7 +330,7 @@ static func _expected_argument_type(parent: GDSExCallSiteParser.GDSExCallSite, i
 		member = find_member(resolve_expression(parent.receiver, scope_info), parent.name)
 	if member == null or member.kind != GDSExMember.GDSExKind.FUNCTION or index >= member.param_types.size():
 		return null
-	return member.param_types[index]
+	return _exported_member(member, scope_info).param_types[index]
 
 
 static func _expected_statement_type(statement_code: String, expression: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExSymbolIndex.GDSExTypeData:
@@ -626,7 +631,7 @@ static func _resolve_identifier(identifier: String, scope_info: GDSExSymbolIndex
 
 static func _resolve_symbol(symbol: GDSExSymbolIndex.GDSExVariableSymbol, known_type: GDSExSymbolIndex.GDSExTypeData, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
 	if symbol != null and symbol.is_script_alias:
-		return _class_alias(symbol.name)
+		return _class_alias(symbol.name, symbol.script_path)
 	if symbol == null or symbol.deferred == GDSExSymbolIndex.GDSExVariableSymbol.GDSExDeferred.NONE:
 		var resolved := _resolved_type(known_type, scope_info)
 		if symbol != null:
@@ -649,7 +654,8 @@ static func _resolve_member_token(owner: GDSExResolved, token_text: String, scop
 		return GDSExResolved.new()
 	var resolved := GDSExResolved.new()
 	if owner.function != null and token.is_call and GDSExLanguage.CALLABLE_INVOCATIONS.has(token.name):
-		resolved = _resolved_return(function_return_type(owner.function, scope_info), scope_info)
+		var home := _home_scope_info(owner.function, scope_info)
+		resolved = _exported(_resolved_return(function_return_type(owner.function, home), home), home, scope_info)
 	elif owner.function != null and token.is_call and GDSExLanguage.CALLABLE_BINDINGS.has(token.name):
 		resolved = owner
 	elif token.is_call and token.name == GDSExLanguage.CONSTRUCTOR_NAME:
@@ -660,6 +666,8 @@ static func _resolve_member_token(owner: GDSExResolved, token_text: String, scop
 		var member := find_member(owner, token.name)
 		if member != null:
 			resolved = _resolved_member(member, token.is_call, scope_info)
+			if resolved.is_class_reference and owner.is_class_reference and owner.type != null:
+				resolved.type = GDSExSymbolIndex.make_type(owner.type.name + MEMBER_ACCESS + token.name)
 		elif owner.is_class_reference and owner.class_scope == null and GDSExLanguage.is_builtin_type(owner.type.name):
 			resolved.type = _builtin_constant_type(owner.type.name, token)
 	return _indexed(resolved, scope_info) if token.is_indexed else resolved
@@ -674,31 +682,162 @@ static func _builtin_constant_type(type_name: String, token: GDSExChainToken) ->
 	return GDSExSymbolIndex.make_type(GDSExLanguage.INTEGER_TYPE_NAME if constant_type.contains(MEMBER_ACCESS) else constant_type)
 
 
-static func _class_alias(alias_name: String) -> GDSExResolved:
+static func _class_alias(alias_name: String, script_path: String) -> GDSExResolved:
 	var alias := GDSExResolved.new()
 	alias.type = GDSExSymbolIndex.make_type(alias_name)
+	alias.class_scope = _find_script_class(script_path)
 	alias.is_class_reference = true
 	return alias
 
 
 static func _resolved_member(member: GDSExMember, is_call: bool, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
+	var home := _home_scope_info(member.owner_scope, scope_info)
+	var resolved := _resolved_member_at_home(member, is_call, home)
+	if home.index != scope_info.index:
+		return _exported(resolved, home, scope_info)
+	var qualified_type := _qualified_type(resolved.type, member.owner_scope, scope_info.class_scope)
+	if qualified_type == resolved.type:
+		return resolved
+	var qualified := _resolved_type(qualified_type, scope_info)
+	qualified.function = resolved.function
+	qualified.is_class_reference = resolved.is_class_reference
+	return qualified
+
+
+static func _resolved_member_at_home(member: GDSExMember, is_call: bool, home: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
 	if member.is_class_alias:
-		return _class_alias(member.type.name)
+		return _class_alias(member.type.name, member.script_path)
 	match member.kind:
+		GDSExMember.GDSExKind.CLASS:
+			var reference := GDSExResolved.new()
+			reference.type = GDSExSymbolIndex.make_type(member.class_scope.name)
+			reference.class_scope = member.class_scope
+			reference.is_class_reference = true
+			return reference
 		GDSExMember.GDSExKind.SIGNAL:
-			return _resolved_name(GDSExLanguage.SIGNAL_TYPE_NAME, scope_info)
+			return _resolved_name(GDSExLanguage.SIGNAL_TYPE_NAME, home)
 		GDSExMember.GDSExKind.FUNCTION:
 			if is_call:
 				var return_type := member.type
 				if return_type == null and member.function != null:
-					return_type = function_return_type(member.function, scope_info)
-				return _resolved_return(return_type, scope_info)
-			var reference := _resolved_name(GDSExLanguage.CALLABLE_TYPE_NAME, scope_info)
+					return_type = function_return_type(member.function, home)
+				return _resolved_return(return_type, home)
+			var reference := _resolved_name(GDSExLanguage.CALLABLE_TYPE_NAME, home)
 			reference.function = member.function
 			return reference
 	if member.symbol != null:
-		return _resolve_symbol(member.symbol, member.type, scope_info)
-	return _resolved_type(member.type, scope_info)
+		return _resolve_symbol(member.symbol, member.type, home)
+	return _resolved_type(member.type, home)
+
+
+static func _home_scope_info(scope: GDSExSymbolIndex.GDSExScopeBase, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExSymbolIndex.GDSExScopeInfo:
+	var home_index := GDSExSymbolIndex.find_index(scope) if scope != null else null
+	if home_index == null or home_index == scope_info.index:
+		return scope_info
+	return GDSExSymbolIndex.get_scope_info_for_scope(home_index, scope, scope.start_line)
+
+
+static func _exported(resolved: GDSExResolved, home: GDSExSymbolIndex.GDSExScopeInfo, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
+	if home.index == scope_info.index or resolved.type == null or _is_written_the_same_everywhere(resolved.type):
+		return resolved
+	var exported := GDSExResolved.new()
+	exported.class_scope = resolved.class_scope
+	exported.function = resolved.function
+	exported.is_class_reference = resolved.is_class_reference
+	return exported
+
+
+static func _exported_member(member: GDSExMember, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExMember:
+	var is_another_script := _home_scope_info(member.owner_scope, scope_info).index != scope_info.index
+	var exported := GDSExMember.new()
+	exported.kind = member.kind
+	exported.type = _exported_type(member.type) if is_another_script else _qualified_type(member.type, member.owner_scope, scope_info.class_scope)
+	exported.param_names = member.param_names
+	for param_type in member.param_types:
+		exported.param_types.append(_exported_type(param_type) if is_another_script else _qualified_type(param_type, member.owner_scope, scope_info.class_scope))
+	exported.function = member.function
+	exported.symbol = member.symbol
+	exported.is_constant = member.is_constant
+	exported.owner_scope = member.owner_scope
+	return exported
+
+
+static func _qualified_type(type: GDSExSymbolIndex.GDSExTypeData, owner_scope: GDSExSymbolIndex.GDSExClassScope, asking_class: GDSExSymbolIndex.GDSExClassScope) -> GDSExSymbolIndex.GDSExTypeData:
+	if type == null or owner_scope == null:
+		return type
+	var declaring_class := _find_declaring_class(type.name.get_slice(MEMBER_ACCESS, 0), owner_scope)
+	var needs_path := declaring_class != null and declaring_class.parent != null and not _sees_names_of(asking_class, declaring_class)
+	var generics: Array[GDSExSymbolIndex.GDSExTypeData] = []
+	var has_changed := needs_path
+	for generic in type.generics:
+		generics.append(_qualified_type(generic, owner_scope, asking_class))
+		has_changed = has_changed or generics[generics.size() - 1] != generic
+	if not has_changed:
+		return type
+	var qualified := GDSExSymbolIndex.make_type(_class_path(declaring_class) + MEMBER_ACCESS + type.name if needs_path else type.name)
+	qualified.generics = generics
+	return qualified
+
+
+static func _find_declaring_class(type_name: String, class_scope: GDSExSymbolIndex.GDSExClassScope) -> GDSExSymbolIndex.GDSExClassScope:
+	var enclosing: GDSExSymbolIndex.GDSExScopeBase = class_scope
+	while enclosing is GDSExSymbolIndex.GDSExClassScope:
+		for candidate in _class_and_bases_in_file(enclosing as GDSExSymbolIndex.GDSExClassScope):
+			if candidate.inner_classes.has(type_name) or _declares_enum(candidate, type_name):
+				return candidate
+		enclosing = enclosing.parent
+	return null
+
+
+static func _sees_names_of(asking_class: GDSExSymbolIndex.GDSExClassScope, declaring_class: GDSExSymbolIndex.GDSExClassScope) -> bool:
+	var enclosing: GDSExSymbolIndex.GDSExScopeBase = asking_class
+	while enclosing is GDSExSymbolIndex.GDSExClassScope:
+		if _class_and_bases_in_file(enclosing as GDSExSymbolIndex.GDSExClassScope).has(declaring_class):
+			return true
+		enclosing = enclosing.parent
+	return false
+
+
+static func _class_and_bases_in_file(class_scope: GDSExSymbolIndex.GDSExClassScope) -> Array[GDSExSymbolIndex.GDSExClassScope]:
+	var classes: Array[GDSExSymbolIndex.GDSExClassScope] = []
+	var root := GDSExSymbolIndex.find_root_class(class_scope)
+	var current := class_scope
+	while current != null and not classes.has(current):
+		classes.append(current)
+		current = GDSExSymbolIndex.find_class(root, _base_class_name(current)) if current.base_script_path.is_empty() else null
+	return classes
+
+
+static func _declares_enum(class_scope: GDSExSymbolIndex.GDSExClassScope, enum_name: String) -> bool:
+	for member in class_scope.members:
+		if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.ENUM and member.name == enum_name:
+			return true
+	return false
+
+
+static func _class_path(class_scope: GDSExSymbolIndex.GDSExClassScope) -> String:
+	var names := PackedStringArray()
+	var current: GDSExSymbolIndex.GDSExScopeBase = class_scope
+	while current != null and current.parent != null:
+		names.insert(0, (current as GDSExSymbolIndex.GDSExClassScope).name)
+		current = current.parent
+	return MEMBER_ACCESS.join(names)
+
+
+static func _exported_type(type: GDSExSymbolIndex.GDSExTypeData) -> GDSExSymbolIndex.GDSExTypeData:
+	return type if type == null or _is_written_the_same_everywhere(type) else null
+
+
+static func _is_written_the_same_everywhere(type: GDSExSymbolIndex.GDSExTypeData) -> bool:
+	for generic in type.generics:
+		if not _is_written_the_same_everywhere(generic):
+			return false
+	var owner_name := type.name.get_slice(MEMBER_ACCESS, 0)
+	if GDSExLanguage.is_known_type(owner_name):
+		return true
+	if type.name.contains(MEMBER_ACCESS):
+		return false
+	return type.name == GDSExLanguage.VOID_TYPE_NAME or is_global_enum(type.name) or not GDSExLanguage.global_class_path(type.name).is_empty()
 
 
 static func _resolved_return(type: GDSExSymbolIndex.GDSExTypeData, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
@@ -715,8 +854,45 @@ static func _resolved_type(type: GDSExSymbolIndex.GDSExTypeData, scope_info: GDS
 	var resolved := GDSExResolved.new()
 	resolved.type = type
 	if type != null:
-		resolved.class_scope = GDSExSymbolIndex.find_class(GDSExSymbolIndex.find_root_class(scope_info.class_scope), type.name)
+		resolved.class_scope = _find_type_class(type.name, scope_info)
 	return resolved
+
+
+static func _find_type_class(type_name: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExSymbolIndex.GDSExClassScope:
+	var names := type_name.split(MEMBER_ACCESS)
+	var found := _find_named_class(names[0], scope_info)
+	for index in range(1, names.size()):
+		if found == null:
+			return null
+		found = _find_inner_class(found, names[index])
+	return found
+
+
+static func _find_named_class(type_name: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExSymbolIndex.GDSExClassScope:
+	if GDSExLanguage.is_known_type(type_name):
+		return null
+	var file_class := GDSExSymbolIndex.find_class(GDSExSymbolIndex.find_root_class(scope_info.class_scope), type_name)
+	if file_class != null:
+		return file_class
+	var variable := GDSExSymbolIndex.find_variable(type_name, scope_info)
+	if variable.is_defined:
+		return _find_script_class(variable.symbol.script_path) if variable.symbol != null else null
+	var member := find_class_member(scope_info.class_scope, type_name)
+	if member == null:
+		return null
+	return _find_script_class(member.symbol.script_path if member.symbol != null else member.script_path)
+
+
+static func _find_inner_class(class_scope: GDSExSymbolIndex.GDSExClassScope, inner_name: String) -> GDSExSymbolIndex.GDSExClassScope:
+	if class_scope.inner_classes.has(inner_name):
+		return class_scope.inner_classes[inner_name]
+	var constant: GDSExSymbolIndex.GDSExVariableSymbol = class_scope.vars.get(inner_name)
+	return null if constant == null else _find_script_class(constant.script_path)
+
+
+static func _find_script_class(script_path: String) -> GDSExSymbolIndex.GDSExClassScope:
+	var script_index := GDSExScriptLibrary.find_index(script_path)
+	return null if script_index == null else script_index.root
 
 
 static func _indexed(resolved: GDSExResolved, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
@@ -760,6 +936,23 @@ static func _symbol_member(symbol: GDSExSymbolIndex.GDSExVariableSymbol) -> GDSE
 	var member := _variable_member(symbol.type)
 	member.symbol = symbol
 	member.is_constant = symbol.is_const
+	return member
+
+
+static func _find_own_member(class_scope: GDSExSymbolIndex.GDSExClassScope, member_name: String) -> GDSExMember:
+	var member: GDSExMember = null
+	if class_scope.functions.has(member_name):
+		member = _function_member(class_scope.functions[member_name][0])
+	elif class_scope.vars.has(member_name):
+		member = _symbol_member(class_scope.vars[member_name])
+	elif class_scope.signals.has(member_name):
+		member = _signal_member(class_scope.signals[member_name])
+	elif class_scope.inner_classes.has(member_name):
+		member = GDSExMember.new()
+		member.kind = GDSExMember.GDSExKind.CLASS
+		member.class_scope = class_scope.inner_classes[member_name]
+	if member != null:
+		member.owner_scope = class_scope
 	return member
 
 
@@ -853,6 +1046,8 @@ static func _find_script_member(script: Script, member_name: String) -> GDSExMem
 			var is_class_alias: bool = constants[member_name] is Script
 			var constant := _constant_member(GDSExSymbolIndex.make_type(member_name) if is_class_alias else _type_of_value(constants[member_name]))
 			constant.is_class_alias = is_class_alias
+			if is_class_alias:
+				constant.script_path = (constants[member_name] as Script).resource_path
 			return constant
 		current = current.get_base_script()
 	return _find_engine_member(script.get_instance_base_type(), member_name)

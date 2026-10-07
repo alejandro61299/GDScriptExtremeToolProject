@@ -394,6 +394,10 @@ static func find_index(scope: GDSExScopeBase) -> GDSExSymbolIndexData:
 	return (current as GDSExClassScope).index if current is GDSExClassScope else null
 
 
+static func is_declared_in(scope: GDSExScopeBase, index: GDSExSymbolIndexData) -> bool:
+	return find_index(scope) == index
+
+
 static func resolve_script_path(written_path: String, from_script_path: String) -> String:
 	if written_path.begins_with(UID_PREFIX):
 		var id := ResourceUID.text_to_id(written_path)

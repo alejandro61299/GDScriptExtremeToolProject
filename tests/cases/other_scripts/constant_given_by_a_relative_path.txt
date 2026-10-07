@@ -1,0 +1,24 @@
+action: add_explicit_type
+compile_check: skip
+script_path: res://tests/fixtures/other_scripts/consumer.gd
+=== input
+extends Node
+
+const Shapes = preload("shapes.gd")
+
+
+func run() -> void:
+	var limit := Shapes.LIMIT
+	print(limit)
+
+=== expected
+extends Node
+
+const Shapes = preload("shapes.gd")
+
+
+func run() -> void:
+	var limit: int = Shapes.LIMIT
+	print(limit)
+
+=== end

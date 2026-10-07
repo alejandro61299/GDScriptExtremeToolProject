@@ -1,0 +1,32 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var circle := Shapes.Circle.new()
+	var center := Shapes.Circle.Center.new()
+	var radius := Shapes.Circle.new().radius
+	var area := circle.area()
+	var position := Shapes.Circle.Center.new().position
+	var center_name := center.name
+	print(radius, area, position, center_name)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var circle: Shapes.Circle = Shapes.Circle.new()
+	var center: Shapes.Circle.Center = Shapes.Circle.Center.new()
+	var radius: float = Shapes.Circle.new().radius
+	var area: float = circle.area()
+	var position: Vector2 = Shapes.Circle.Center.new().position
+	var center_name: String = center.name
+	print(radius, area, position, center_name)
+
+=== end

@@ -1,0 +1,37 @@
+action: extract_function
+options: {"name": "_kind_of"}
+=== input
+extends Node
+
+
+class Item:
+	enum Kind { PLAIN, RARE }
+
+	var kind : Kind = Kind.PLAIN
+
+
+func run(item : Item, copy : Item) -> void:
+	<|print(item)
+	copy.kind = item.kind|>
+	print(copy)
+
+=== expected
+extends Node
+
+
+class Item:
+	enum Kind { PLAIN, RARE }
+
+	var kind : Kind = Kind.PLAIN
+
+
+func run(item : Item, copy : Item) -> void:
+	copy.kind = _kind_of(item)<|>
+	print(copy)
+
+
+func _kind_of(item: Item) -> Item.Kind:
+	print(item)
+	return item.kind
+
+=== end

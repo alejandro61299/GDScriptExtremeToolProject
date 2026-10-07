@@ -5,7 +5,7 @@ Hoy el plugin solo conoce bien los tipos del script que se está editando. Si un
 | Paso | Contenido | Estado |
 |---|---|---|
 | P1 | Biblioteca de scripts: rutas, lectura y caché | Hecha |
-| P2 | De un nombre a la clase de otro script, y sus miembros de tipo básico | Pendiente |
+| P2 | De un nombre a la clase de otro script, y sus miembros de tipo básico | Hecha |
 | P3 | Tipos del otro script nombrados desde el script actual | Pendiente |
 | P4 | Herencia y clases globales por el mismo camino | Pendiente |
 | P5 | Repaso acción por acción y reglas de seguridad | Pendiente |
@@ -82,6 +82,7 @@ No los ha fijado el usuario; son la forma concreta que propongo y se pueden camb
 - **D7. Rutas.** Se admiten `res://`, rutas relativas a la carpeta del script que se edita y `uid://`. Un script nuevo que aún no se ha guardado no tiene carpeta: sus rutas relativas no se resuelven.
 - **D8. Variables sin tipo.** Las reglas de prudencia de "Add Explicit Types" para las variables declaradas con `=` se extienden a los otros scripts: una función de otro script que no declara lo que devuelve, o una variable suya sin tipo, no bastan para tipar. Las declaradas con `:=` no se ven afectadas, porque Godot ya exige que su valor tenga tipo.
 - **D9. Scripts de prueba.** Los casos necesitan scripts reales en disco. Van en `tests/fixtures/`, que no se exporta. Uno de ellos declara un `class_name`; sus casos quedan como pendientes, con un mensaje, cuando la caché de clases globales del proyecto no lo conoce (un clon recién hecho que no ha abierto el editor).
+- **D11. Una clase escrita por su ruta se nombra con esa ruta.** `Shapes.Circle.new()` es de tipo `Shapes.Circle`: si el usuario pudo escribir esa ruta para llegar a la clase, la misma ruta vale como tipo. Salió en P2 y resuelve ya las instancias de clases internas de otro script, y también las de una clase anidada del propio script (`Outer.Nested.new()`), que antes no se reconocían.
 - **D10. Pestañas y scripts.** Godot da por separado la lista de scripts abiertos y la de pestañas, y la segunda incluye las de archivos que no son scripts. Se emparejan por orden, descartando esas. Si las cuentas no cuadran, no se lee ninguna pestaña y se usa el archivo de todos los scripts: es la dirección segura. Fuera del editor (los tests) el texto sin guardar se da a mano.
 
 ## 4. Comportamiento
@@ -190,9 +191,41 @@ Queda para P2 dar texto sin guardar a un caso de la suite: hasta que no se lean 
 
 Verificación: casos en `tests/cases/other_scripts/`, observados con "Add Explicit Types" y con una acción nueva del runner, `describe_types`, que enseña el tipo que el resolvedor da a cada valor aunque la acción no lo escribiera. Como mínimo: función estática que devuelve `int`, miembro `String` de una instancia, de una clase interna y de una clase interna de segundo nivel, variable tipada con un nombre con puntos, parámetro tipado así, constante de otro script, y cada forma de 4.1 que no entra.
 
+Hecho el 2026-10-07:
+
+- **De un nombre a una clase** (`_find_type_class`). Un tipo con puntos se resuelve trozo a trozo: clase del archivo, constante con `preload` visible desde ahí (propia, de la clase envolvente o heredada) y, a partir del segundo trozo, clase interna o constante del script alcanzado. Vale para anotaciones y para expresiones.
+- **Cada miembro sabe en qué clase se encontró**, y se resuelve en su propio archivo: su tipo declarado, su valor aplazado o lo que devuelve su función se leen con el análisis de ese archivo, no con el del script que pregunta.
+- **Lo que sale de otro archivo se filtra.** Si el tipo se escribe igual en todas partes (básico, del motor, enum global), pasa tal cual. Si es una clase de ese script, pasa la clase pero sin nombre: se puede seguir la cadena (`Shapes.make().radius` es `float`) aunque `Shapes.make()` aún no se pueda tipar. Cualquier otro nombre se descarta. Lo mismo para los parámetros de funciones y señales.
+- **Clases internas como miembros**, y detalle D11.
+- **Detalle D5, adelantado desde P5.** Desde este paso el resolvedor devuelve clases de otros archivos, así que la protección no podía esperar. `GDSExSymbolIndex.is_declared_in` es el único punto que decide si una clase es del script que se edita; "Generate Function Definition" lo consulta antes de aceptar la clase del receptor.
+- **Detalle D8, adelantado desde P5.** Para las variables declaradas con `=`, "Add Explicit Types" recoge los nombres de las funciones sin tipo de retorno y de las variables sin tipo de todos los scripts alcanzables, y no tipa a partir de ellos.
+- **Texto sin guardar en los casos:** una sección `=== unsaved <ruta>` da el contenido de otra pestaña.
+- **Runner:** `action: describe_types` enseña, para cada variable con valor, el tipo que da el resolvedor, la clase a la que llega y si es una referencia a la clase.
+- **26 casos nuevos** para lo de arriba: 18 en `other_scripts/` y el resto en las carpetas de las acciones. Cubren función estática, constante, miembros de una instancia, clases internas a uno y dos niveles, variable y parámetro tipados con puntos, cadenas, colecciones tipadas, señal y referencia a función, script alcanzado a través de otro, constante heredada, de la clase envolvente y con ruta relativa (con y sin carpeta conocida), dos scripts que se cargan mutuamente, texto sin guardar, un nombre local que tapa a la constante, valores supuestos, y las formas que no entran. Se rompió el comportamiento a propósito de cinco maneras y los casos detectan las cinco.
+
+Medido al cerrar el paso, sobre los scripts del proyecto:
+
+| Medida | Antes | Ahora |
+|---|---|---|
+| Variables que "Add Explicit Types" deja sin tocar | 238 de 1.053 | 120 de 1.122 |
+| Extracciones rechazadas por tipo desconocido | 130 de 19.783 rangos | 94 de 21.063 |
+| Extracciones que no compilan | 0 de 9.596 | 0 de 10.407 |
+| Abrir el menú con los otros scripts ya leídos | 17 ms de media, 156 ms el peor | 17 ms de media, 162 ms el peor |
+| Abrir el menú la primera vez | igual que las siguientes | 30 ms de media, 245 ms el peor |
+
+El total de variables y de rangos sube porque el proyecto tiene ahora más código. Las 120 variables que quedan son casi todas valores cuya clase ya se conoce y falta nombrar, que es P3. El peor caso del menú es `run_tests.gd`, que carga 24 scripts: la primera vez hay que leerlos todos.
+
+Lo que se queda como estaba, a propósito:
+
+- Los scripts base siguen consultándose al motor hasta P4. Un miembro encontrado así mientras se recorre otro script se trata como de ese script, para que sus nombres no se cuelen.
+- Varios casos antiguos de "Extract Function..." usan un valor de otro script como ejemplo de «tipo desconocido». Siguen pasando porque ese tipo aún no se nombra; en P3 dejará de ser desconocido y habrá que darles otro ejemplo.
+
+Un fallo que ya existía, encontrado por la prueba completa de extracciones y corregido en este paso: una clase o un enum anidados del propio script, a los que se llega por un miembro desde fuera de la clase que los contiene, se escribían con su nombre corto y el resultado no compilaba (`var nested: Nested = outer.nested` a nivel de script, cuando `Nested` está dentro de `Outer`). Ahora se escriben con la ruta completa (`Outer.Nested`, `Outer.Mode`) cuando quien pregunta no ve ese nombre, y con el nombre corto cuando sí lo ve: dentro de la propia clase, de una que ella envuelve o de una que hereda de ella. Es el mismo problema de «nombrar desde donde se escribe» de P3, dentro de un solo archivo. Tres casos más (768 en total), que fallan sobre el commit anterior.
+
 ### P3 — Tipos nombrados desde el script actual
 
 - `script_type_names.gd`: nombre de una clase desde el script actual (D1, D2, D6) y traducción de un tipo escrito en otro archivo (4.4).
+- Rehacer los casos de "Extract Function..." que usaban un valor de otro script como tipo desconocido.
 - Los miembros que salen del resolvedor llevan ya el tipo traducido: variables, lo que devuelve una función, sus parámetros y los de una señal.
 - Valores aplazados y tipos deducidos de los `return`, resueltos en el archivo al que pertenecen y traducidos al volver.
 
@@ -207,9 +240,9 @@ Verificación: miembro heredado de un script base por ruta y por clase global, a
 
 ### P5 — Repaso acción por acción
 
-- **Add Explicit Types:** enums de otros scripts (`var k := GDSExB.Kind.ONE` da `GDSExB.Kind`) y detalle D8.
+- **Add Explicit Types:** enums de otros scripts (`var k := GDSExB.Kind.ONE` da `GDSExB.Kind`). El detalle D8 se hizo en P2.
 - **Extract Function...:** parámetros y valor devuelto con tipos de otros scripts.
-- **Generate Function Definition:** tipos de los parámetros y del valor devuelto; detalle D5.
+- **Generate Function Definition:** tipos de los parámetros y del valor devuelto. El detalle D5 se hizo en P2.
 - **Generate Local Variable y Class Variable:** tipo deducido de una función o de un miembro de otro script.
 - **Generate Connected Function:** parámetros de una señal de otro script.
 

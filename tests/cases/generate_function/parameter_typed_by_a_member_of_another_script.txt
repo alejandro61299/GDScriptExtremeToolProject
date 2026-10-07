@@ -1,0 +1,24 @@
+action: generate_function
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(shapes : Shapes, circle : Shapes.Circle) -> void:
+	_show(shapes.count, circle.radius, circle.center.position)<|>
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(shapes : Shapes, circle : Shapes.Circle) -> void:
+	_show(shapes.count, circle.radius, circle.center.position)
+
+
+func _show(param_0: int, param_1: float, param_2: Vector2) -> void:
+	<|pass|>
+
+=== end

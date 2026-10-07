@@ -1,0 +1,36 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+class Outer:
+	var label := "outer"
+
+	class Nested:
+		var amount := 2
+
+
+func run(outer : Outer, nested : Outer.Nested) -> void:
+	var label := outer.label
+	var amount := nested.amount
+	var made := Outer.Nested.new()
+	print(label, amount, made)
+
+=== expected
+extends Node
+
+
+class Outer:
+	var label: String = "outer"
+
+	class Nested:
+		var amount: int = 2
+
+
+func run(outer : Outer, nested : Outer.Nested) -> void:
+	var label: String = outer.label
+	var amount: int = nested.amount
+	var made: Outer.Nested = Outer.Nested.new()
+	print(label, amount, made)
+
+=== end

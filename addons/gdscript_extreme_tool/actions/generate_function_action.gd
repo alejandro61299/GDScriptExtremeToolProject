@@ -87,7 +87,9 @@ func _call_target(call: GDSExCallSiteParser.GDSExCallSite, scope_info: GDSExSymb
 		target.is_static = caller != null and caller.is_static
 		return target
 	var receiver := GDSExTypeResolver.resolve_expression(call.receiver, scope_info)
-	if receiver.class_scope == null or GDSExTypeResolver.find_class_member(receiver.class_scope, call.name) != null:
+	if receiver.class_scope == null or not GDSExSymbolIndex.is_declared_in(receiver.class_scope, scope_info.index):
+		return null
+	if GDSExTypeResolver.find_class_member(receiver.class_scope, call.name) != null:
 		return null
 	target.target_class = receiver.class_scope
 	target.is_static = receiver.is_class_reference
