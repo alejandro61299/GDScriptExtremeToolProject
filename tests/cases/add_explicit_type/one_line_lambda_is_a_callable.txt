@@ -1,0 +1,18 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var double := func(value : int) -> int: return value * 2<|>
+	print(first, second)
+
+=== expected
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var double: Callable = func(value : int) -> int: return value * 2<|>
+	print(first, second)
+
+=== end

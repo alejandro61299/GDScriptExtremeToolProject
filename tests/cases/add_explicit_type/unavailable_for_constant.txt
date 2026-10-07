@@ -1,0 +1,7 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const LIMIT := 10<|>
+
+=== end

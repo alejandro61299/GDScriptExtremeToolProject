@@ -34,6 +34,7 @@ var insertions: Array[GDSExInsertion] = []
 var replacements: Array[GDSExReplacement] = []
 var line_replacement: GDSExLineReplacement
 var revealed_insertion: GDSExInsertion
+var keeps_caret: bool = false
 
 
 func insert(point: GDSExInsertionPoint, snippet: GDSExSnippet) -> GDSExInsertion:

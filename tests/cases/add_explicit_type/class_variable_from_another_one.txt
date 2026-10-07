@@ -1,0 +1,16 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var speed : float = 2.0
+
+var copy := speed<|>
+
+=== expected
+extends Node
+
+var speed : float = 2.0
+
+var copy: float = speed<|>
+
+=== end

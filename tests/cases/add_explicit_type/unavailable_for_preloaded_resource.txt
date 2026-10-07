@@ -1,0 +1,12 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const ICON = preload("res://icon.svg")
+
+
+func run() -> void:
+	var texture := ICON<|>
+	print(texture)
+
+=== end

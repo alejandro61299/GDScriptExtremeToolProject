@@ -1,0 +1,16 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+class Item:
+	var name := &"item"<|>
+
+=== expected
+extends Node
+
+
+class Item:
+	var name: StringName = &"item"<|>
+
+=== end

@@ -1,0 +1,22 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var callback := func() -> void:<|>
+		print(first)
+	callback.call()
+	print(first, second)
+
+=== expected
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var callback: Callable = func() -> void:<|>
+		print(first)
+	callback.call()
+	print(first, second)
+
+=== end

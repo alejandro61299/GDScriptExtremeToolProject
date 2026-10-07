@@ -6,6 +6,7 @@
 /.gitattributes export-ignore
 /.gitignore export-ignore
 /CHANGELOG.md export-ignore
+/EXTRACT_FUNCTION_PLAN.md export-ignore
 /GENERATE_INIT_PLAN.md export-ignore
 /LICENSE export-ignore
 /README.md export-ignore

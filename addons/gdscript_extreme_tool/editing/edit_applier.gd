@@ -51,7 +51,7 @@ static func apply(editor: CodeEdit, plan: GDSExEditPlan) -> void:
 		_insert_block(editor, insertion)
 	editor.end_complex_operation()
 
-	if not _select_first_selection(editor, resolved) and not plan.replacements.is_empty():
+	if not _select_first_selection(editor, resolved) and not plan.replacements.is_empty() and not plan.keeps_caret:
 		_place_caret_after(editor, plan.replacements[plan.replacements.size() - 1], resolved)
 
 	for insertion in resolved:

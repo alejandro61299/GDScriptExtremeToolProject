@@ -1,0 +1,12 @@
+action: add_explicit_type
+=== input
+extends Node
+
+@export_range(0, 10) var level = 3<|>
+
+=== expected
+extends Node
+
+@export_range(0, 10) var level: int = 3<|>
+
+=== end

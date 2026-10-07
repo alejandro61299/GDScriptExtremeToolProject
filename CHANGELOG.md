@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Add Explicit Type.** On a local or class variable declared with `:=` or without a type, writes the type of its value: `var total := 0` becomes `var total: int = 0` and `var mode := Mode.FAST` becomes `var mode: Mode = Mode.FAST`. It is not offered when the type of the value is not known.
 - Setting `format/max_blank_lines_inside_functions`, `1` by default: Format keeps at most that many blank lines in a row inside a function, and inside any other member that spans several lines. Blank lines inside a multiline string are never removed.
 
 ### Changed
@@ -23,6 +24,8 @@
 
 ### Fixed
 
+- A constant of a built-in type gets its real type: `Vector2.AXIS_X` is an `int`, not a `Vector2`. `PI`, `TAU`, `INF` and `NAN` are `float`.
+- An instance of a script loaded with `preload` into a constant gets the name of the constant as its type, so `GDSExSnippet.new()` is a `GDSExSnippet`, also when the constant comes from the base script.
 - Items of a collection written at the indentation of their statement are no longer taken for separate statements.
 - The closing parenthesis of a lambda argument no longer gets an indentation that GDScript rejects when its call starts on a continuation line.
 - Running Format a second time no longer moves the description of the class to the first member. A comment that belongs to the header is now written right below it, without a blank line above, as the comments of a member are.

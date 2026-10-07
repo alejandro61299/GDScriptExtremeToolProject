@@ -1,0 +1,18 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var is_big := first > 2 and second < 1.0<|>
+	print(first, second)
+
+=== expected
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var is_big: bool = first > 2 and second < 1.0<|>
+	print(first, second)
+
+=== end

@@ -62,6 +62,7 @@ addons/gdscript_extreme_tool/
 │   ├── init_function.gd
 │   ├── generate_default_init_action.gd
 │   ├── generate_custom_init_action.gd
+│   ├── add_explicit_type_action.gd
 │   ├── reorder_class_members_action.gd
 │   └── format_class_members_action.gd
 ├── analysis/

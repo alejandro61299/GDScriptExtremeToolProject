@@ -9,6 +9,7 @@ const GDSExBuiltinTypes = preload("res://addons/gdscript_extreme_tool/analysis/b
 
 const MEMBER_ACCESS: String = "."
 const CONNECT_FUNCTION: String = "connect"
+const PRELOAD_FUNCTION: String = "preload"
 const EMIT_FUNCTION: String = "emit"
 const AWAIT_PREFIX: String = "await "
 const TERNARY_CONDITION: String = " if "
@@ -58,6 +59,7 @@ class GDSExMember:
 	var function: GDSExSymbolIndex.GDSExFunctionScope
 	var symbol: GDSExSymbolIndex.GDSExVariableSymbol
 	var is_constant: bool = false
+	var is_class_alias: bool = false
 
 
 class GDSExResolved:
@@ -65,6 +67,7 @@ class GDSExResolved:
 	var class_scope: GDSExSymbolIndex.GDSExClassScope
 	var function: GDSExSymbolIndex.GDSExFunctionScope
 	var is_class_reference: bool = false
+	var is_preloaded: bool = false
 
 	func is_known() -> bool:
 		return type != null or class_scope != null
@@ -588,7 +591,9 @@ static func _resolve_bare_call(function_name: String, scope_info: GDSExSymbolInd
 	if GDSExLanguage.is_builtin_type(function_name):
 		return _resolved_name(function_name, scope_info)
 	if GDSExLanguage.GLOBAL_FUNCTIONS.has(function_name):
-		return _resolved_return(GDSExSymbolIndex.make_type(GDSExLanguage.GLOBAL_FUNCTIONS[function_name]), scope_info)
+		var returned := _resolved_return(GDSExSymbolIndex.make_type(GDSExLanguage.GLOBAL_FUNCTIONS[function_name]), scope_info)
+		returned.is_preloaded = function_name == PRELOAD_FUNCTION
+		return returned
 	var member := find_class_member(scope_info.class_scope, function_name)
 	if member != null and member.kind == GDSExMember.GDSExKind.FUNCTION:
 		return _resolved_member(member, true, scope_info)
@@ -611,10 +616,14 @@ static func _resolve_identifier(identifier: String, scope_info: GDSExSymbolIndex
 	elif GDSExLanguage.is_known_type(identifier) or Engine.has_singleton(identifier):
 		resolved.type = GDSExSymbolIndex.make_type(identifier)
 		resolved.is_class_reference = true
+	elif GDSExLanguage.MATH_CONSTANTS.has(identifier):
+		resolved.type = GDSExSymbolIndex.make_type(GDSExLanguage.MATH_CONSTANTS[identifier])
 	return resolved
 
 
 static func _resolve_symbol(symbol: GDSExSymbolIndex.GDSExVariableSymbol, known_type: GDSExSymbolIndex.GDSExTypeData, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
+	if symbol != null and symbol.is_script_alias:
+		return _class_alias(symbol.name)
 	if symbol == null or symbol.deferred == GDSExSymbolIndex.GDSExVariableSymbol.GDSExDeferred.NONE:
 		var resolved := _resolved_type(known_type, scope_info)
 		if symbol != null:
@@ -648,11 +657,29 @@ static func _resolve_member_token(owner: GDSExResolved, token_text: String, scop
 		if member != null:
 			resolved = _resolved_member(member, token.is_call, scope_info)
 		elif owner.is_class_reference and owner.class_scope == null and GDSExLanguage.is_builtin_type(owner.type.name):
-			resolved.type = owner.type
+			resolved.type = _builtin_constant_type(owner.type.name, token)
 	return _indexed(resolved, scope_info) if token.is_indexed else resolved
 
 
+static func _builtin_constant_type(type_name: String, token: GDSExChainToken) -> GDSExSymbolIndex.GDSExTypeData:
+	if token.is_call:
+		return GDSExSymbolIndex.make_type(type_name)
+	var constant_type: String = GDSExBuiltinTypes.CONSTANTS.get(type_name, {}).get(token.name, "")
+	if constant_type.is_empty():
+		return null
+	return GDSExSymbolIndex.make_type(GDSExLanguage.INTEGER_TYPE_NAME if constant_type.contains(MEMBER_ACCESS) else constant_type)
+
+
+static func _class_alias(alias_name: String) -> GDSExResolved:
+	var alias := GDSExResolved.new()
+	alias.type = GDSExSymbolIndex.make_type(alias_name)
+	alias.is_class_reference = true
+	return alias
+
+
 static func _resolved_member(member: GDSExMember, is_call: bool, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
+	if member.is_class_alias:
+		return _class_alias(member.type.name)
 	match member.kind:
 		GDSExMember.GDSExKind.SIGNAL:
 			return _resolved_name(GDSExLanguage.SIGNAL_TYPE_NAME, scope_info)
@@ -819,7 +846,10 @@ static func _find_script_member(script: Script, member_name: String) -> GDSExMem
 	while current != null:
 		var constants := current.get_script_constant_map()
 		if constants.has(member_name):
-			return _constant_member(_type_of_value(constants[member_name]))
+			var is_class_alias: bool = constants[member_name] is Script
+			var constant := _constant_member(GDSExSymbolIndex.make_type(member_name) if is_class_alias else _type_of_value(constants[member_name]))
+			constant.is_class_alias = is_class_alias
+			return constant
 		current = current.get_base_script()
 	return _find_engine_member(script.get_instance_base_type(), member_name)
 

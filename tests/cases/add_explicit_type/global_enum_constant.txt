@@ -1,0 +1,18 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var key := KEY_A<|>
+	print(first, second)
+
+=== expected
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var key: Key = KEY_A<|>
+	print(first, second)
+
+=== end

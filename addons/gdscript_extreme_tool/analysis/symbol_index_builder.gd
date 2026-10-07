@@ -27,6 +27,7 @@ static var _return_pattern := RegEx.create_from_string("^return\\b(.*)$")
 static var _setter_pattern := RegEx.create_from_string("^set\\s*\\(\\s*(\\w+)\\s*\\)\\s*:")
 static var _getter_pattern := RegEx.create_from_string("^get\\s*(?:\\(\\s*\\))?\\s*:")
 static var _static_function_pattern := RegEx.create_from_string("\\bstatic\\s+func\\b")
+static var _script_preload_pattern := RegEx.create_from_string("=\\s*preload\\(\\s*[\"'][^\"']*\\.gd[\"']\\s*\\)")
 static var _enum_pattern := RegEx.create_from_string("^enum\\b\\s*(\\w*)\\s*\\{(.*)\\}")
 static var _annotation_pattern := RegEx.create_from_string("^@\\w+")
 static var _extends_path_pattern := RegEx.create_from_string("\\bextends\\s+[\"']([^\"']+)[\"']")
@@ -96,6 +97,7 @@ static func _add_class_member(class_scope: GDSExSymbolIndex.GDSExClassScope, sta
 		member.name = _enum_pattern.search(code).get_string(1)
 	elif _variable_pattern.search(code) != null:
 		var variable := _add_member_variable(class_scope, statement, code)
+		variable.is_script_alias = variable.is_const and _script_preload_pattern.search(lines[statement.first_line]) != null
 		member.kind = GDSExSymbolIndex.GDSExClassMember.GDSExKind.CONSTANT if variable.is_const else GDSExSymbolIndex.GDSExClassMember.GDSExKind.VARIABLE
 		member.name = variable.name
 	else:

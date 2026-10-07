@@ -26,6 +26,7 @@ class GDSExVariableSymbol:
 	var name: String = ""
 	var type: GDSExTypeData
 	var is_const: bool = false
+	var is_script_alias: bool = false
 	var start_line: int = 0
 	var end_line: int = 0
 	var value_code: String = ""
