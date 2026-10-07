@@ -1,0 +1,25 @@
+action: run_extract_function_dialog
+options: {"name": "_set_value", "result": "Return the value of the last line"}
+=== input
+extends Node
+
+var _dic : Dictionary = { "hola" : 2 }
+
+
+func _ready() -> void:
+	<|_dic = { "value" : 2 }|>
+
+=== expected
+extends Node
+
+var _dic : Dictionary = { "hola" : 2 }
+
+
+func _ready() -> void:
+	_dic = _set_value()<|>
+
+
+func _set_value() -> Dictionary:
+	return { "value" : 2 }
+
+=== end

@@ -11,7 +11,8 @@ func run(items : Array[int], factor : float) -> void:
 	names[0] = str(count)|>
 	print(factor)
 === expected
-form: ASSIGNMENT
-signature: func _new(items: Array[int]) -> String
-call: names[0] = _new(items)
+form: PLAIN
+signature: func _new(items: Array[int]) -> void
+call: _new(items)
+or ASSIGNMENT: func _new(items: Array[int]) -> String -> names[0] = _new(items)
 === end

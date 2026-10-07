@@ -4,7 +4,7 @@
 
 ### Added
 
-- **Extract Function...** With some lines of a function selected, moves them to a new function and leaves the call in their place. A dialog asks for the name and shows the signature and the call. The local variables the code reads become parameters, and the one it changes or declares for later is returned. If the selection ends in a `return` or in a line that assigns a variable, the call takes the place of that value. The action is not offered when the result could behave differently.
+- **Extract Function...** With some lines of a function selected, moves them to a new function and leaves the call in their place. A dialog asks for the name and shows the whole new function and the changed one, with the colors of the script editor. The local variables the code reads become parameters, and the one it changes or declares for later is returned. If the selection ends in a `return` or in a line that assigns a variable, the call takes the place of that value; when that line assigns a class variable, the dialog lets you choose between that and a function that assigns it itself. The action is not offered when the result could behave differently.
 - **Add Explicit Type.** On a local or class variable declared with `:=` or without a type, writes the type of its value: `var total := 0` becomes `var total: int = 0` and `var mode := Mode.FAST` becomes `var mode: Mode = Mode.FAST`. It is not offered when the type of the value is not known.
 - Setting `format/max_blank_lines_inside_functions`, `1` by default: Format keeps at most that many blank lines in a row inside a function, and inside any other member that spans several lines. Blank lines inside a multiline string are never removed.
 

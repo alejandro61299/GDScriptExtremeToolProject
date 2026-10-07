@@ -1,0 +1,25 @@
+action: extract_function
+options: {"name": "_set_value"}
+=== input
+extends Node
+
+var _dic : Dictionary = { "hola" : 2 }
+
+
+func _ready() -> void:
+	<|_dic = { "value" : 2 }|>
+
+=== expected
+extends Node
+
+var _dic : Dictionary = { "hola" : 2 }
+
+
+func _ready() -> void:
+	_set_value()<|>
+
+
+func _set_value() -> void:
+	_dic = { "value" : 2 }
+
+=== end

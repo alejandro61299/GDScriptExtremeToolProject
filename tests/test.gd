@@ -1,12 +1,18 @@
 extends Node
-var _dic: Dictionary = { "hola" : 2 }
+
+var _dic: = { "hola" : 2 }
+var _valu_1 : = []
 
 
 func _ready() -> void:
-	_dic = _extracted_function_1()
+	extracted_function()
 
-func _extracted_function_1() -> Dictionary:
-	return { "value" : 2 }
 
-func _extracted_function_2() -> void:
+func extracted_function() -> void:
+	var adasdas : = true
 	_dic = { "value" : 2 }
+
+
+func initialize(p_dic: Dictionary, p_valu_1: Array) -> void:
+	_dic = p_dic
+	_valu_1 = p_valu_1

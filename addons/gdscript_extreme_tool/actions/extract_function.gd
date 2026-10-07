@@ -34,6 +34,11 @@ const RETURN_TEMPLATE: String = "return %s"
 const ASSIGNMENT_TEMPLATE: String = "%s = %s"
 const VALUE_SEPARATOR: String = " "
 const HEADER_END: String = ":"
+const LINE_SEPARATOR: String = "\n"
+const RETURN_LABEL: String = "Return what the selection returns"
+const ASSIGNMENT_LABEL: String = "Return the value of the last line"
+const OUTPUT_LABEL: String = "Return the variable '%s'"
+const PLAIN_LABEL: String = "Return nothing"
 const GROUPING_OPENER: String = "("
 const PRIVATE_PREFIX: String = "_"
 const CONSTRUCTOR_NAME: String = "_init"
@@ -79,55 +84,64 @@ class GDSExOutputs:
 
 
 static func analyze(context: GDSExCodeContext) -> GDSExExtraction:
-	var extraction := GDSExExtraction.new()
+	return find_alternatives(context)[0]
+
+
+static func find_alternatives(context: GDSExCodeContext) -> Array[GDSExExtraction]:
 	var found := GDSExStatementRange.find(context.index, context.lines, context.selection_first_line, context.selection_last_line)
-	extraction.statement_range = found
 	if not found.is_valid():
-		extraction.rejection = GDSExRejection.RANGE
-		return extraction
+		var rejected := _new_extraction(found, false)
+		rejected.rejection = GDSExRejection.RANGE
+		return [rejected]
 	var index := context.index
 	var top_function := GDSExSymbolIndex.find_top_level_function(found.scope_info)
-	extraction.is_static = top_function.is_static
 	var local_names := GDSExVariableUsage.find_local_names(top_function)
 	var statements := found.statements()
-	var last := found.last_statement()
 	var first_line := found.first_statement().first_line
-	var last_line := GDSExStatementRange.last_code_line_of(last)
+	var last_line := GDSExStatementRange.last_code_line_of(found.last_statement())
 	var inside := GDSExVariableUsage.find_occurrences(index, statements, local_names)
 	var after := GDSExVariableUsage.find_occurrences(index, found.following_statements(), local_names)
 	var writes := GDSExVariableUsage.find_writes(statements)
 	if found.has_return:
-		extraction.form = GDSExForm.RETURN
-		extraction.parameters = _parameters(index, inside, first_line, last_line)
-		extraction.return_type_text = _returned_type_text(index, found)
-	elif not _fits_assignment_form(extraction, index, inside, after, writes, local_names, first_line):
-		var outputs := _find_outputs(index, after, writes, null, local_names, first_line, last_line)
-		if outputs.names.size() > 1:
-			extraction.rejection = GDSExRejection.TOO_MANY_OUTPUTS
-			return extraction
-		extraction.parameters = _parameters(index, inside, first_line, last_line)
-		extraction.return_type_text = GDSExLanguage.VOID_TYPE_NAME
-		if outputs.names.size() == 1:
-			extraction.form = GDSExForm.OUTPUT
-			extraction.output_name = outputs.names[0]
-			extraction.declares_output = outputs.declared_inside.has(extraction.output_name)
-			var type_line: int = outputs.declared_inside.get(extraction.output_name, first_line)
-			extraction.return_type_text = _variable_type_text(index, extraction.output_name, type_line)
-			if extraction.declares_output:
-				_read_output_declaration(extraction, statements, writes)
-	if _loses_an_inferred_type(extraction, inside, after):
-		extraction.rejection = GDSExRejection.UNKNOWN_TYPE
-	return extraction
+		var returned := _new_extraction(found, top_function.is_static)
+		returned.form = GDSExForm.RETURN
+		returned.parameters = _parameters(index, inside, first_line, last_line)
+		returned.return_type_text = _returned_type_text(index, found)
+		_reject_lost_types(returned, inside, after)
+		return [returned]
+	var assigned := _new_extraction(found, top_function.is_static)
+	var fits_assignment := _fits_assignment_form(assigned, index, inside, after, writes, local_names, first_line)
+	_reject_lost_types(assigned, inside, after)
+	var kept := _kept_extraction(_new_extraction(found, top_function.is_static), index, inside, after, writes, local_names, first_line, last_line)
+	_reject_lost_types(kept, inside, after)
+	if not fits_assignment or not assigned.is_valid():
+		return [kept]
+	if not kept.is_valid() or kept.form == GDSExForm.OUTPUT:
+		return [assigned]
+	if _assigns_a_local(assigned, index, local_names):
+		return [assigned, kept]
+	return [kept, assigned]
+
+
+static func form_label(extraction: GDSExExtraction) -> String:
+	match extraction.form:
+		GDSExForm.RETURN:
+			return RETURN_LABEL
+		GDSExForm.ASSIGNMENT:
+			return ASSIGNMENT_LABEL
+		GDSExForm.OUTPUT:
+			return OUTPUT_LABEL % extraction.output_name
+	return PLAIN_LABEL
 
 
 static func build_default_plan(context: GDSExCodeContext) -> GDSExEditPlan:
 	var extraction := analyze(context)
-	return _build_plan(extraction, context, default_function_name(extraction)) if extraction.is_valid() else null
+	return build_plan_for(extraction, context, default_function_name(extraction)) if extraction.is_valid() else null
 
 
 static func build_plan(context: GDSExCodeContext, function_name: String) -> GDSExEditPlan:
 	var extraction := analyze(context)
-	return _build_plan(extraction, context, function_name) if extraction.is_valid() else null
+	return build_plan_for(extraction, context, function_name) if extraction.is_valid() else null
 
 
 static func default_function_name(extraction: GDSExExtraction) -> String:
@@ -139,17 +153,12 @@ static func default_function_name(extraction: GDSExExtraction) -> String:
 	return function_name
 
 
-static func _build_plan(extraction: GDSExExtraction, context: GDSExCodeContext, function_name: String) -> GDSExEditPlan:
+static func build_plan_for(extraction: GDSExExtraction, context: GDSExCodeContext, function_name: String) -> GDSExEditPlan:
 	var found := extraction.statement_range
 	var lines := context.lines
 	var first_statement_line := found.first_statement().first_line
-	var base_indent := GDSExIndentation.leading_whitespace(lines[first_statement_line])
-	var snippet := GDSExSnippet.new()
-	snippet.add_line(0, signature(extraction, function_name) + HEADER_END)
-	_add_body_lines(snippet, extraction, lines, base_indent)
-	var call := PackedStringArray()
-	for call_line in call_lines(extraction, function_name, lines):
-		call.append(base_indent + call_line)
+	var snippet := _function_snippet(extraction, lines, function_name)
+	var call := _indented_call_lines(extraction, lines, function_name)
 	var line_map := PackedInt32Array()
 	line_map.resize(found.last_line - found.first_line + 1)
 	line_map.fill(-1)
@@ -173,6 +182,33 @@ static func check_function_name(extraction: GDSExExtraction, function_name: Stri
 	if not function_name.begins_with(PRIVATE_PREFIX):
 		return GDSExFunctionNameCheck.warning(PUBLIC_NAME_MESSAGE)
 	return check
+
+
+static func function_text(extraction: GDSExExtraction, context: GDSExCodeContext, function_name: String) -> String:
+	var text := PackedStringArray()
+	for line in _function_snippet(extraction, context.lines, function_name).lines:
+		text.append(line.text if line.is_verbatim or line.text.is_empty() else context.indent_unit.repeat(line.indent) + line.text)
+	return LINE_SEPARATOR.join(text)
+
+
+static func caller_text(extraction: GDSExExtraction, context: GDSExCodeContext, function_name: String) -> String:
+	var found := extraction.statement_range
+	var caller := GDSExSymbolIndex.find_top_level_function(found.scope_info)
+	var lines := context.lines
+	var class_indent := GDSExIndentation.leading_whitespace(lines[caller.start_line])
+	var text := PackedStringArray()
+	for line in range(caller.start_line, found.first_line):
+		text.append(lines[line].trim_prefix(class_indent))
+	for call_line in _indented_call_lines(extraction, lines, function_name):
+		text.append(call_line.trim_prefix(class_indent))
+	for line in range(found.last_line + 1, mini(caller.end_line, lines.size() - 1) + 1):
+		text.append(lines[line].trim_prefix(class_indent))
+	return LINE_SEPARATOR.join(text)
+
+
+static func caller_call_line(extraction: GDSExExtraction) -> int:
+	var found := extraction.statement_range
+	return found.first_line - GDSExSymbolIndex.find_top_level_function(found.scope_info).start_line
 
 
 static func signature(extraction: GDSExExtraction, function_name: String) -> String:
@@ -203,6 +239,65 @@ static func call_lines(extraction: GDSExExtraction, function_name: String, lines
 				return PackedStringArray([ASSIGNMENT_TEMPLATE % [extraction.target_statement.code, call]])
 			return PackedStringArray([_target_text(extraction, lines) + call])
 	return PackedStringArray([call])
+
+
+static func _new_extraction(found: GDSExStatementRange.GDSExRange, is_static: bool) -> GDSExExtraction:
+	var extraction := GDSExExtraction.new()
+	extraction.statement_range = found
+	extraction.is_static = is_static
+	return extraction
+
+
+static func _kept_extraction(extraction: GDSExExtraction, index: GDSExSymbolIndex.GDSExSymbolIndexData, inside: Array[GDSExVariableUsage.GDSExOccurrence], after: Array[GDSExVariableUsage.GDSExOccurrence], writes: Dictionary[GDSExSourceScanner.GDSExStatement, GDSExVariableUsage.GDSExAssignment], local_names: Dictionary[String, bool], first_line: int, last_line: int) -> GDSExExtraction:
+	var outputs := _find_outputs(index, after, writes, null, local_names, first_line, last_line)
+	if outputs.names.size() > 1:
+		extraction.rejection = GDSExRejection.TOO_MANY_OUTPUTS
+		return extraction
+	extraction.parameters = _parameters(index, inside, first_line, last_line)
+	extraction.return_type_text = GDSExLanguage.VOID_TYPE_NAME
+	if outputs.names.size() == 1:
+		extraction.form = GDSExForm.OUTPUT
+		extraction.output_name = outputs.names[0]
+		extraction.declares_output = outputs.declared_inside.has(extraction.output_name)
+		var type_line: int = outputs.declared_inside.get(extraction.output_name, first_line)
+		extraction.return_type_text = _variable_type_text(index, extraction.output_name, type_line)
+		if extraction.declares_output:
+			_read_output_declaration(extraction, extraction.statement_range.statements(), writes)
+	return extraction
+
+
+static func _reject_lost_types(extraction: GDSExExtraction, inside: Array[GDSExVariableUsage.GDSExOccurrence], after: Array[GDSExVariableUsage.GDSExOccurrence]) -> void:
+	if extraction.is_valid() and _loses_an_inferred_type(extraction, inside, after):
+		extraction.rejection = GDSExRejection.UNKNOWN_TYPE
+
+
+static func _assigns_a_local(extraction: GDSExExtraction, index: GDSExSymbolIndex.GDSExSymbolIndexData, local_names: Dictionary[String, bool]) -> bool:
+	var assignment := extraction.assignment
+	if assignment.is_declaration:
+		return true
+	if not local_names.has(assignment.root_name):
+		return false
+	var lookup := GDSExSymbolIndex.find_variable(assignment.root_name, GDSExSymbolIndex.get_scope_info_for_line(index, extraction.target_statement.first_line))
+	return lookup.is_defined and not lookup.scope is GDSExSymbolIndex.GDSExClassScope
+
+
+static func _function_snippet(extraction: GDSExExtraction, lines: PackedStringArray, function_name: String) -> GDSExSnippet:
+	var snippet := GDSExSnippet.new()
+	snippet.add_line(0, signature(extraction, function_name) + HEADER_END)
+	_add_body_lines(snippet, extraction, lines, _base_indent(extraction, lines))
+	return snippet
+
+
+static func _indented_call_lines(extraction: GDSExExtraction, lines: PackedStringArray, function_name: String) -> PackedStringArray:
+	var base_indent := _base_indent(extraction, lines)
+	var call := PackedStringArray()
+	for call_line in call_lines(extraction, function_name, lines):
+		call.append(base_indent + call_line)
+	return call
+
+
+static func _base_indent(extraction: GDSExExtraction, lines: PackedStringArray) -> String:
+	return GDSExIndentation.leading_whitespace(lines[extraction.statement_range.first_statement().first_line])
 
 
 static func _add_body_lines(snippet: GDSExSnippet, extraction: GDSExExtraction, lines: PackedStringArray, base_indent: String) -> void:

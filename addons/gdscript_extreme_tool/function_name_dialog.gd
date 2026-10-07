@@ -56,9 +56,9 @@ func _use_scaled_size(minimum_size : Vector2i) -> void:
 		min_size = Vector2i(Vector2(minimum_size) * EditorInterface.get_editor_scale())
 
 
-func _use_source_font(label : Label) -> void:
+func _use_source_font(control : Control) -> void:
 	if has_theme_font(SOURCE_FONT, EDITOR_FONTS_THEME_TYPE):
-		label.add_theme_font_override(FONT, get_theme_font(SOURCE_FONT, EDITOR_FONTS_THEME_TYPE))
+		control.add_theme_font_override(FONT, get_theme_font(SOURCE_FONT, EDITOR_FONTS_THEME_TYPE))
 
 
 func _show_code(label : Label, code : String) -> void:

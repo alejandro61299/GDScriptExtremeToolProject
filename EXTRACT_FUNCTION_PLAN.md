@@ -129,7 +129,7 @@ Las variables declaradas en la selección dentro de un bloque interior (el cuerp
 
 ### 4.4 Forma del resultado
 
-Se prueba en este orden y se usa la primera que encaje.
+Se prueba en este orden y se usa la primera que encaje. Desde el cambio del apartado 8, cuando valen a la vez la forma 2 y la de dejar la última línea dentro, el diálogo deja elegir.
 
 **1. La última línea es un `return`.** La función conserva sus `return` y la llamada ocupa el lugar del último. Los `return` anteriores de la selección valen: como la selección acaba devolviendo, todos sus caminos devuelven.
 
@@ -197,9 +197,22 @@ Las mismas reglas que el nombre de "Generate Custom Init Definition...": vacío,
 
 ```
 ┌ Extract Function ───────────────────────────────────────────┐
-│ Name  [ _sum                                              ] │
-│ func _sum(items: Array[int], total: int) -> int             │
-│ total = _sum(items, total)                                  │
+│ Name    [ _sum                                            ] │
+│ Result  [ Return the variable 'total'                   ▾ ] │
+│ New function                                                │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ func _sum(items: Array[int], total: int) -> int:        │ │
+│ │     for item in items:                                  │ │
+│ │         total += item                                   │ │
+│ │     return total                                        │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ Changed function                                            │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ func run(items : Array[int], factor : float) -> void:   │ │
+│ │     var total := 0                                      │ │
+│ │     total = _sum(items, total)                          │ │
+│ │     var scaled := total * factor                        │ │
+│ └─────────────────────────────────────────────────────────┘ │
 │ ┌─────────────────────────────────────────────────────────┐ │
 │ │ • Function name is valid.                               │ │
 │ └─────────────────────────────────────────────────────────┘ │
@@ -208,11 +221,13 @@ Las mismas reglas que el nombre de "Generate Custom Init Definition...": vacío,
 ```
 
 - **Nombre.** Con el foco al abrir y el texto seleccionado.
-- **Vista previa.** La firma y la línea de la llamada, actualizadas al escribir.
+- **Resultado.** Las formas válidas para la selección (apartado 8.1). Con una sola, el desplegable está desactivado y solo informa.
+- **Función nueva.** La función entera que se va a crear, en un editor de solo lectura.
+- **Función cambiada.** La función original entera tal como va a quedar, con la línea de la llamada marcada y centrada.
 - **Panel de validación y botones.** Como en el diálogo del init: mismos colores, Extract bloqueado con un error.
 - **Teclado.** `ui_accept` extrae si el nombre es válido y `ui_cancel` cierra sin cambios.
 
-Los parámetros no se pueden reordenar ni renombrar en esta versión. Una llamada de dos líneas (la llamada y el `return` de debajo) se enseña en dos líneas.
+Los parámetros no se pueden reordenar ni renombrar en esta versión.
 
 ### 4.7 Cuándo no se ofrece, en resumen
 
@@ -344,3 +359,50 @@ Hecho el 2026-10-07:
 - El análisis de variables es textual sobre el código enmascarado, no un parser completo. Ante un uso que no sepa clasificar lo toma por lectura, que como mucho añade un parámetro de más.
 - Los tipos que dependen de otro script cargado con `preload` no se conocen, así que esos parámetros y ese valor devuelto salen sin tipo, y si eso rompe una declaración con `:=` la acción no se ofrece (detalle D11). En un proyecto que usa `class_name` pasa mucho menos.
 - Un `return` dentro de una condición de una línea (`if vacio: return 0`) al final de la selección no cuenta como «la última línea es un `return`»: solo se admite si la selección llega al final de la función.
+
+## 8. Cambios tras probarla
+
+Los pidió el usuario el 2026-10-07, después de usarla en `tests/test.gd`.
+
+### 8.1 Elegir el resultado
+
+El caso que lo motivó: al extraer `_dic = { "value" : 2 }`, donde `_dic` es una variable de la clase, la acción dejaba `_dic = _f()` y una función que devolvía el diccionario. El usuario esperaba que la función asignara `_dic` ella misma.
+
+Las dos son correctas, así que ahora se calculan todas las formas válidas y el diálogo deja elegir en un desplegable **Result**:
+
+| Etiqueta | Forma | Qué hace |
+|---|---|---|
+| Return what the selection returns | 1 | La selección tiene `return`; es la única opción |
+| Return the value of the last line | 2 | La asignación de la última línea se queda fuera con la llamada como valor |
+| Return the variable 'x' | 3 | Todo se mueve y la función devuelve la variable que hace falta fuera |
+| Return nothing | 4 | Todo se mueve, también la asignación, y la llamada va sola |
+
+Hay dos opciones cuando la última línea asigna algo que la función nueva puede asignar por sí misma: una variable de la clase, un elemento o una propiedad de algo (`names[0] = ...`, `$Label.text = ...`), o una variable local que no se usa después.
+
+La que sale marcada:
+
+- **Return nothing**, si el destino no es una variable local (una variable de la clase, `self.x`, una ruta de nodo). Es lo que pidió el usuario.
+- **Return the value of the last line**, si el destino es una variable local o una declaración, como se acordó al principio.
+
+Detalles decididos al implementar:
+
+- **D19. Opciones equivalentes.** Si la última línea asigna la misma variable local que habría que devolver, las formas 2 y 3 dan la misma llamada y solo cambia el final de la función (`return valor` frente a asignar y `return total`). Solo se ofrece la 2.
+- **D20. Con una sola opción** el desplegable se ve pero está desactivado: así el diálogo siempre dice qué devuelve la función.
+- **D21. Cada opción se valida por separado.** Una forma que perdería un tipo (detalle D11) o que tiene más de una salida no aparece, aunque la otra sí.
+
+### 8.2 Vistas previas completas
+
+La firma y la llamada, que eran dos líneas de texto, pasan a ser dos editores de solo lectura: la función nueva entera y la función original entera tal como queda.
+
+- **Colores.** Usan `GDScriptSyntaxHighlighter`, el resaltador del propio editor de scripts, así que el código se ve con los mismos colores y la misma fuente que en el editor. Godot solo deja crearlo dentro del editor; fuera (en la suite de tests) las vistas quedan sin colores.
+- **Línea de la llamada.** Va marcada con el color de acento del editor y la vista se centra en ella, para encontrarla en una función larga.
+- **Clases internas.** Las dos vistas se enseñan sin el sangrado de la clase.
+- **Tamaño.** El diálogo pasa de 560 a 680 de ancho y a 560 de alto.
+
+Hecho el 2026-10-07:
+
+- `GDSExExtractFunction.find_alternatives` devuelve las formas válidas con la preferida primero; `form_label`, `function_text`, `caller_text` y `caller_call_line` dan lo que enseña el diálogo, y `build_plan_for` genera el plan de la opción elegida.
+- `extract_function_dialog.gd` tiene el desplegable y las dos vistas.
+- Runner: `describe_extraction` añade una línea `or ...` por cada alternativa; la cabecera `options` admite `form` (sin diálogo) y `result` (texto de la opción en el diálogo).
+- Tests: 7 casos nuevos de alternativas en `extract_function_usage`, 4 en `extract_function` (por defecto y eligiendo, con y sin diálogo) y el recorrido del diálogo ampliado: dos resultados, cambio de opción, vistas de una clase interna y marca de la llamada.
+- Comprobado en un editor real sin ventana, sobre un proyecto de prueba: el resaltador se crea y colorea palabras clave, tipos, números, cadenas y comentarios; la fuente y el tamaño son los del editor.

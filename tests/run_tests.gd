@@ -153,12 +153,16 @@ class DialogTestAction extends "res://addons/gdscript_extreme_tool/actions/code_
 
 class ExtractTestAction extends "res://addons/gdscript_extreme_tool/actions/code_action.gd":
 	var function_name: String = ""
+	var form_name: String = ""
 
 	func get_label() -> String:
 		return "Extract Test"
 
 	func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
-		return GDSExExtractFunction.build_plan(context, function_name)
+		for alternative in GDSExExtractFunction.find_alternatives(context):
+			if alternative.is_valid() and (form_name.is_empty() or GDSExExtractFunction.GDSExForm.find_key(alternative.form) == form_name):
+				return GDSExExtractFunction.build_plan_for(alternative, context, function_name)
+		return null
 
 
 class ErrorCollector extends Logger:
@@ -536,16 +540,20 @@ func _describe_extraction_range(editor: CodeEdit) -> String:
 
 func _describe_extraction(editor: CodeEdit) -> String:
 	var context := GDSExCodeContext.new(editor)
-	var extraction := GDSExExtractFunction.analyze(context)
+	var alternatives := GDSExExtractFunction.find_alternatives(context)
+	var extraction := alternatives[0]
 	if extraction.rejection == GDSExExtractFunction.GDSExRejection.RANGE:
 		return "rejected: %s" % GDSExStatementRange.GDSExRejection.find_key(extraction.statement_range.rejection)
 	if not extraction.is_valid():
 		return "rejected: %s" % GDSExExtractFunction.GDSExRejection.find_key(extraction.rejection)
-	return "\n".join(PackedStringArray([
+	var description := PackedStringArray([
 		"form: %s" % GDSExExtractFunction.GDSExForm.find_key(extraction.form),
 		"signature: %s" % GDSExExtractFunction.signature(extraction, EXTRACTION_NAME),
 		"call: %s" % " | ".join(GDSExExtractFunction.call_lines(extraction, EXTRACTION_NAME, context.lines)),
-	]))
+	])
+	for alternative in alternatives.slice(1):
+		description.append("or %s: %s -> %s" % [GDSExExtractFunction.GDSExForm.find_key(alternative.form), GDSExExtractFunction.signature(alternative, EXTRACTION_NAME), " | ".join(GDSExExtractFunction.call_lines(alternative, EXTRACTION_NAME, context.lines))])
+	return "\n".join(description)
 
 
 func _describe_scope(scope: GDSExSymbolIndex.GDSExScopeBase, depth: int) -> PackedStringArray:
@@ -649,6 +657,7 @@ func _check_extract_function(test_case: TestCase, editor: CodeEdit) -> PackedStr
 	var options: Dictionary = str_to_var(test_case.headers["options"])
 	var action := ExtractTestAction.new()
 	action.function_name = options["name"]
+	action.form_name = options.get("form", "")
 	return _check_code_action(test_case, action, editor)
 
 
@@ -800,7 +809,12 @@ func _check_extract_function_dialog(test_case: TestCase, editor: CodeEdit) -> Pa
 		problems.append("The script changed before the dialog was confirmed.")
 	if test_case.headers.has("options"):
 		var options: Dictionary = str_to_var(test_case.headers["options"])
-		_type_dialog_name(dialog, options["name"])
+		if options.has("name"):
+			_type_dialog_name(dialog, options["name"])
+		for index in dialog.form_button.item_count:
+			if dialog.form_button.get_item_text(index) == options.get("result", ""):
+				dialog.form_button.select(index)
+				dialog.form_button.item_selected.emit(index)
 	if test_case.headers.get("dialog", "accept") == "cancel":
 		dialog.get_cancel_button().pressed.emit()
 		dialog.hide()
@@ -824,15 +838,20 @@ func _check_extract_dialog() -> PackedStringArray:
 	root.add_child(dialog)
 	dialog.popup_centered()
 
+	var extracted_function := "func %s(items: Array[int], total: int) -> int:\n\tfor item in items:\n\t\ttotal += item\n\treturn total"
+	var changed_function := "func run(items : Array[int]) -> void:\n\tvar total := 0\n\ttotal = %s(items, total)\n\tprint(total)"
 	_expect(problems, "initial name", dialog.name_edit.text, "_extracted_function")
-	_expect(problems, "initial signature", dialog.signature_label.text, "func _extracted_function(items: Array[int], total: int) -> int")
-	_expect(problems, "initial call", dialog.call_label.text, "total = _extracted_function(items, total)")
+	_expect(problems, "initial function", dialog.function_preview.text, extracted_function % "_extracted_function")
+	_expect(problems, "initial changed function", dialog.caller_preview.text.strip_edges(), changed_function % "_extracted_function")
+	_expect(problems, "previews are read only", [dialog.function_preview.editable, dialog.caller_preview.editable], [false, false])
+	_expect(problems, "call line is marked", [dialog.caller_preview.get_line_background_color(2).a > 0.0, dialog.caller_preview.get_line_background_color(1).a > 0.0], [true, false])
+	_expect(problems, "one result", [dialog.form_button.item_count, dialog.form_button.disabled, dialog.form_button.get_item_text(0)], [1, true, "Return the variable 'total'"])
 	_expect(problems, "initial message", dialog.validation_label.text, "• Function name is valid.")
 	_expect(problems, "extract enabled at start", dialog.get_ok_button().disabled, false)
 
 	_type_dialog_name(dialog, "_sum")
-	_expect(problems, "signature after typing", dialog.signature_label.text, "func _sum(items: Array[int], total: int) -> int")
-	_expect(problems, "call after typing", dialog.call_label.text, "total = _sum(items, total)")
+	_expect(problems, "function after typing", dialog.function_preview.text, extracted_function % "_sum")
+	_expect(problems, "changed function after typing", dialog.caller_preview.text.strip_edges(), changed_function % "_sum")
 
 	_type_dialog_name(dialog, "_existing")
 	_expect(problems, "message for an existing function", dialog.validation_label.text, "• The class already has a function named '_existing'.")
@@ -858,16 +877,38 @@ func _check_extract_dialog() -> PackedStringArray:
 	_expect(problems, "dialog hidden after extracting", dialog.visible, false)
 	if plans.size() == 1:
 		GDSExEditApplier.apply(editor, plans[0])
-		_expect(problems, "extracted function", editor.text.contains("\ttotal = _sum(items, total)\n\tprint(total)") and editor.text.contains("func _sum(items: Array[int], total: int) -> int:\n\tfor item in items:\n\t\ttotal += item\n\treturn total"), true)
+		_expect(problems, "extracted function", editor.text.contains("\ttotal = _sum(items, total)\n\tprint(total)") and editor.text.contains((extracted_function % "_sum") + "\n"), true)
 	dialog.free()
 
-	editor.text = "extends Node\n\n\nfunc run() -> void:\n\tif true:\n\t\tprint(1)\n\t\treturn\n\tprint(2)\n"
-	editor.select(5, 0, 6, editor.get_line(6).length())
-	var return_dialog := GDSExExtractFunctionDialog.new()
-	return_dialog.setup(GDSExCodeContext.new(editor), func(_plan: GDSExEditPlan) -> void: pass)
-	root.add_child(return_dialog)
-	_expect(problems, "call of two lines", return_dialog.call_label.text, "_extracted_function()\nreturn")
-	return_dialog.free()
+	editor.text = "extends Node\n\nvar _table : Dictionary = {}\n\n\nclass Inner:\n\tvar count : int = 0\n\n\tfunc run() -> void:\n\t\tif count > 0:\n\t\t\tprint(1)\n\t\t\treturn\n\t\tprint(2)\n\n\nfunc _ready() -> void:\n\tprint(\"start\")\n\t_table = { \"value\" : 2 }\n"
+	editor.select(17, 0, 17, editor.get_line(17).length())
+	var member_plans: Array[GDSExEditPlan] = []
+	var member_dialog := GDSExExtractFunctionDialog.new()
+	member_dialog.setup(GDSExCodeContext.new(editor), func(plan: GDSExEditPlan) -> void: member_plans.append(plan))
+	root.add_child(member_dialog)
+	_expect(problems, "results for a class variable", [member_dialog.form_button.item_count, member_dialog.form_button.disabled, member_dialog.form_button.get_item_text(0), member_dialog.form_button.get_item_text(1)], [2, false, "Return nothing", "Return the value of the last line"])
+	_expect(problems, "function that sets the class variable", member_dialog.function_preview.text, "func _extracted_function() -> void:\n\t_table = { \"value\" : 2 }")
+	_expect(problems, "call that returns nothing", member_dialog.caller_preview.text.strip_edges(), "func _ready() -> void:\n\tprint(\"start\")\n\t_extracted_function()")
+	member_dialog.form_button.select(1)
+	member_dialog.form_button.item_selected.emit(1)
+	_expect(problems, "function that returns the value", member_dialog.function_preview.text, "func _extracted_function() -> Dictionary:\n\treturn { \"value\" : 2 }")
+	_expect(problems, "call that assigns the value", member_dialog.caller_preview.text.strip_edges(), "func _ready() -> void:\n\tprint(\"start\")\n\t_table = _extracted_function()")
+	member_dialog.get_ok_button().pressed.emit()
+	if member_plans.size() == 1:
+		GDSExEditApplier.apply(editor, member_plans[0])
+		_expect(problems, "extracted with the chosen result", editor.text.contains("\t_table = _extracted_function()\n") and editor.text.contains("func _extracted_function() -> Dictionary:\n\treturn { \"value\" : 2 }\n"), true)
+	else:
+		problems.append("The dialog did not extract with the chosen result.")
+	member_dialog.free()
+
+	editor.select(10, 0, 11, editor.get_line(11).length())
+	var inner_dialog := GDSExExtractFunctionDialog.new()
+	inner_dialog.setup(GDSExCodeContext.new(editor), func(_plan: GDSExEditPlan) -> void: pass)
+	root.add_child(inner_dialog)
+	_expect(problems, "function of an inner class without its indentation", inner_dialog.function_preview.text, "func _extracted_function() -> void:\n\tprint(1)\n\treturn")
+	_expect(problems, "changed function of an inner class", inner_dialog.caller_preview.text.strip_edges(), "func run() -> void:\n\tif count > 0:\n\t\t_extracted_function()\n\t\treturn\n\tprint(2)")
+	_expect(problems, "both call lines are marked", [inner_dialog.caller_preview.get_line_background_color(2).a > 0.0, inner_dialog.caller_preview.get_line_background_color(3).a > 0.0, inner_dialog.caller_preview.get_line_background_color(4).a > 0.0], [true, true, false])
+	inner_dialog.free()
 	editor.free()
 	return problems
 

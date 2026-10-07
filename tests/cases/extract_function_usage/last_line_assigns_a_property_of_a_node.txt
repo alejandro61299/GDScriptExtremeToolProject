@@ -1,0 +1,18 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	<|print(items)
+	$Label.text = str(factor)|>
+	print(1)
+=== expected
+form: PLAIN
+signature: func _new(items: Array[int], factor: float) -> void
+call: _new(items, factor)
+or ASSIGNMENT: func _new(items: Array[int], factor: float) -> String -> $Label.text = _new(items, factor)
+=== end

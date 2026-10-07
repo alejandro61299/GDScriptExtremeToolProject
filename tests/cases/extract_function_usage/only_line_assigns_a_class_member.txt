@@ -7,8 +7,7 @@ var names : Array[String] = []
 
 
 func run(items : Array[int], factor : float) -> void:
-	<|var count := items.size()
-	member = count * 2|>
+	<|member = items.size() * 2|>
 	print(factor)
 === expected
 form: PLAIN

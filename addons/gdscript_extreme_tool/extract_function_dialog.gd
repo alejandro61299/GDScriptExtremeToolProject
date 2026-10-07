@@ -6,14 +6,24 @@ const GDSExExtractFunction = preload("res://addons/gdscript_extreme_tool/actions
 
 const TITLE : String = "Extract Function"
 const EXTRACT_TEXT : String = "Extract"
-const MINIMUM_SIZE : Vector2i = Vector2i(560, 0)
-const LINE_SEPARATOR : String = "\n"
+const RESULT_TEXT : String = "Result"
+const FUNCTION_TEXT : String = "New function"
+const CALLER_TEXT : String = "Changed function"
+const MINIMUM_SIZE : Vector2i = Vector2i(680, 560)
+const PREVIEW_MINIMUM_HEIGHT : float = 120.0
+const HIGHLIGHTER_CLASS : StringName = &"GDScriptSyntaxHighlighter"
+const FONT_SIZE : StringName = &"font_size"
+const SOURCE_FONT_SIZE : StringName = &"source_size"
+const ACCENT_COLOR : StringName = &"accent_color"
+const CALL_LINE_FALLBACK_COLOR : Color = Color("569eff")
+const CALL_LINE_OPACITY : float = 0.18
 
-var signature_label : Label
-var call_label : Label
+var form_button : OptionButton
+var function_preview : CodeEdit
+var caller_preview : CodeEdit
 
 var _context : GDSExCodeContext
-var _extraction : GDSExExtractFunction.GDSExExtraction
+var _alternatives : Array[GDSExExtractFunction.GDSExExtraction] = []
 var _on_plan_ready : Callable
 
 
@@ -24,10 +34,9 @@ func _init() -> void:
 	var content := VBoxContainer.new()
 	add_child(content)
 	content.add_child(_build_name_row())
-	signature_label = _build_code_label()
-	content.add_child(signature_label)
-	call_label = _build_code_label()
-	content.add_child(call_label)
+	content.add_child(_build_form_row())
+	function_preview = _add_preview(content, FUNCTION_TEXT)
+	caller_preview = _add_preview(content, CALLER_TEXT)
 	content.add_child(_build_validation_panel())
 	confirmed.connect(_on_confirmed)
 	visibility_changed.connect(_focus_name)
@@ -35,28 +44,80 @@ func _init() -> void:
 
 func _ready() -> void:
 	_use_scaled_size(MINIMUM_SIZE)
-	_use_source_font(signature_label)
-	_use_source_font(call_label)
+	for preview : CodeEdit in [function_preview, caller_preview]:
+		_use_source_font(preview)
+		if has_theme_font_size(SOURCE_FONT_SIZE, EDITOR_FONTS_THEME_TYPE):
+			preview.add_theme_font_size_override(FONT_SIZE, get_theme_font_size(SOURCE_FONT_SIZE, EDITOR_FONTS_THEME_TYPE))
+		if ClassDB.can_instantiate(HIGHLIGHTER_CLASS):
+			preview.syntax_highlighter = ClassDB.instantiate(HIGHLIGHTER_CLASS) as SyntaxHighlighter
 	_refresh()
 
 
 func setup(context : GDSExCodeContext, on_plan_ready : Callable) -> void:
 	_context = context
-	_extraction = GDSExExtractFunction.analyze(context)
 	_on_plan_ready = on_plan_ready
-	if _extraction.is_valid():
-		name_edit.text = GDSExExtractFunction.default_function_name(_extraction)
+	_alternatives = GDSExExtractFunction.find_alternatives(context)
+	form_button.clear()
+	for alternative in _alternatives:
+		form_button.add_item(GDSExExtractFunction.form_label(alternative))
+	form_button.disabled = _alternatives.size() < 2
+	if get_selected_alternative().is_valid():
+		name_edit.text = GDSExExtractFunction.default_function_name(get_selected_alternative())
 	_refresh()
 
 
+func get_selected_alternative() -> GDSExExtractFunction.GDSExExtraction:
+	return _alternatives[maxi(0, form_button.selected)]
+
+
+func _build_form_row() -> Control:
+	var row := HBoxContainer.new()
+	var label := Label.new()
+	label.text = RESULT_TEXT
+	row.add_child(label)
+	form_button = OptionButton.new()
+	form_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	form_button.item_selected.connect(_on_form_selected)
+	row.add_child(form_button)
+	return row
+
+
+func _add_preview(content : Control, title_text : String) -> CodeEdit:
+	var label := Label.new()
+	label.text = title_text
+	content.add_child(label)
+	var preview := CodeEdit.new()
+	preview.editable = false
+	preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	preview.custom_minimum_size.y = PREVIEW_MINIMUM_HEIGHT
+	content.add_child(preview)
+	return preview
+
+
 func _refresh() -> void:
-	if _extraction == null or not _extraction.is_valid():
+	if _alternatives.is_empty() or not get_selected_alternative().is_valid():
 		return
-	_show_code(signature_label, GDSExExtractFunction.signature(_extraction, name_edit.text))
-	_show_code(call_label, LINE_SEPARATOR.join(GDSExExtractFunction.call_lines(_extraction, name_edit.text, _context.lines)))
-	_show_name_check(GDSExExtractFunction.check_function_name(_extraction, name_edit.text))
+	var extraction := get_selected_alternative()
+	function_preview.text = GDSExExtractFunction.function_text(extraction, _context, name_edit.text)
+	caller_preview.text = GDSExExtractFunction.caller_text(extraction, _context, name_edit.text)
+	_mark_call_lines(extraction)
+	_show_name_check(GDSExExtractFunction.check_function_name(extraction, name_edit.text))
+
+
+func _mark_call_lines(extraction : GDSExExtractFunction.GDSExExtraction) -> void:
+	var first_line := GDSExExtractFunction.caller_call_line(extraction)
+	var line_count := GDSExExtractFunction.call_lines(extraction, name_edit.text, _context.lines).size()
+	var mark_color := get_theme_color(ACCENT_COLOR, EDITOR_THEME_TYPE) if has_theme_color(ACCENT_COLOR, EDITOR_THEME_TYPE) else CALL_LINE_FALLBACK_COLOR
+	mark_color.a = CALL_LINE_OPACITY
+	for line in range(first_line, mini(first_line + line_count, caller_preview.get_line_count())):
+		caller_preview.set_line_background_color(line, mark_color)
+	caller_preview.set_line_as_center_visible.call_deferred(mini(first_line, caller_preview.get_line_count() - 1))
+
+
+func _on_form_selected(_selected_index : int) -> void:
+	_refresh()
 
 
 func _on_confirmed() -> void:
 	if _name_check != null and not _name_check.is_error():
-		_on_plan_ready.call(GDSExExtractFunction.build_plan(_context, name_edit.text))
+		_on_plan_ready.call(GDSExExtractFunction.build_plan_for(get_selected_alternative(), _context, name_edit.text))
