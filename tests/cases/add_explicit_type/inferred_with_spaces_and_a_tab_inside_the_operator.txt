@@ -1,0 +1,18 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var total :  	 = first<|>
+	print(first, second)
+
+=== expected
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var total: int = first<|>
+	print(first, second)
+
+=== end

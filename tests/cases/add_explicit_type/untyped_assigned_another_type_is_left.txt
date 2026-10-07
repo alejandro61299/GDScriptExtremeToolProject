@@ -1,0 +1,24 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var value = 0
+var kept = 1
+
+
+func run() -> void:
+	value = "text"
+	kept = 2
+
+=== expected
+extends Node
+
+var value = 0
+var kept: int = 1
+
+
+func run() -> void:
+	value = "text"
+	kept = 2
+
+=== end

@@ -1,0 +1,20 @@
+action: add_explicit_type
+=== input
+extends Node
+
+# var commented := 1
+var text := "var inside := 2"
+var block := """
+var multiline := 3
+"""
+
+=== expected
+extends Node
+
+# var commented := 1
+var text: String = "var inside := 2"
+var block: String = """
+var multiline := 3
+"""
+
+=== end

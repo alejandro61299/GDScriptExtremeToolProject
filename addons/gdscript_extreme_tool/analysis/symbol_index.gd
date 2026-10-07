@@ -5,13 +5,12 @@ const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/
 const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
 
 const TYPE_SEPARATOR: String = ","
-const INFERRED_ASSIGNMENT: String = ":="
 const TYPE_ANNOTATION: String = ":"
 const ASSIGNMENT: String = "="
 const LAMBDA_PREFIXES: Array[String] = ["func(", "func "]
 const NUMBER_SEPARATOR: String = "_"
 
-static var _string_literal_pattern := RegEx.create_from_string("^(&|\\^|r)?[\"']{1,3}\\?*[\"']{1,3}$")
+static var _string_literal_pattern := RegEx.create_from_string("^(&|\\^|r)?[\"']{1,3}[? ]*[\"']{1,3}$")
 static var _constructor_pattern := RegEx.create_from_string("^([A-Za-z_]\\w*)\\s*[\\(\\.]")
 
 
@@ -33,6 +32,8 @@ class GDSExVariableSymbol:
 	var value_code: String = ""
 	var deferred: GDSExDeferred = GDSExDeferred.NONE
 	var function: GDSExFunctionScope
+	var declaration: GDSExDeclarationTail
+	var statement: GDSExSourceScanner.GDSExStatement
 
 
 class GDSExSignalSymbol:
@@ -42,7 +43,19 @@ class GDSExSignalSymbol:
 
 class GDSExDeclarationTail:
 	var type: GDSExTypeData
+	var type_text: String = ""
 	var value: String = ""
+	var is_inferred: bool = false
+	var start: int = 0
+	var operator_start: int = -1
+	var operator_end: int = -1
+	var value_start: int = -1
+
+	func has_type() -> bool:
+		return not type_text.is_empty()
+
+	func has_value() -> bool:
+		return operator_end != -1
 
 
 class GDSExVariableLookup:
@@ -91,6 +104,7 @@ class GDSExFunctionScope extends GDSExScopeBase:
 	var is_static: bool = false
 	var is_inline: bool = false
 	var params: Dictionary = {}
+	var untyped_params: PackedStringArray = []
 	var return_type: GDSExTypeData
 	var return_codes: PackedStringArray = []
 	var return_lines: PackedInt32Array = []
@@ -253,36 +267,61 @@ static func constructed_type(masked_value: String) -> GDSExTypeData:
 static func parse_func_parameters(params_text: String) -> Dictionary:
 	var result := {}
 	for param in split_top_level(params_text, TYPE_SEPARATOR):
-		var name_end := 0
-		while name_end < param.length() and GDSExSourceScanner.is_identifier_character(param[name_end]):
-			name_end += 1
+		var name_end := _parameter_name_end(param)
 		if name_end > 0:
-			var declaration := parse_declaration_tail(param.substr(name_end))
+			var declaration := parse_declaration_tail(param, name_end)
 			result[param.substr(0, name_end)] = declaration.type if declaration.type != null else constructed_type(declaration.value)
 	return result
 
 
-static func parse_declaration_tail(tail: String) -> GDSExDeclarationTail:
+static func find_untyped_parameters(params_text: String) -> PackedStringArray:
+	var names := PackedStringArray()
+	for param in split_top_level(params_text, TYPE_SEPARATOR):
+		var name_end := _parameter_name_end(param)
+		var declaration := parse_declaration_tail(param, name_end)
+		if name_end > 0 and not declaration.is_inferred and not declaration.has_type():
+			names.append(param.substr(0, name_end))
+	return names
+
+
+static func parse_declaration_tail(code: String, from: int = 0) -> GDSExDeclarationTail:
 	var result := GDSExDeclarationTail.new()
-	var text := tail.strip_edges()
-	var type_text := ""
-	if text.begins_with(INFERRED_ASSIGNMENT):
-		result.value = text.substr(INFERRED_ASSIGNMENT.length()).strip_edges()
-	elif text.begins_with(TYPE_ANNOTATION):
-		var assignment := find_top_level(text, ASSIGNMENT, 1)
-		var accessor := find_top_level(text, TYPE_ANNOTATION, 1)
-		var type_end := text.length()
-		if assignment != -1:
-			type_end = assignment
-		if accessor != -1 and accessor < type_end:
-			type_end = accessor
-		type_text = text.substr(1, type_end - 1).strip_edges()
-		if assignment != -1 and assignment == type_end:
-			result.value = text.substr(assignment + 1).strip_edges()
-	elif text.begins_with(ASSIGNMENT):
-		result.value = text.substr(ASSIGNMENT.length()).strip_edges()
-	result.type = literal_type(result.value) if type_text.is_empty() else parse_type(type_text)
+	var start := GDSExSourceScanner.skip_spaces(code, from)
+	var operator := -1
+	result.start = from
+	if code.substr(start, TYPE_ANNOTATION.length()) == TYPE_ANNOTATION:
+		var annotation_end := GDSExSourceScanner.skip_spaces(code, start + TYPE_ANNOTATION.length())
+		if _is_assignment_at(code, annotation_end):
+			result.is_inferred = true
+			result.operator_start = start
+			operator = annotation_end
+		else:
+			var assignment := find_top_level(code, ASSIGNMENT, start + 1)
+			var accessor := find_top_level(code, TYPE_ANNOTATION, start + 1)
+			var type_end := code.length()
+			if assignment != -1:
+				type_end = assignment
+			if accessor != -1 and accessor < type_end:
+				type_end = accessor
+			result.type_text = code.substr(start + 1, type_end - start - 1).strip_edges()
+			if assignment != -1 and assignment == type_end:
+				result.operator_start = assignment
+				operator = assignment
+	elif _is_assignment_at(code, start):
+		result.operator_start = start
+		operator = start
+	if operator != -1:
+		result.operator_end = operator + ASSIGNMENT.length()
+		result.value_start = GDSExSourceScanner.skip_spaces(code, result.operator_end)
+		result.value = code.substr(result.value_start, _find_value_end(code, result.value_start) - result.value_start).strip_edges()
+	result.type = parse_type(result.type_text) if result.has_type() else literal_type(result.value)
 	return result
+
+
+static func find_variables(scope: GDSExScopeBase) -> Array[GDSExVariableSymbol]:
+	var variables: Array[GDSExVariableSymbol] = []
+	_collect_variables(scope, variables)
+	return variables
 
 
 static func get_scope_info_for_line(index: GDSExSymbolIndexData, line: int) -> GDSExScopeInfo:
@@ -365,6 +404,34 @@ static func _find_innermost_scope(scope: GDSExScopeBase, line: int) -> GDSExScop
 		if line >= child.first_contained_line() and line <= child.end_line:
 			return _find_innermost_scope(child, line)
 	return scope
+
+
+static func _parameter_name_end(param: String) -> int:
+	var name_end := 0
+	while name_end < param.length() and GDSExSourceScanner.is_identifier_character(param[name_end]):
+		name_end += 1
+	return name_end
+
+
+static func _is_assignment_at(code: String, offset: int) -> bool:
+	return code.substr(offset, ASSIGNMENT.length()) == ASSIGNMENT and code.substr(offset + ASSIGNMENT.length(), ASSIGNMENT.length()) != ASSIGNMENT
+
+
+static func _find_value_end(code: String, value_start: int) -> int:
+	for lambda_prefix in LAMBDA_PREFIXES:
+		if code.substr(value_start, lambda_prefix.length()) == lambda_prefix:
+			return code.length()
+	var accessors_start := find_top_level(code, TYPE_ANNOTATION, value_start)
+	return code.length() if accessors_start == -1 else accessors_start
+
+
+static func _collect_variables(scope: GDSExScopeBase, variables: Array[GDSExVariableSymbol]) -> void:
+	if scope is GDSExClassScope:
+		for variable: GDSExVariableSymbol in (scope as GDSExClassScope).vars.values():
+			variables.append(variable)
+	variables.append_array(scope.locals)
+	for child in scope.children:
+		_collect_variables(child, variables)
 
 
 static func _append_part(parts: PackedStringArray, part: String) -> void:

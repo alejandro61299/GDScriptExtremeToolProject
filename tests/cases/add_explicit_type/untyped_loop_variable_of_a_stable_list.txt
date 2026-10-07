@@ -1,0 +1,24 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run() -> void:
+	var numbers = PackedInt32Array([1, 2])
+	for number in numbers:
+		var each = number
+		print(each)
+	numbers = PackedInt32Array()
+
+=== expected
+extends Node
+
+
+func run() -> void:
+	var numbers: PackedInt32Array = PackedInt32Array([1, 2])
+	for number in numbers:
+		var each: int = number
+		print(each)
+	numbers = PackedInt32Array()
+
+=== end

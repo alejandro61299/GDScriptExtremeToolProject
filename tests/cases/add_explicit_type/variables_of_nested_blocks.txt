@@ -1,0 +1,58 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(items : Array[int], limit : int) -> void:
+	if limit > 0:
+		var half := limit / 2
+		print(half)
+	elif limit < 0:
+		var negative = -limit
+		print(negative)
+	else:
+		var message := "zero"
+		print(message)
+	for item in items:
+		var doubled := item * 2
+		while doubled > limit:
+			var step = 1
+			doubled -= step
+		print(doubled)
+	match limit:
+		0:
+			var label := "none"
+			print(label)
+		var other:
+			var text = str(other)
+			print(text)
+
+=== expected
+extends Node
+
+
+func run(items : Array[int], limit : int) -> void:
+	if limit > 0:
+		var half: int = limit / 2
+		print(half)
+	elif limit < 0:
+		var negative: int = -limit
+		print(negative)
+	else:
+		var message: String = "zero"
+		print(message)
+	for item in items:
+		var doubled: int = item * 2
+		while doubled > limit:
+			var step: int = 1
+			doubled -= step
+		print(doubled)
+	match limit:
+		0:
+			var label: String = "none"
+			print(label)
+		var other:
+			var text: String = str(other)
+			print(text)
+
+=== end

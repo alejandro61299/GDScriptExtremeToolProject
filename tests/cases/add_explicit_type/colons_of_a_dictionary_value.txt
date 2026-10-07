@@ -1,0 +1,14 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var table = { "a" : 1, "b" : 2 }
+var nested := { "list" : [1, 2], "inner" : { "key" : "value" } }
+
+=== expected
+extends Node
+
+var table: Dictionary = { "a" : 1, "b" : 2 }
+var nested: Dictionary = { "list" : [1, 2], "inner" : { "key" : "value" } }
+
+=== end

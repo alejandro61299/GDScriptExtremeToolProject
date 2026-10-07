@@ -1,0 +1,24 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var count = 0
+
+
+func run() -> void:
+	var count = "local"
+	count = "still local"
+	print(count)
+
+=== expected
+extends Node
+
+var count: int = 0
+
+
+func run() -> void:
+	var count: String = "local"
+	count = "still local"
+	print(count)
+
+=== end

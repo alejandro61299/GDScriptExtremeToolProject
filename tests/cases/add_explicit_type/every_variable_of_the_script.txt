@@ -1,0 +1,40 @@
+action: add_explicit_type
+=== input
+extends Node
+
+@export var speed := 2.0
+var title = "Hello"
+var counter : int = 0
+
+
+func run(first : int, second : float) -> void:
+	var total := first
+	var ratio = second / 2.0
+	print(total, ratio)
+
+
+func stop() -> void:
+	var message := title + "!"
+	var is_ready = counter > 0<|>
+	print(message, is_ready)
+
+=== expected
+extends Node
+
+@export var speed: float = 2.0
+var title: String = "Hello"
+var counter : int = 0
+
+
+func run(first : int, second : float) -> void:
+	var total: int = first
+	var ratio: float = second / 2.0
+	print(total, ratio)
+
+
+func stop() -> void:
+	var message: String = title + "!"
+	var is_ready: bool = counter > 0<|>
+	print(message, is_ready)
+
+=== end

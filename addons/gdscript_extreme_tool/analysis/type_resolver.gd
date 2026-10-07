@@ -95,7 +95,10 @@ static func resolve_expression(expression: String, scope_info: GDSExSymbolIndex.
 	var operation := _resolve_operation(text, scope_info)
 	if operation != null:
 		return operation
-	return _resolve_chain(text, scope_info)
+	var resolved := _resolve_chain(text, scope_info)
+	if resolved.type != null and resolved.type.name == GDSExLanguage.SIGNAL_TYPE_NAME and expression.strip_edges().begins_with(AWAIT_PREFIX):
+		return GDSExResolved.new()
+	return resolved
 
 
 static func resolve_self(scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
@@ -650,8 +653,9 @@ static func _resolve_member_token(owner: GDSExResolved, token_text: String, scop
 	elif owner.function != null and token.is_call and GDSExLanguage.CALLABLE_BINDINGS.has(token.name):
 		resolved = owner
 	elif token.is_call and token.name == GDSExLanguage.CONSTRUCTOR_NAME:
-		resolved.type = owner.type
-		resolved.class_scope = owner.class_scope
+		if owner.is_class_reference:
+			resolved.type = owner.type
+			resolved.class_scope = owner.class_scope
 	else:
 		var member := find_member(owner, token.name)
 		if member != null:

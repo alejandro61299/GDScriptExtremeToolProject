@@ -1,0 +1,28 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var _raw := 0
+
+var health : int:
+	get:
+		var stored := _raw
+		return stored
+	set(value):
+		var clamped = clampi(value, 0, 100)
+		_raw = clamped
+
+=== expected
+extends Node
+
+var _raw: int = 0
+
+var health : int:
+	get:
+		var stored: int = _raw
+		return stored
+	set(value):
+		var clamped: int = clampi(value, 0, 100)
+		_raw = clamped
+
+=== end

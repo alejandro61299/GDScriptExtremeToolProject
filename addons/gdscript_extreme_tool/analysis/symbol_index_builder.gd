@@ -185,7 +185,7 @@ static func _add_signal(class_scope: GDSExSymbolIndex.GDSExClassScope, code: Str
 
 static func _add_member_variable(class_scope: GDSExSymbolIndex.GDSExClassScope, statement: GDSExSourceScanner.GDSExStatement, code: String) -> GDSExSymbolIndex.GDSExVariableSymbol:
 	var accessors := _own_block(statement, false)
-	var variable := _parse_variable(code, statement, accessors != null)
+	var variable := _parse_variable(code, statement)
 	class_scope.vars[variable.name] = variable
 	if accessors != null:
 		_add_property(class_scope, statement, accessors, variable)
@@ -221,7 +221,7 @@ static func _add_body_statements(scope: GDSExSymbolIndex.GDSExScopeBase, stateme
 		var body := _own_block(statement, false)
 		var variable: GDSExSymbolIndex.GDSExVariableSymbol = null
 		if _variable_pattern.search(code) != null:
-			variable = _parse_variable(code, statement, false)
+			variable = _parse_variable(code, statement)
 			scope.locals.append(variable)
 		else:
 			_record_return(scope, code, statement.first_line)
@@ -319,6 +319,7 @@ static func _create_function_scope(header_code: String, is_lambda: bool, start_l
 	function.name = header.name
 	function.is_lambda = is_lambda
 	function.params = GDSExSymbolIndex.parse_func_parameters(header.params_text)
+	function.untyped_params = GDSExSymbolIndex.find_untyped_parameters(header.params_text)
 	if not header.return_text.is_empty():
 		function.return_type = GDSExSymbolIndex.parse_type(header.return_text)
 	function.start_line = start_line
@@ -339,16 +340,15 @@ static func _create_block_scope(kind: GDSExSymbolIndex.GDSExBlockScope.GDSExKind
 	return scope
 
 
-static func _parse_variable(code: String, statement: GDSExSourceScanner.GDSExStatement, has_accessors: bool) -> GDSExSymbolIndex.GDSExVariableSymbol:
+static func _parse_variable(code: String, statement: GDSExSourceScanner.GDSExStatement) -> GDSExSymbolIndex.GDSExVariableSymbol:
 	var variable_match := _variable_pattern.search(code)
-	var tail := variable_match.get_string(3).strip_edges()
-	if has_accessors:
-		tail = tail.trim_suffix(GDSExSourceScanner.BLOCK_OPENER)
-	var declaration := GDSExSymbolIndex.parse_declaration_tail(tail)
+	var declaration := GDSExSymbolIndex.parse_declaration_tail(statement.code, statement.code.length() - code.length() + variable_match.get_start(3))
 	var variable := GDSExSymbolIndex.GDSExVariableSymbol.new()
 	variable.name = variable_match.get_string(2)
 	variable.is_const = variable_match.get_string(1) == CONSTANT_KEYWORD
-	variable.is_untyped = not variable.is_const and not tail.begins_with(GDSExSymbolIndex.TYPE_ANNOTATION)
+	variable.is_untyped = not variable.is_const and not declaration.is_inferred and not declaration.has_type()
+	variable.declaration = declaration
+	variable.statement = statement
 	variable.type = declaration.type
 	variable.value_code = declaration.value
 	if declaration.type == null and not declaration.value.is_empty():

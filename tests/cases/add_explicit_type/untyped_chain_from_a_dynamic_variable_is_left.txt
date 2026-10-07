@@ -1,0 +1,14 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(flag : bool) -> void:
+	var first = 1
+	var second = first
+	var third = second
+	if flag:
+		first = "text"
+	print(third)
+
+=== end

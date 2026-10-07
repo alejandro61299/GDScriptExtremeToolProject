@@ -1,0 +1,30 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var health := 10: set = _set_health
+var armor : = 2.5 : get = _get_armor
+
+
+func _set_health(value : int) -> void:
+	health = value
+
+
+func _get_armor() -> float:
+	return armor
+
+=== expected
+extends Node
+
+var health: int = 10: set = _set_health
+var armor: float = 2.5 : get = _get_armor
+
+
+func _set_health(value : int) -> void:
+	health = value
+
+
+func _get_armor() -> float:
+	return armor
+
+=== end

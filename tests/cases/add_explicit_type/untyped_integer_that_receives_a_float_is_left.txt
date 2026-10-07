@@ -1,0 +1,28 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var timer = 0
+var elapsed = 0.0
+var frames = 0
+
+
+func _process(delta : float) -> void:
+	timer += delta
+	elapsed += delta
+	frames += 1
+
+=== expected
+extends Node
+
+var timer = 0
+var elapsed: float = 0.0
+var frames: int = 0
+
+
+func _process(delta : float) -> void:
+	timer += delta
+	elapsed += delta
+	frames += 1
+
+=== end

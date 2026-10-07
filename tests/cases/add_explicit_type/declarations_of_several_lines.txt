@@ -1,0 +1,44 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var table := {
+	"a" : 1,
+}
+var list = [
+	1,
+	2,
+]
+
+
+func run() -> void:
+	var callback := func() -> void:
+		pass
+	var total := (
+		1 + 2
+	)
+	callback.call()
+	print(total)
+
+=== expected
+extends Node
+
+var table: Dictionary = {
+	"a" : 1,
+}
+var list: Array = [
+	1,
+	2,
+]
+
+
+func run() -> void:
+	var callback: Callable = func() -> void:
+		pass
+	var total: int = (
+		1 + 2
+	)
+	callback.call()
+	print(total)
+
+=== end

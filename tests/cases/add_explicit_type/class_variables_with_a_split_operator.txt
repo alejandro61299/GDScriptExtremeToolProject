@@ -1,0 +1,18 @@
+action: add_explicit_type
+=== input
+extends Node
+
+@export var jumps :  = 2
+@onready var sprite :	=	$Sprite as Node2D
+static var count:	= 0
+var speed : = 2.0
+
+=== expected
+extends Node
+
+@export var jumps: int = 2
+@onready var sprite: Node2D = $Sprite as Node2D
+static var count: int = 0
+var speed: float = 2.0
+
+=== end

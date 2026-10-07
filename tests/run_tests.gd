@@ -54,6 +54,8 @@ const VIEW_TEXT_VISIBLE: String = "text_visible"
 const VIEW_CARET_ROW_UNCHANGED: String = "caret_row_unchanged"
 const REORDER_ACTION: String = "reorder_class_members"
 const FORMAT_ACTION: String = "format_class_members"
+const EXPLICIT_TYPE_ACTION: String = "add_explicit_type"
+const SPLIT_OPERATORS: Array[String] = [" : = ", ":\t=", " :  =\t", ": =", " :="]
 const SETTING_COUNT: int = 10
 const NAME_CHECK_LEVELS: Array[String] = ["valid", "warning", "error"]
 const DIALOG_SAMPLE: String = "extends RefCounted\n\n@export var speed : float = 1.0\n\nvar health : int = 0\n\nvar _name : String\nvar _secret : String\n\n\nfunc heal() -> void:\n\tpass\n"
@@ -423,6 +425,8 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_extract_function_dialog(test_case, editor)
 		"check_extract_dialog":
 			return _check_extract_dialog()
+		"check_explicit_types_of_project_scripts":
+			return _check_explicit_types_of_project_scripts()
 	var action := _find_code_action(test_case.action)
 	if action == null:
 		return PackedStringArray(["Unknown action '%s'." % test_case.action])
@@ -1161,6 +1165,76 @@ func _check_layout_of_project_scripts(action_name: String, keeps_line_order: boo
 			problems.append("%s: running %s a second time changes the script again." % [path, action_name])
 		editor.free()
 	return problems
+
+
+func _check_explicit_types_of_project_scripts() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var action := _find_code_action(EXPLICIT_TYPE_ACTION)
+	var editor := CodeEdit.new()
+	root.add_child(editor)
+	var typed_count := 0
+	for path in _project_script_paths():
+		var original := FileAccess.get_file_as_string(path)
+		editor.text = original
+		var plan := action.build_plan(GDSExCodeContext.new(editor))
+		if plan == null:
+			continue
+		typed_count += plan.replacements.size()
+		GDSExEditApplier.apply(editor, plan)
+		if editor.get_line_count() != original.count("\n") + 1:
+			problems.append("%s: adding the types changed the number of lines." % path)
+		var script := GDScript.new()
+		script.source_code = editor.text
+		if script.reload() != OK:
+			problems.append("%s: the script does not compile after adding the types." % path)
+			continue
+		problems.append_array(_compare_scripts(path, load(path) as GDScript, script))
+		problems.append_array(_compare_property_types(path, load(path) as GDScript, script))
+		if action.build_plan(GDSExCodeContext.new(editor)) != null:
+			problems.append("%s: running the action a second time changes the script again." % path)
+		var typed_lines := editor.text.split("\n")
+		editor.text = _split_inferred_operators(original)
+		GDSExEditApplier.apply(editor, action.build_plan(GDSExCodeContext.new(editor)))
+		var original_lines := original.split("\n")
+		for line in typed_lines.size():
+			if typed_lines[line] != original_lines[line] and editor.get_line(line) != typed_lines[line]:
+				problems.append("%s: line %d gets another result when its operator is written with spaces." % [path, line + 1])
+	if typed_count == 0:
+		problems.append("No variable of the project got a type.")
+	editor.free()
+	return problems
+
+
+func _split_inferred_operators(source: String) -> String:
+	var lines := source.split("\n")
+	var declaration_count := 0
+	for symbol in GDSExSymbolIndex.find_variables(GDSExSymbolIndexBuilder.build(lines).root):
+		var declaration := symbol.declaration
+		if declaration == null or not declaration.is_inferred:
+			continue
+		var from := symbol.statement.position_at(declaration.start)
+		var to := symbol.statement.position_at(declaration.value_start)
+		if to.x != from.x:
+			to = symbol.statement.position_at(declaration.operator_end)
+		lines[from.x] = lines[from.x].substr(0, from.y) + SPLIT_OPERATORS[declaration_count % SPLIT_OPERATORS.size()] + lines[from.x].substr(to.y)
+		declaration_count += 1
+	return "\n".join(lines)
+
+
+func _compare_property_types(path: String, original: GDScript, changed: GDScript) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var changed_types: Dictionary[String, String] = {}
+	for property in changed.get_script_property_list():
+		changed_types[property["name"]] = _property_type_label(property)
+	for property in original.get_script_property_list():
+		var type_label := _property_type_label(property)
+		if property["usage"] & PROPERTY_USAGE_SCRIPT_VARIABLE != 0 and changed_types.get(property["name"], type_label) != type_label:
+			problems.append("%s: the engine sees %s as %s instead of %s afterwards." % [path, property["name"], changed_types[property["name"]], type_label])
+	return problems
+
+
+func _property_type_label(property: Dictionary) -> String:
+	return "%s %s %s" % [type_string(property["type"]), property["class_name"], property["hint_string"]]
 
 
 func _apply_to_every_class(editor: CodeEdit, action: GDSExCodeAction, class_names: PackedStringArray) -> void:

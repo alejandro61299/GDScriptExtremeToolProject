@@ -1,0 +1,40 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var total := 1.5
+
+
+func first() -> void:
+	var total := 1
+	print(total)
+
+
+func second() -> void:
+	var total = "two"
+	print(total)
+
+
+func third() -> void:
+	total = 2.5
+
+=== expected
+extends Node
+
+var total: float = 1.5
+
+
+func first() -> void:
+	var total: int = 1
+	print(total)
+
+
+func second() -> void:
+	var total: String = "two"
+	print(total)
+
+
+func third() -> void:
+	total = 2.5
+
+=== end

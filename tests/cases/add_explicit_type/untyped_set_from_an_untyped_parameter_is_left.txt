@@ -1,0 +1,11 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var health = 10: set = _set_health
+
+
+func _set_health(value) -> void:
+	health = value
+
+=== end

@@ -1,0 +1,26 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var loaded = load("res://addons/gdscript_extreme_tool/editing/snippet.gd")
+var instance = load("res://addons/gdscript_extreme_tool/editing/snippet.gd").new()
+var preloaded := preload("res://addons/gdscript_extreme_tool/editing/snippet.gd").new()
+
+
+func run() -> void:
+	var other = loaded.new()
+	print(instance, preloaded, other)
+
+=== expected
+extends Node
+
+var loaded: Resource = load("res://addons/gdscript_extreme_tool/editing/snippet.gd")
+var instance = load("res://addons/gdscript_extreme_tool/editing/snippet.gd").new()
+var preloaded := preload("res://addons/gdscript_extreme_tool/editing/snippet.gd").new()
+
+
+func run() -> void:
+	var other = loaded.new()
+	print(instance, preloaded, other)
+
+=== end

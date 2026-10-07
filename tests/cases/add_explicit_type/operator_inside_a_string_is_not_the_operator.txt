@@ -1,0 +1,16 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var text := "a := b"
+var other = "x : = y"
+var typed : String = "z := w"
+
+=== expected
+extends Node
+
+var text: String = "a := b"
+var other: String = "x : = y"
+var typed : String = "z := w"
+
+=== end

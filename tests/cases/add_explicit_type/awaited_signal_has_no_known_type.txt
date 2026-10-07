@@ -1,0 +1,38 @@
+action: add_explicit_type
+=== input
+extends Node
+
+signal finished(value : int)
+
+
+func run() -> void:
+	var frame = await get_tree().process_frame
+	var value = await finished
+	var later = await _later()
+	var inferred := await _later()
+	print(frame, value, later, inferred)
+
+
+func _later() -> int:
+	await get_tree().process_frame
+	return 1
+
+=== expected
+extends Node
+
+signal finished(value : int)
+
+
+func run() -> void:
+	var frame = await get_tree().process_frame
+	var value = await finished
+	var later: int = await _later()
+	var inferred: int = await _later()
+	print(frame, value, later, inferred)
+
+
+func _later() -> int:
+	await get_tree().process_frame
+	return 1
+
+=== end

@@ -1,0 +1,36 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+class Item:
+	var amount = 1
+	var label = "item"
+
+
+func run() -> void:
+	var item := Item.new()
+	var amount = item.amount
+	var label = item.label
+	item.amount = "many"
+	item.label = "other"
+	print(amount, label)
+
+=== expected
+extends Node
+
+
+class Item:
+	var amount = 1
+	var label: String = "item"
+
+
+func run() -> void:
+	var item: Item = Item.new()
+	var amount = item.amount
+	var label: String = item.label
+	item.amount = "many"
+	item.label = "other"
+	print(amount, label)
+
+=== end

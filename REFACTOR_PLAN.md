@@ -75,6 +75,7 @@ addons/gdscript_extreme_tool/
 │   ├── bracket_groups.gd
 │   ├── bracket_layout.gd
 │   ├── class_layout.gd
+│   ├── explicit_types.gd
 │   ├── language.gd
 │   ├── member_categories.gd
 │   ├── param_names.gd

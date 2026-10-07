@@ -1,0 +1,28 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var speed := 2.0
+
+
+func run() -> void:
+	var total := 0
+	print(total)
+
+
+# The caret is on this comment.<|>
+
+=== expected
+extends Node
+
+var speed: float = 2.0
+
+
+func run() -> void:
+	var total: int = 0
+	print(total)
+
+
+# The caret is on this comment.<|>
+
+=== end

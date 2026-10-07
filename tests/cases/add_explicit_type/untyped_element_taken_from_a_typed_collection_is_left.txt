@@ -1,0 +1,42 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var numbers : Array[int] = [3, 1, 2]
+var table : Dictionary[String, int] = { "a" : 1 }
+
+
+func run() -> void:
+	var first = numbers.front()
+	var biggest = numbers.max()
+	var last = numbers.pop_back()
+	var value = table.get("a")
+	var key = table.find_key(1)
+	var indexed = numbers[0]
+	var looked_up = table["a"]
+	var part = numbers.slice(0, 1)
+	var copy = numbers.duplicate()
+	var names = table.keys()
+	print(first, biggest, last, value, key, indexed, looked_up, part, copy, names)
+
+=== expected
+extends Node
+
+var numbers : Array[int] = [3, 1, 2]
+var table : Dictionary[String, int] = { "a" : 1 }
+
+
+func run() -> void:
+	var first = numbers.front()
+	var biggest = numbers.max()
+	var last = numbers.pop_back()
+	var value = table.get("a")
+	var key = table.find_key(1)
+	var indexed: int = numbers[0]
+	var looked_up: int = table["a"]
+	var part: Array[int] = numbers.slice(0, 1)
+	var copy: Array[int] = numbers.duplicate()
+	var names: Array[String] = table.keys()
+	print(first, biggest, last, value, key, indexed, looked_up, part, copy, names)
+
+=== end

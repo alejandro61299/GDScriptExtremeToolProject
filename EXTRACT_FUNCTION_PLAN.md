@@ -305,7 +305,7 @@ Hecho el 2026-10-07:
 
 - `GDSExEditApplier` aplica en un solo paso de deshacer una sustitución de líneas y las inserciones del mismo plan, estén por encima o por debajo. La sustitución puede fijar dónde queda el cursor.
 - El cuerpo conserva el sangrado relativo de cada línea, las líneas en blanco y los comentarios. El contenido de un string de varias líneas se copia tal cual.
-- `actions/extract_function_action.gd`, registrada detrás de "Add Explicit Type".
+- `actions/extract_function_action.gd`, registrada detrás de "Add Explicit Types".
 - 28 casos en `tests/cases/extract_function/` y uno en `tests/cases/view/` que comprueba que la vista no se mueve. Todos los casos comprueban que un solo deshacer devuelve el texto original.
 - Decisión tomada aquí: D17.
 
@@ -338,7 +338,7 @@ Hecho el 2026-10-07:
 
 ### E6 — Prueba masiva y cierre
 
-- Comprobación sobre los scripts del proyecto: para cada función, extraer cada rango de sentencias hermanas en que la acción se ofrece y comprobar que el script sigue compilando. Es la misma idea que encontró tres fallos en "Add Explicit Type".
+- Comprobación sobre los scripts del proyecto: para cada función, extraer cada rango de sentencias hermanas en que la acción se ofrece y comprobar que el script sigue compilando. Es la misma idea que encontró tres fallos en "Add Explicit Types".
 - Pasada en el editor real: menú, diálogo y resultado.
 - README, CHANGELOG y el listado de archivos de `REFACTOR_PLAN.md`.
 
