@@ -14,6 +14,8 @@ var scope_info: GDSExSymbolIndex.GDSExScopeInfo
 var statement: GDSExSourceScanner.GDSExStatement
 var selection_from: int = -1
 var selection_to: int = -1
+var selection_first_line: int = -1
+var selection_last_line: int = -1
 var indent_unit: String = ""
 
 
@@ -28,10 +30,15 @@ func _init(editor: CodeEdit) -> void:
 	statement = GDSExSourceScanner.find_statement_at(index.statements, caret_line)
 	if statement != null:
 		_read_selection(editor)
+	_read_selected_lines(editor)
 
 
 func has_selection() -> bool:
 	return selection_from != selection_to
+
+
+func has_selected_lines() -> bool:
+	return selection_first_line != -1
 
 
 func _find_blank_line_scope(blank_line: int, enclosing_scope: GDSExSymbolIndex.GDSExScopeBase) -> GDSExSymbolIndex.GDSExScopeBase:
@@ -67,3 +74,12 @@ func _read_selection(editor: CodeEdit) -> void:
 	if from != -1 and to != -1:
 		selection_from = from
 		selection_to = to
+
+
+func _read_selected_lines(editor: CodeEdit) -> void:
+	if not editor.has_selection():
+		return
+	selection_first_line = editor.get_selection_from_line()
+	selection_last_line = editor.get_selection_to_line()
+	if selection_last_line > selection_first_line and editor.get_selection_to_column() == 0:
+		selection_last_line -= 1

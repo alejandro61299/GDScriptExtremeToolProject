@@ -9,6 +9,7 @@ const GROUP_OPEN_TEMPLATE: String = "\t\"%s\": {"
 const GROUP_CLOSE: String = "\t},"
 const FLAT_ENTRY_TEMPLATE: String = "\t\"%s\": \"%s\","
 const GLOBAL_CONSTANT_TYPE: String = "int"
+const ENUM_TYPE_TEMPLATE: String = "%s.%s"
 
 
 func _initialize() -> void:
@@ -22,10 +23,12 @@ func _initialize() -> void:
 	var functions := PackedStringArray()
 	var members := PackedStringArray()
 	var indexing := PackedStringArray()
+	var type_constants := PackedStringArray()
 	for builtin_class: Dictionary in api["builtin_classes"]:
 		var type_name: String = builtin_class["name"]
 		_append_group(functions, type_name, builtin_class.get("methods", []), _function_signature)
 		_append_group(members, type_name, builtin_class.get("members", []), _member_type)
+		_append_group(type_constants, type_name, _typed_constants(type_name, builtin_class), _member_type)
 		if builtin_class.has("indexing_return_type"):
 			indexing.append(FLAT_ENTRY_TEMPLATE % [type_name, builtin_class["indexing_return_type"]])
 
@@ -52,6 +55,8 @@ func _initialize() -> void:
 	output.append_array(members)
 	output.append_array(["}", "", "const INDEXING: Dictionary[String, String] = {"])
 	output.append_array(indexing)
+	output.append_array(["}", "", "const CONSTANTS: Dictionary[String, Dictionary] = {"])
+	output.append_array(type_constants)
 	output.append_array(["}", "", "const GLOBAL_CONSTANTS: Dictionary[String, String] = {"])
 	output.append_array(constants)
 	output.append_array(["}", ""])
@@ -70,6 +75,14 @@ func _append_group(output: PackedStringArray, type_name: String, entries: Array,
 	for entry: Dictionary in entries:
 		output.append(ENTRY_TEMPLATE % [entry["name"], describe.call(entry)])
 	output.append(GROUP_CLOSE)
+
+
+func _typed_constants(type_name: String, builtin_class: Dictionary) -> Array:
+	var constants: Array = builtin_class.get("constants", []).duplicate()
+	for type_enum: Dictionary in builtin_class.get("enums", []):
+		for value: Dictionary in type_enum["values"]:
+			constants.append({"name": value["name"], "type": ENUM_TYPE_TEMPLATE % [type_name, type_enum["name"]]})
+	return constants
 
 
 func _function_signature(function: Dictionary) -> String:

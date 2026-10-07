@@ -1,0 +1,34 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var numbers : Array = [
+1,
+2,
+]
+
+
+func run() -> Dictionary:
+	var person : Dictionary = {
+	"name": "Bob",
+	"age": 27,
+	}
+	return person
+
+=== expected
+extends Node<|>
+
+var numbers : Array = [
+	1,
+	2,
+]
+
+
+func run() -> Dictionary:
+	var person : Dictionary = {
+		"name" : "Bob",
+		"age" : 27,
+	}
+	return person
+
+=== end

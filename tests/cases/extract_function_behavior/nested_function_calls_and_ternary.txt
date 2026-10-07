@@ -1,0 +1,22 @@
+action: check_extraction_behavior
+=== input
+extends RefCounted
+
+var member : int = 0
+var log : Array = []
+
+
+func samples() -> Array:
+	return [[[1, 2, 3], 2.0], [[], 1.5], [[-4, 9], 0.5], [[7], -1.0]]
+
+
+func run(items : Array, factor : float) -> Variant:
+	var limit := 2
+	<|var count := mini(items.size(), limit) if factor > 0.0 else maxi(items.size(), limit)|>
+	return count * factor
+
+
+func state() -> Array:
+	return [member, log]
+
+=== end

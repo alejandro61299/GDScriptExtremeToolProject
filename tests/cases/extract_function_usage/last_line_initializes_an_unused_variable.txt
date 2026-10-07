@@ -1,0 +1,18 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	<|print(items)
+	var count := items.size()|>
+	print(factor)
+=== expected
+form: ASSIGNMENT
+signature: func _new(items: Array[int]) -> int
+call: var count := _new(items)
+or PLAIN: func _new(items: Array[int]) -> void -> _new(items)
+=== end

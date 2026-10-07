@@ -1,0 +1,18 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	var count := 2
+	<|self.member = count
+	print(self.names)|>
+	print(items, factor)
+=== expected
+form: PLAIN
+signature: func _new(count: int) -> void
+call: _new(count)
+=== end

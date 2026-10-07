@@ -1,0 +1,62 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var compact : Array = [ { "a" : [ { "b" :1 ,} ,] ,} ,]
+var world : Dictionary = {"regions" : [{"name":"North" , "towns":[ "Aldo" ,"Brim" ,]} ,
+			{
+		"name" : "South",
+	
+					# Towns of the south
+"towns" :	[
+				"Cora",
+
+"Dune"]}],
+# Total
+		"count" :2}
+
+
+func run() -> Array:
+	return [{
+	"squads": [{"name" : "Alpha",
+							"size": 4},
+	# Reserve squad
+
+			{"name":"Beta" , "size" :2}]}]
+
+=== expected
+extends Node<|>
+
+var compact : Array = [{ "a" : [{ "b" : 1 }] }]
+var world : Dictionary = {
+	"regions" : [
+		{ "name" : "North", "towns" : ["Aldo", "Brim"] },
+		{
+			"name" : "South",
+			# Towns of the south
+			"towns" : [
+				"Cora",
+				"Dune",
+			],
+		},
+	],
+	# Total
+	"count" : 2,
+}
+
+
+func run() -> Array:
+	return [
+		{
+			"squads" : [
+				{
+					"name" : "Alpha",
+					"size" : 4,
+				},
+				# Reserve squad
+				{ "name" : "Beta", "size" : 2 },
+			],
+		},
+	]
+
+=== end

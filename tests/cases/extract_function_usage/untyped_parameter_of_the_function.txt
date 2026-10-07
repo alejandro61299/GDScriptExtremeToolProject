@@ -1,0 +1,13 @@
+action: describe_extraction
+=== input
+extends Node
+
+
+func run(first, second : int, third := 2.0) -> void:
+	<|print(first, second, third)|>
+	print(1)
+=== expected
+form: PLAIN
+signature: func _new(first, second: int, third: float) -> void
+call: _new(first, second, third)
+=== end

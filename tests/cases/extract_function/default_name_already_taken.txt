@@ -1,0 +1,40 @@
+action: run_extract_function_dialog
+=== input
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	<|print(items)
+	print(factor)|>
+	print(1)
+
+
+func _extracted_function() -> void:
+	pass
+
+
+func _extracted_function_2() -> void:
+	pass
+
+=== expected
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	_extracted_function_3(items, factor)<|>
+	print(1)
+
+
+func _extracted_function() -> void:
+	pass
+
+
+func _extracted_function_2() -> void:
+	pass
+
+
+func _extracted_function_3(items: Array[int], factor: float) -> void:
+	print(items)
+	print(factor)
+
+=== end

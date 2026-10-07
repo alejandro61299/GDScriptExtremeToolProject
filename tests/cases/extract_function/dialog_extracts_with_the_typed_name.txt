@@ -1,0 +1,28 @@
+action: run_extract_function_dialog
+options: {"name": "_sum"}
+=== input
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	var total := 0
+	<|for item in items:
+		total += item|>
+	print(total * factor)
+
+=== expected
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	var total := 0
+	total = _sum(items, total)<|>
+	print(total * factor)
+
+
+func _sum(items: Array[int], total: int) -> int:
+	for item in items:
+		total += item
+	return total
+
+=== end

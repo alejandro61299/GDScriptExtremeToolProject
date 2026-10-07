@@ -1,0 +1,35 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var numbers : Array = [1,
+		2,
+	3]
+var grid : Array = [1, 0,
+			0, 1]
+var people : Array = [{
+	"name": "Bob",
+}, {
+	"name": "Ann"}]
+
+=== expected
+extends Node<|>
+
+var numbers : Array = [
+	1,
+	2,
+	3,
+]
+var grid : Array = [
+	1, 0,
+	0, 1,
+]
+var people : Array = [
+	{
+		"name" : "Bob",
+	}, {
+		"name" : "Ann",
+	},
+]
+
+=== end

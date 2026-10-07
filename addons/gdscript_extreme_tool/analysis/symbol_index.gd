@@ -26,6 +26,8 @@ class GDSExVariableSymbol:
 	var name: String = ""
 	var type: GDSExTypeData
 	var is_const: bool = false
+	var is_script_alias: bool = false
+	var is_untyped: bool = false
 	var start_line: int = 0
 	var end_line: int = 0
 	var value_code: String = ""
@@ -47,6 +49,7 @@ class GDSExVariableLookup:
 	var is_defined: bool = false
 	var type: GDSExTypeData
 	var symbol: GDSExVariableSymbol
+	var scope: GDSExScopeBase
 
 
 class GDSExScopeBase:
@@ -322,6 +325,8 @@ static func find_variable(variable_name: String, scope_info: GDSExScopeInfo) -> 
 				lookup.is_defined = true
 				lookup.type = local.type
 				lookup.symbol = local
+		if lookup.is_defined:
+			lookup.scope = current
 		current = current.parent
 	return lookup
 

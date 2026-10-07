@@ -1,0 +1,20 @@
+action: generate_function
+=== input
+extends Node
+
+
+func run() -> void:
+	_helper(Vector2.AXIS_X, Vector2.ZERO, PI)<|>
+
+=== expected
+extends Node
+
+
+func run() -> void:
+	_helper(Vector2.AXIS_X, Vector2.ZERO, PI)
+
+
+func _helper(param_0: int, param_1: Vector2, p_pi: float) -> void:
+	<|pass|>
+
+=== end

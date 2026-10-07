@@ -1,0 +1,30 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var table : Dictionary = { "key": [1, 2] }
+var names : Array [String] = []
+
+
+func run (first : int) -> int:
+	print ("foo")
+	table ["key"] [0] = first
+	var callback := func (value : int) -> int: return value
+	var matches := "foo".match ("f*")
+	return callback.call (first) + names.size () + int (matches)
+
+=== expected
+extends Node<|>
+
+var table : Dictionary = { "key" : [1, 2] }
+var names : Array[String] = []
+
+
+func run(first : int) -> int:
+	print("foo")
+	table["key"][0] = first
+	var callback := func(value : int) -> int: return value
+	var matches := "foo".match("f*")
+	return callback.call(first) + names.size() + int(matches)
+
+=== end

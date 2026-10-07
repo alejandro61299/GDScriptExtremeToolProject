@@ -1,0 +1,18 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	var size := Vector2.ZERO
+	<|size.x = factor
+	print(size)|>
+	print(size, items)
+=== expected
+form: OUTPUT
+signature: func _new(size: Vector2, factor: float) -> Vector2
+call: size = _new(size, factor)
+=== end

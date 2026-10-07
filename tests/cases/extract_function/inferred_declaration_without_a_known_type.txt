@@ -1,0 +1,31 @@
+action: extract_function
+options: {"name": "_lines_of"}
+=== input
+extends Node
+
+const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
+
+
+func run(items : Array[int]) -> void:
+	var snippet := GDSExSnippet.new()
+	<|print(items)
+	var lines := snippet.lines|>
+	print(lines)
+
+=== expected
+extends Node
+
+const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
+
+
+func run(items : Array[int]) -> void:
+	var snippet := GDSExSnippet.new()
+	var lines = _lines_of(items, snippet)<|>
+	print(lines)
+
+
+func _lines_of(items: Array[int], snippet: GDSExSnippet):
+	print(items)
+	return snippet.lines
+
+=== end

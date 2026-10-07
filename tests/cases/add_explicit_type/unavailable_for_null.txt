@@ -1,0 +1,10 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var item = null<|>
+	print(first, second)
+
+=== end

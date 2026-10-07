@@ -1,0 +1,22 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	var data = _load()
+	<|data[0] = "b"
+	print(data)|>
+	print(data, items, factor)
+
+
+func _load():
+	return names
+=== expected
+form: OUTPUT
+signature: func _new(data)
+call: data = _new(data)
+=== end

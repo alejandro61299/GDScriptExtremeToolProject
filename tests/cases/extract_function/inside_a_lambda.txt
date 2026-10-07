@@ -1,0 +1,30 @@
+action: extract_function
+options: {"name": "_double"}
+=== input
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	var callback := func(value : int) -> int:
+		<|var doubled := value * 2
+		print(doubled, factor)|>
+		return doubled
+	print(callback.call(items.size()))
+
+=== expected
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	var callback := func(value : int) -> int:
+		var doubled := _double(value, factor)<|>
+		return doubled
+	print(callback.call(items.size()))
+
+
+func _double(value: int, factor: float) -> int:
+	var doubled := value * 2
+	print(doubled, factor)
+	return doubled
+
+=== end

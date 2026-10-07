@@ -1,0 +1,25 @@
+action: extract_function
+options: {"name": "_area_of"}
+=== input
+extends Node
+
+
+func area(width : float, height : float) -> float:
+	<|if width < 0.0:
+		return 0.0
+	return width * height|>
+
+=== expected
+extends Node
+
+
+func area(width : float, height : float) -> float:
+	return _area_of(width, height)<|>
+
+
+func _area_of(width: float, height: float) -> float:
+	if width < 0.0:
+		return 0.0
+	return width * height
+
+=== end

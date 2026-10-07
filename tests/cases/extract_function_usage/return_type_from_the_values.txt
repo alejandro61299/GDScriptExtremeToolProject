@@ -1,0 +1,17 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float):
+	<|if items.is_empty():
+		return 0.5
+	return factor|>
+=== expected
+form: RETURN
+signature: func _new(items: Array[int], factor: float) -> float
+call: return _new(items, factor)
+=== end

@@ -1,0 +1,13 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+
+func run(items : Array[int]) -> int:
+	var doubled : Array = items.map(func(item : int) -> int:
+		<|var twice := item * 2
+		return twice|>)
+	return doubled.size()
+=== expected
+rejected: SHARED_LINE
+=== end

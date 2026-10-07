@@ -1,0 +1,10 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var absolute = abs(first)<|>
+	print(first, second)
+
+=== end

@@ -1,0 +1,17 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+
+func run(items : Array[int]) -> int:
+	var total := 0
+	<|# Adds every item.
+	for item in items:
+		total += item
+		# End of the loop.|>
+	print(total)
+	return total
+=== expected
+lines 6-9
+statements 1
+=== end

@@ -1,0 +1,27 @@
+action: check_extraction_behavior
+=== input
+extends RefCounted
+
+var member : int = 0
+var log : Array = []
+
+
+func samples() -> Array:
+	return [[[1, 2, 3], 2.0], [[], 1.5], [[-4, 9], 0.5], [[7], -1.0]]
+
+
+func run(items : Array, factor : float) -> Variant:
+	var level := 0
+	<|if factor > 1.0:
+		level = 2
+	elif factor > 0.0:
+		level = 1
+	else:
+		level = -1|>
+	return level + items.size()
+
+
+func state() -> Array:
+	return [member, log]
+
+=== end

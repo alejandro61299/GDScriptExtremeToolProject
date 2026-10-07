@@ -1,0 +1,23 @@
+action: check_extraction_behavior
+=== input
+extends RefCounted
+
+var member : int = 0
+var log : Array = []
+
+
+func samples() -> Array:
+	return [[[1, 2, 3], 2.0], [[], 1.5], [[-4, 9], 0.5], [[7], -1.0]]
+
+
+func run(items : Array, factor : float) -> Variant:
+	var area := Rect2(0.0, 0.0, 4.0, 4.0)
+	<|area.position.x = factor
+	area.size.y = items.size()|>
+	return area
+
+
+func state() -> Array:
+	return [member, log]
+
+=== end

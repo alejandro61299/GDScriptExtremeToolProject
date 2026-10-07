@@ -1,0 +1,11 @@
+action: extract_function
+=== input
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	<|var first := items.size()
+	var second := first * 2|>
+	print(first, second, factor)
+
+=== end

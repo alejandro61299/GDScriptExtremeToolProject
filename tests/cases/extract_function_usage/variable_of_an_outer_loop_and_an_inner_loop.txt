@@ -1,0 +1,19 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	var total := 0
+	for item in items:
+		<|for name in names:
+			total += item + name.length()|>
+	print(total, factor)
+=== expected
+form: OUTPUT
+signature: func _new(total: int, item: int) -> int
+call: total = _new(total, item)
+=== end

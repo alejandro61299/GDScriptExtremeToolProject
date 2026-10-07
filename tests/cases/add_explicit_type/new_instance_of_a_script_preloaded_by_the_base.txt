@@ -1,0 +1,18 @@
+action: add_explicit_type
+=== input
+extends "res://addons/gdscript_extreme_tool/actions/code_action.gd"
+
+
+func build_plan(_context: GDSExCodeContext) -> GDSExEditPlan:
+	var plan := GDSExEditPlan.new()<|>
+	return plan
+
+=== expected
+extends "res://addons/gdscript_extreme_tool/actions/code_action.gd"
+
+
+func build_plan(_context: GDSExCodeContext) -> GDSExEditPlan:
+	var plan: GDSExEditPlan = GDSExEditPlan.new()<|>
+	return plan
+
+=== end

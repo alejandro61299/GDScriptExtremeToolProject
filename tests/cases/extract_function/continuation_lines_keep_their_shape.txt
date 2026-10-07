@@ -1,0 +1,29 @@
+action: extract_function
+options: {"name": "_show"}
+=== input
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	if items.size() > 1:
+		<|var total := maxi(items[0],
+				items[1])
+		print(total,
+		factor)|>
+
+=== expected
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	if items.size() > 1:
+		_show(items, factor)<|>
+
+
+func _show(items: Array[int], factor: float) -> void:
+	var total := maxi(items[0],
+			items[1])
+	print(total,
+	factor)
+
+=== end

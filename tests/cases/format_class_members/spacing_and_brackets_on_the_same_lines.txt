@@ -21,7 +21,7 @@ var sizes : Dictionary = {
 
 
 func run() -> void:
-	print( [1, 2].map(func(number : int) -> int:
+	print([1, 2].map(func(number : int) -> int:
 		return number * 2
 	))
 

@@ -1,0 +1,16 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var health := 10:<|>
+	set(value):
+		health = value
+
+=== expected
+extends Node
+
+var health: int = 10:<|>
+	set(value):
+		health = value
+
+=== end

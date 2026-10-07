@@ -1,0 +1,18 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var sprite := get_child(0) as Sprite2D<|>
+	print(first, second)
+
+=== expected
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var sprite: Sprite2D = get_child(0) as Sprite2D<|>
+	print(first, second)
+
+=== end

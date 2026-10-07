@@ -1,0 +1,12 @@
+action: add_explicit_type
+=== input
+extends Node
+
+@export var speed := 5.0<|>
+
+=== expected
+extends Node
+
+@export var speed: float = 5.0<|>
+
+=== end

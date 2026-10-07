@@ -1,0 +1,18 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	var total := 0
+	<|print(items)
+	if items.is_empty(): total = -1|>
+	print(total, factor)
+=== expected
+form: OUTPUT
+signature: func _new(items: Array[int], total: int) -> int
+call: total = _new(items, total)
+=== end

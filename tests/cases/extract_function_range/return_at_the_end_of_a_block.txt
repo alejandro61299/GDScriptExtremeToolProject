@@ -1,0 +1,15 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+
+func run(items : Array[int]) -> int:
+	if items.is_empty():
+		<|print(0)
+		return 0|>
+	return items.size()
+=== expected
+lines 6-7
+statements 2
+flags: has_return, has_value_return, ends_with_return
+=== end

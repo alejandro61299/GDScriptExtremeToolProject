@@ -1,0 +1,28 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+enum Mode 		{
+	
+			# First comment
+		
+		SLOW,
+	
+# Second comment
+	FAST,
+	
+			TURBO,
+	}
+
+=== expected
+extends Node<|>
+
+enum Mode {
+	# First comment
+	SLOW,
+	# Second comment
+	FAST,
+	TURBO,
+}
+
+=== end

@@ -1,0 +1,26 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var item := Item.new()<|>
+	print(first, second)
+
+
+class Item:
+	var count : int = 0
+
+=== expected
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var item: Item = Item.new()<|>
+	print(first, second)
+
+
+class Item:
+	var count : int = 0
+
+=== end

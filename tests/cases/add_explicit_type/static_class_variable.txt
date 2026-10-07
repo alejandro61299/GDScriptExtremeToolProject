@@ -1,0 +1,12 @@
+action: add_explicit_type
+=== input
+extends Node
+
+static var instances := 0<|>
+
+=== expected
+extends Node
+
+static var instances: int = 0<|>
+
+=== end

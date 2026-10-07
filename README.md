@@ -17,9 +17,11 @@ The script is analyzed only when you open that menu, so a plain right-click cost
 | Generate Class Variable | Declares the undefined identifier as a member variable of the class. |
 | Generate Connected Function | On a signal, writes `signal.connect(_on_signal)` and creates the callback with the signal's parameters. |
 | Generate Default Init Definition | Creates `_init` with one parameter for each private variable of the class and assigns them. It is not offered when the class already has `_init` or extends `Node` or `Resource`, because Godot calls their `_init` without arguments. |
-| Generate Custom Init Definition... | Opens a dialog to choose the name of the function and which variables become parameters: private, public or exported. It shows the signature as you change it and marks a name that cannot be used. |
+| Generate Custom Init Definition... | Opens a dialog to choose the name of the function and which variables become parameters: private, public or exported. It shows the function as you change it, with the colors of the script editor, and marks a name that cannot be used. |
+| Add Explicit Type | On a variable declared with `:=` or without a type, writes the type of its value: `var total := 0` becomes `var total: int = 0`. It works on local and class variables and is only offered when the type is known. |
+| Extract Function... | With some lines of a function selected, moves them to a new function and leaves the call in their place. A dialog asks for the name and shows the whole new function and the changed one, with the colors of the script editor. The variables the code reads become parameters and the one it changes is returned; if the last line is a `return` or assigns a variable, the call takes its place. When the last line assigns a class variable you choose whether the function assigns it or returns the value. It is not offered when the result could behave differently: a `return` in the middle, a `break` of an outer loop or more than one variable to return. |
 | Reorder Class Members | Sorts the members of the class under the caret: signals, constants, static variables, enums, exports, onready, public and private variables, inner classes, static functions, `_init`, engine callbacks, public and private functions. |
-| Format Class Members | Normalizes blank lines between members and around comments, puts the closing bracket of multiline arrays, dictionaries and lambda arguments on its own line, adds trailing commas, and removes extra spaces between tokens and at the end of lines. It never changes the order of the code. |
+| Format Class Members | Normalizes blank lines between members, around comments and inside functions, lays out arrays, dictionaries and enums as the GDScript style guide does, puts the closing parenthesis of a multiline lambda argument on its own line, spaces commas and brackets as the guide does (`print(first, second)`, `table["key"]`, `if (ready)`), and removes extra spaces between tokens and at the end of lines. It never changes the order of the code. |
 
 Inner classes, lambdas and nested blocks are handled as their own scopes. Reordering, formatting and the init actions apply to the class under the caret and do not enter its inner classes.
 
@@ -48,6 +50,7 @@ Open **Project > Project Settings** and look for the **GDScript Extreme Tool** s
 | `format/blank_lines_between_member_categories` | `1` | Blank lines between members of different categories. |
 | `format/max_blank_lines_inside_member_category` | `1` | Blank lines kept between members of the same category. |
 | `format/max_blank_lines_outside_members` | `1` | Blank lines kept around the comments at the start and the end of a class. |
+| `format/max_blank_lines_inside_functions` | `1` | Blank lines kept in a row inside a function or any other member that spans several lines. |
 | `order/class_member_order` | see `plugin_project_settings.gd` | Order used by Reorder Class Members. A category missing from the list goes last. |
 
 Only the values you change are saved, in the `[gdscript_extreme_tool]` section of `project.godot`, so they are shared with the project and survive plugin updates. You can also edit that section by hand:

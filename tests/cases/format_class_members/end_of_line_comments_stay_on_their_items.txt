@@ -1,0 +1,28 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+enum Mode {
+		SLOW, # slow
+	FAST # fast
+	# last
+}
+
+var numbers : Array = [1, # one
+		2] # two
+
+=== expected
+extends Node<|>
+
+enum Mode {
+	SLOW, # slow
+	FAST, # fast
+	# last
+}
+
+var numbers : Array = [
+	1, # one
+	2,
+] # two
+
+=== end

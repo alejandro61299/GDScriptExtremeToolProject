@@ -48,7 +48,9 @@ addons/gdscript_extreme_tool/
 ├── plugin.cfg
 ├── plugin.gd
 ├── code_actions_popup.gd
+├── function_name_dialog.gd
 ├── init_function_dialog.gd
+├── extract_function_dialog.gd
 ├── plugin_project_settings.gd
 ├── actions/
 │   ├── action_registry.gd
@@ -59,22 +61,29 @@ addons/gdscript_extreme_tool/
 │   ├── generate_local_variable_action.gd
 │   ├── generate_class_variable_action.gd
 │   ├── generate_connected_function_action.gd
+│   ├── function_name_check.gd
 │   ├── init_function.gd
 │   ├── generate_default_init_action.gd
 │   ├── generate_custom_init_action.gd
+│   ├── add_explicit_type_action.gd
+│   ├── extract_function.gd
+│   ├── extract_function_action.gd
 │   ├── reorder_class_members_action.gd
 │   └── format_class_members_action.gd
 ├── analysis/
 │   ├── builtin_types.gd
+│   ├── bracket_groups.gd
 │   ├── bracket_layout.gd
 │   ├── class_layout.gd
 │   ├── language.gd
 │   ├── member_categories.gd
 │   ├── param_names.gd
 │   ├── source_scanner.gd
+│   ├── statement_range.gd
 │   ├── symbol_index.gd
 │   ├── symbol_index_builder.gd
 │   ├── token_spacing.gd
+│   ├── variable_usage.gd
 │   ├── call_site_parser.gd
 │   └── type_resolver.gd
 └── editing/
@@ -544,7 +553,7 @@ Reglas de los comentarios. Hay dos clases de comentario: los del scope (su descr
 
 - **Comentarios de un miembro: pegados a él.** Se reparten como en la fase 9 (el más cercano; a igual distancia, el de abajo) y se quitan las líneas en blanco entre el comentario y su miembro. Si un miembro tiene varios bloques de comentarios, quedan todos seguidos. La separación con el miembro vecino se mide desde el comentario.
 - **Antes del primer miembro** (`DEFAULT_MAX_BLANK_LINES_OUTSIDE_MEMBERS`, 1): entre el comentario inicial del scope y la primera sentencia, sea `@tool`, `class_name`, `extends` o un miembro, queda una línea en blanco como máximo, o ninguna si no la había. Lo mismo entre las sentencias de la cabecera. Justo bajo la línea `class X:` de una clase interna no queda ninguna línea en blanco (desde el 2026-10-06; antes se conservaba una). Las líneas en blanco al principio del archivo se quitan todas, igual que las sobrantes del final.
-- **Comentario entre la cabecera y el primer miembro, separado de los dos**: se aplica la regla general tomando la cabecera como vecino de arriba. Si está más cerca de la cabecera es la descripción de la clase y se queda con ella; a igual distancia o más cerca del miembro, es del miembro y se pega a él.
+- **Comentario entre la cabecera y el primer miembro, separado de los dos**: se aplica la regla general tomando la cabecera como vecino de arriba. Si está más cerca de la cabecera es la descripción de la clase y se pega a ella, sin línea en blanco encima, y si son varios bloques quedan todos seguidos; a igual distancia o más cerca del miembro, es del miembro y se pega a él. Así el resultado es estable: pegado a la cabecera, un segundo Format lo sigue viendo más cerca de ella (desde el 2026-10-07; antes conservaba una línea en blanco encima, quedaba a igual distancia del primer miembro cuando este no era una función ni una clase, y el segundo Format lo pegaba al miembro).
 - **Tras la cabecera**, el primer miembro lleva una línea en blanco delante, dos si es un método o una clase. Sin cabecera, lleva las que hubiera con un máximo de una.
 - **Al final del scope**: entre el último miembro y los comentarios que le siguen, y entre esos comentarios, una línea en blanco como máximo. Las líneas en blanco sobrantes al final del archivo se quitan. En una clase interna, los comentarios finales son los que tienen la indentación de su cuerpo, y las líneas en blanco indentadas que queden tras el último miembro o comentario se quitan (desde el 2026-10-06). Las líneas vacías sin indentar que siguen son del scope de fuera y no se tocan.
 

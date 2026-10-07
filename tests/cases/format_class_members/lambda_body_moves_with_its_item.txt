@@ -1,0 +1,39 @@
+action: format_class_members
+=== input
+extends Node
+
+
+func run() -> Array:<|>
+	var callbacks : Array = [
+				func() -> int:
+					# Comment in the body
+					var values : Array = [1 ,
+						2]
+					if values.is_empty():
+						return 0
+					return values[0]
+	,
+			3]
+	return callbacks
+
+=== expected
+extends Node
+
+
+func run() -> Array:<|>
+	var callbacks : Array = [
+		func() -> int:
+			# Comment in the body
+			var values : Array = [
+				1,
+				2,
+			]
+			if values.is_empty():
+				return 0
+			return values[0]
+	,
+		3,
+	]
+	return callbacks
+
+=== end

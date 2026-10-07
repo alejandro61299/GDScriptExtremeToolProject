@@ -1,0 +1,11 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	for index in range(3):<|>
+		print(index)
+	print(first, second)
+
+=== end

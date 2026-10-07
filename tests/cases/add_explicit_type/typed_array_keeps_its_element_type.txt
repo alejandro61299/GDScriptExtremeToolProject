@@ -1,0 +1,22 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var names : Array[String] = []
+
+
+func run(first : int, second : float) -> void:
+	var copy := names<|>
+	print(first, second)
+
+=== expected
+extends Node
+
+var names : Array[String] = []
+
+
+func run(first : int, second : float) -> void:
+	var copy: Array[String] = names<|>
+	print(first, second)
+
+=== end

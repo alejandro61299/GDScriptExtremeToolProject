@@ -1,0 +1,14 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+
+func run(items : Array[int]) -> int:
+	<|var total := 0
+	for item in items:
+		total += item|>
+		print(item)
+	return total
+=== expected
+rejected: DIFFERENT_BLOCKS
+=== end

@@ -1,0 +1,17 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	var total := 0
+	<|total = items.size() * 2|>
+	print(total, factor)
+=== expected
+form: ASSIGNMENT
+signature: func _new(items: Array[int]) -> int
+call: total = _new(items)
+=== end

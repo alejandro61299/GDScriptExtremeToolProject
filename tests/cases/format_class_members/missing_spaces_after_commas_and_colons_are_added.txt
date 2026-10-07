@@ -1,0 +1,21 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+enum Mode {SLOW,FAST}
+
+var numbers : Array = [1,2,3]
+var person : Dictionary = {"name":"Bob","age":27}
+
+=== expected
+extends Node<|>
+
+enum Mode {
+	SLOW,
+	FAST,
+}
+
+var numbers : Array = [1, 2, 3]
+var person : Dictionary = { "name" : "Bob", "age" : 27 }
+
+=== end

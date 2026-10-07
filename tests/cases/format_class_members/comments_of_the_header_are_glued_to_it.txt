@@ -1,0 +1,18 @@
+action: format_class_members
+=== input
+extends Node
+## Describes the class.
+
+# More about the class.
+
+
+var value : int = 0<|>
+
+=== expected
+extends Node
+## Describes the class.
+# More about the class.
+
+var value : int = 0<|>
+
+=== end

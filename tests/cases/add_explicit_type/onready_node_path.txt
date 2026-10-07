@@ -1,0 +1,12 @@
+action: add_explicit_type
+=== input
+extends Node
+
+@onready var label := $Label<|>
+
+=== expected
+extends Node
+
+@onready var label: Node = $Label<|>
+
+=== end

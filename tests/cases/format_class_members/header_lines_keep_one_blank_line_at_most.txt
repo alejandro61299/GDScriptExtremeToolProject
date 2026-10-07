@@ -25,7 +25,6 @@ var value : int = 0<|>
 @tool
 
 extends Node
-
 ## Describes the class.
 
 var value : int = 0<|>

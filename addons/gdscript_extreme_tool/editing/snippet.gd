@@ -5,6 +5,7 @@ extends RefCounted
 class GDSExLine:
 	var indent: int = 0
 	var text: String = ""
+	var is_verbatim: bool = false
 
 
 var lines: Array[GDSExLine] = []
@@ -18,6 +19,11 @@ func add_line(indent: int, text: String) -> void:
 	line.indent = indent
 	line.text = text
 	lines.append(line)
+
+
+func add_verbatim_line(text: String) -> void:
+	add_line(0, text)
+	lines[lines.size() - 1].is_verbatim = true
 
 
 func select_line(line_index: int) -> void:

@@ -1,0 +1,11 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+
+func run(items : Array[int]) -> int:
+	<|# Only a comment.
+|>	return items.size()
+=== expected
+rejected: NO_SELECTION
+=== end

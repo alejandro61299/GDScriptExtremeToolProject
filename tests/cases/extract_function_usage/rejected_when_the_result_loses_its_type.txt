@@ -1,0 +1,19 @@
+action: describe_extraction
+=== input
+extends Node
+
+const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
+
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	var snippet := GDSExSnippet.new()
+	var lines := snippet.lines
+	<|print(items)
+	var first := snippet.lines|>
+	var count := first.size()
+	print(count, factor)
+=== expected
+rejected: UNKNOWN_TYPE
+=== end

@@ -1,0 +1,25 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+enum Flags {
+	NONE = 0, FIRST = 1 << 0, SECOND = max(1, 2),
+	# Third
+	THIRD, FOURTH, # Trailing comment
+	FIFTH, SIXTH}
+
+=== expected
+extends Node<|>
+
+enum Flags {
+	NONE = 0,
+	FIRST = 1 << 0,
+	SECOND = max(1, 2),
+	# Third
+	THIRD,
+	FOURTH, # Trailing comment
+	FIFTH,
+	SIXTH,
+}
+
+=== end

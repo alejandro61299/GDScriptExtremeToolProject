@@ -1,0 +1,14 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+
+class Inner:
+	func run() -> void:
+		<|print(1)
+		print(2)|>
+=== expected
+lines 6-7
+statements 2
+flags: reaches_function_end
+=== end

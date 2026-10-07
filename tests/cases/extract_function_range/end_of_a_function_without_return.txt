@@ -1,0 +1,18 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+
+func run(items : Array[int]) -> void:
+	print(0)
+	<|print(items)
+	print(1)|>
+
+
+func other() -> void:
+	pass
+=== expected
+lines 6-7
+statements 2
+flags: reaches_function_end
+=== end

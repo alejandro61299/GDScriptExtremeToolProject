@@ -1,0 +1,25 @@
+action: check_extraction_behavior
+=== input
+extends RefCounted
+
+var member : int = 0
+var log : Array = []
+
+
+func samples() -> Array:
+	return [[[1, 2, 3], 2.0], [[], 1.5], [[-4, 9], 0.5], [[7], -1.0]]
+
+
+func run(items : Array, factor : float) -> void:
+	member = 1
+	if items.is_empty():
+		<|member = 5
+		log.append(factor)
+		return|>
+	member = items.size()
+
+
+func state() -> Array:
+	return [member, log]
+
+=== end

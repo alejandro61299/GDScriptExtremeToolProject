@@ -1,0 +1,18 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	var value := 1
+	<|var callback := func(value : int) -> int: return value * 2
+	print(callback.call(3))|>
+	print(value, items, factor)
+=== expected
+form: PLAIN
+signature: func _new() -> void
+call: _new()
+=== end

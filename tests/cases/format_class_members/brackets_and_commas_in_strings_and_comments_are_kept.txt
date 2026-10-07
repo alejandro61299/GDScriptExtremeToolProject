@@ -1,0 +1,11 @@
+action: format_class_members
+=== input
+extends Node
+
+
+func run() -> void:<|>
+	print("a , b ( c ) [ d ] if(e)") # f , g ( h ) [ i ]
+	print('j ,k')
+	# print ( "disabled" , 1 )
+
+=== end

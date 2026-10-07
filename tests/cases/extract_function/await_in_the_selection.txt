@@ -1,0 +1,25 @@
+action: extract_function
+options: {"name": "_count_later"}
+=== input
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	<|await get_tree().process_frame
+	var count := items.size()|>
+	print(count * factor)
+
+=== expected
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	var count := await _count_later(items)<|>
+	print(count * factor)
+
+
+func _count_later(items: Array[int]) -> int:
+	await get_tree().process_frame
+	return items.size()
+
+=== end

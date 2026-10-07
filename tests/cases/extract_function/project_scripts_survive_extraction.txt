@@ -1,0 +1,5 @@
+action: check_extract_project_scripts
+=== input
+extends Node
+
+=== end

@@ -1,0 +1,22 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
+
+
+func run() -> void:
+	var snippet := GDSExSnippet.new()<|>
+	print(snippet)
+
+=== expected
+extends Node
+
+const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
+
+
+func run() -> void:
+	var snippet: GDSExSnippet = GDSExSnippet.new()<|>
+	print(snippet)
+
+=== end

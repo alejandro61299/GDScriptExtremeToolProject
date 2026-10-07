@@ -1,0 +1,29 @@
+action: extract_function
+options: {"name": "_average_of"}
+=== input
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	<|var total := 0
+	for item in items:
+		total += item
+	var average := total / float(items.size())|>
+	print(average * factor)
+
+=== expected
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	var average := _average_of(items)<|>
+	print(average * factor)
+
+
+func _average_of(items: Array[int]) -> float:
+	var total := 0
+	for item in items:
+		total += item
+	return total / float(items.size())
+
+=== end

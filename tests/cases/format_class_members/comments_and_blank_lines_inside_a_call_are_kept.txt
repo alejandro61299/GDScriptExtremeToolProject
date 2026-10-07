@@ -1,0 +1,18 @@
+action: format_class_members
+=== input
+extends Node
+
+
+func run() -> int:<|>
+	return _sum(
+# First argument
+
+			1,
+				# Second argument
+			2)
+
+
+func _sum(first : int, second : int) -> int:
+	return first + second
+
+=== end

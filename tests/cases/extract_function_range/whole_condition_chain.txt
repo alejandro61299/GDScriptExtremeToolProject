@@ -1,0 +1,18 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+
+func run(items : Array[int]) -> int:
+	var total := 0
+	<|if items.is_empty():
+		total = -1
+	elif items.size() == 1:
+		total = 0
+	else:
+		total = 1|>
+	return total
+=== expected
+lines 6-11
+statements 3
+=== end

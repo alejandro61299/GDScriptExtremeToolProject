@@ -1,0 +1,17 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	<|factor = factor * 2.0
+	print(items)|>
+	print(factor)
+=== expected
+form: OUTPUT
+signature: func _new(factor: float, items: Array[int]) -> float
+call: factor = _new(factor, items)
+=== end

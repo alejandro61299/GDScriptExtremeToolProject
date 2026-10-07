@@ -1,0 +1,15 @@
+action: describe_extraction_range
+=== input
+extends Node
+
+
+func run(items : Array[int]) -> int:
+	var callback := func(value : int) -> int:
+		<|var doubled := value * 2
+		print(doubled)|>
+		return doubled
+	return callback.call(items.size())
+=== expected
+lines 6-7
+statements 2
+=== end

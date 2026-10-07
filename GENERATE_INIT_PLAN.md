@@ -109,7 +109,12 @@ Si no hay error, el panel muestra en verde que el nombre es válido.
 │ │ [x] _name            String                             │ │
 │ │ [ ] speed            float                              │ │
 │ └─────────────────────────────────────────────────────────┘ │
-│ func initialize(p_health: int, p_name: String) -> void      │
+│ New function                                                │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ func initialize(p_health: int, p_name: String) -> void: │ │
+│ │     _health = p_health                                  │ │
+│ │     _name = p_name                                      │ │
+│ └─────────────────────────────────────────────────────────┘ │
 │ ┌─────────────────────────────────────────────────────────┐ │
 │ │ • Function name is valid.                               │ │
 │ └─────────────────────────────────────────────────────────┘ │
@@ -118,10 +123,10 @@ Si no hay error, el panel muestra en verde que el nombre es válido.
 ```
 
 - **Nombre.** Campo de texto con el foco al abrir y el texto seleccionado.
-- **Filtros.** Tres botones de dos estados, todos activos al abrir. Deciden qué filas se ven; una fila oculta conserva su casilla y sigue contando si estaba marcada.
+- **Filtros.** Tres botones de dos estados, todos activos al abrir. Deciden qué filas se ven; una fila oculta conserva su casilla y sigue contando si estaba marcada. Cada estado tiene su aspecto (apartado 7.1).
 - **All y None.** Marcan o desmarcan las filas visibles.
 - **Lista.** Una fila por variable con casilla, nombre y tipo, en orden de declaración.
-- **Vista previa.** La firma que se va a generar, actualizada al cambiar el nombre o una casilla.
+- **Vista previa.** La función entera que se va a generar, en un editor de solo lectura con los colores del editor de scripts, actualizada al cambiar el nombre o una casilla.
 - **Panel de validación.** Encima de los botones, con el estado del nombre y, si toca, el aviso.
 - **Fila inferior.** Cancel y Generate, centrados, los que pone `ConfirmationDialog`.
 - **Teclado.** `ui_accept` genera si el nombre es válido, tanto desde el campo del nombre como desde la lista; `ui_cancel` cierra sin cambios. En la lista, `ui_select` (la barra espaciadora) marca o desmarca la fila seleccionada. En los botones, `ui_accept` pulsa el botón, como en cualquier control de Godot.
@@ -254,6 +259,29 @@ El usuario lo probó el 2026-10-06 en `tests/test.gd` y salieron dos cosas:
 - **Extremos de una clase interna al dar formato** (ejemplo del usuario en `tests/test.gd`: `Panchito` debe quedar como `PanchitoResultado`). Bajo la línea `class X:` no queda ninguna línea en blanco, y las líneas en blanco indentadas tras el último miembro o comentario se quitan; para eso el tramo de la clase incluye ahora esas líneas. Comprobado que `Panchito`, tras el formato, queda idéntica a `PanchitoResultado`.
 
 Casos nuevos: cursor en una línea en blanco indentada bajo los miembros, en una sin indentar bajo una clase interna (sigue siendo del script), en una línea vacía dentro del cuerpo de una función, en el cuerpo vacío de una clase, y el formato de una clase interna desde su línea en blanco.
+
+### 7.1 Mismo diseño que "Extract Function..."
+
+Lo pidió el usuario el 2026-10-07, antes de la versión 0.3.0, para que los dos diálogos se vean igual.
+
+- **Vista previa.** La línea con la firma pasa a ser un editor de solo lectura con la función entera, el mismo control que usa "Extract Function...": colores de `GDScriptSyntaxHighlighter`, fuente y tamaño del editor de scripts. Fuera del editor, donde Godot no deja crear ese resaltador, queda sin colores.
+- **Filtros.** Antes un filtro activo, uno inactivo y uno sin variables se distinguían poco. Ahora:
+
+| Estado | Aspecto |
+|---|---|
+| Activo | Relleno con el color de acento del editor al 35 %, borde del color de acento y texto claro |
+| Inactivo | El botón normal del tema |
+| No disponible (el grupo no tiene variables) | Sin relleno, borde y texto atenuados con el color de texto desactivado del editor, y una nota al pasar el ratón |
+
+- **Tamaño.** El diálogo pasa de 560×420 a 680×560, como el de extraer.
+
+Detalles decididos al implementar:
+
+- Los colores salen del tema del editor (`accent_color`, `font_hover_color` y `font_disabled_color` del tipo `Editor`), con valores de reserva fuera de él. Los estilos de los filtros se copian del estilo normal del botón y solo cambian relleno y borde, así el botón no cambia de tamaño al cambiar de estado.
+- La creación y el estilo de la vista previa viven en `function_name_dialog.gd`, la base común de los dos diálogos.
+- `GDSExInitFunction.function_text` da el texto de la función; `build_signature` desaparece porque ya no se usa.
+
+Comprobado en un editor real sin ventana, sobre un proyecto de prueba: el resaltador se crea, los tres colores existen en el tema y los tres estados de los filtros tienen estilos distintos con los mismos márgenes. El recorrido del diálogo en la suite comprueba la vista previa completa, el estilo del filtro activo y el del no disponible.
 
 ## 8. Fuera de alcance
 

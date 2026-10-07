@@ -1,0 +1,28 @@
+action: add_explicit_type
+=== input
+extends Node
+
+enum Mode {
+	SLOW,
+	FAST,
+}
+
+
+func run(first : int, second : float) -> void:
+	var mode := Mode.FAST<|>
+	print(first, second)
+
+=== expected
+extends Node
+
+enum Mode {
+	SLOW,
+	FAST,
+}
+
+
+func run(first : int, second : float) -> void:
+	var mode: Mode = Mode.FAST<|>
+	print(first, second)
+
+=== end

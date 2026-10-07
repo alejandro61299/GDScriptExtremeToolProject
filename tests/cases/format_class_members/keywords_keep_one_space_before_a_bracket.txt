@@ -1,0 +1,32 @@
+action: format_class_members
+=== input
+extends Node
+
+
+func run(first : int, names : Array) -> Array:<|>
+	if(first > 1):
+		return[first]
+	if not(first in[1, 2]):
+		return   [0]
+	for name in  (names):
+		print(name)
+	while(first > 10):
+		first -= 1
+	return names if(names.size() > 1) else[first]
+
+=== expected
+extends Node
+
+
+func run(first : int, names : Array) -> Array:<|>
+	if (first > 1):
+		return [first]
+	if not (first in [1, 2]):
+		return [0]
+	for name in (names):
+		print(name)
+	while (first > 10):
+		first -= 1
+	return names if (names.size() > 1) else [first]
+
+=== end

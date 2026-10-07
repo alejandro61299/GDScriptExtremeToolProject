@@ -1,0 +1,19 @@
+action: describe_extraction
+=== input
+extends Node
+
+const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
+
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	var snippet := GDSExSnippet.new()
+	<|var lines := snippet.lines
+	print(lines)|>
+	print(lines, items, factor)
+=== expected
+form: OUTPUT
+signature: func _new(snippet: GDSExSnippet)
+call: var lines = _new(snippet)
+=== end

@@ -1,0 +1,26 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var value := compute(first)<|>
+	print(first, second)
+
+
+func compute(amount : int) -> float:
+	return amount * 2.0
+
+=== expected
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var value: float = compute(first)<|>
+	print(first, second)
+
+
+func compute(amount : int) -> float:
+	return amount * 2.0
+
+=== end

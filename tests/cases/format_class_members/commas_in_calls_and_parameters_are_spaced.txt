@@ -1,0 +1,34 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+signal changed( value : int ,source )
+
+@export_range(0,10 , 1) var speed : float = 1.0
+
+
+func run( first : int , second : int = 2 ) -> int:
+	print( first,second )
+	return max( first ,second ) + _count( )
+
+
+func _count( ) -> int:
+	return 0
+
+=== expected
+extends Node<|>
+
+signal changed(value : int, source)
+
+@export_range(0, 10, 1) var speed : float = 1.0
+
+
+func run(first : int, second : int = 2) -> int:
+	print(first, second)
+	return max(first, second) + _count()
+
+
+func _count() -> int:
+	return 0
+
+=== end

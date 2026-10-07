@@ -25,7 +25,7 @@ static func apply(editor: CodeEdit, plan: GDSExEditPlan) -> void:
 	if editor == null or plan == null or plan.is_empty():
 		return
 	if plan.line_replacement != null:
-		_replace_lines(editor, plan.line_replacement)
+		_replace_lines_and_insert(editor, plan)
 		return
 	var indent_unit := GDSExIndentation.detect_unit(editor.text.split("\n"), GDSExIndentation.editor_unit(editor))
 	var resolved: Array[GDSExResolvedInsertion] = []
@@ -51,7 +51,7 @@ static func apply(editor: CodeEdit, plan: GDSExEditPlan) -> void:
 		_insert_block(editor, insertion)
 	editor.end_complex_operation()
 
-	if not _select_first_selection(editor, resolved) and not plan.replacements.is_empty():
+	if not _select_first_selection(editor, resolved) and not plan.replacements.is_empty() and not plan.keeps_caret:
 		_place_caret_after(editor, plan.replacements[plan.replacements.size() - 1], resolved)
 
 	for insertion in resolved:
@@ -66,10 +66,45 @@ static func apply(editor: CodeEdit, plan: GDSExEditPlan) -> void:
 	_now_and_next_frame(editor, _restore_scroll.bind(scroll_before + lines_inserted_above))
 
 
-static func _replace_lines(editor: CodeEdit, replacement: GDSExEditPlan.GDSExLineReplacement) -> void:
+static func _replace_lines_and_insert(editor: CodeEdit, plan: GDSExEditPlan) -> void:
+	var replacement := plan.line_replacement
+	if plan.insertions.is_empty():
+		var caret_line := editor.get_caret_line()
+		var scroll_before := editor.scroll_vertical
+		var new_caret_line := _replace_lines(editor, replacement)
+		_now_and_next_frame(editor, _restore_scroll.bind(scroll_before + new_caret_line - caret_line))
+		return
+	var indent_unit := GDSExIndentation.detect_unit(editor.text.split("\n"), GDSExIndentation.editor_unit(editor))
+	var below: Array[GDSExResolvedInsertion] = []
+	var above: Array[GDSExResolvedInsertion] = []
+	for insertion in plan.insertions:
+		var resolved := _resolve(editor, insertion, indent_unit, below.size() + above.size())
+		if resolved.line > replacement.last_line:
+			below.append(resolved)
+		else:
+			above.append(resolved)
+	var from_bottom := func(first: GDSExResolvedInsertion, second: GDSExResolvedInsertion) -> bool: return second.is_above(first)
+	below.sort_custom(from_bottom)
+	above.sort_custom(from_bottom)
+	var first_visible_line := editor.get_first_visible_line()
+	var scroll := editor.scroll_vertical
+	var removed_lines := replacement.last_line - replacement.first_line + 1 - replacement.lines.size()
+	scroll -= clampi(first_visible_line - replacement.first_line, 0, maxi(0, removed_lines))
+	editor.begin_complex_operation()
+	for insertion in below:
+		_insert_block(editor, insertion)
+	_replace_lines(editor, replacement)
+	for insertion in above:
+		_insert_block(editor, insertion)
+		if insertion.line <= first_visible_line:
+			scroll += insertion.block_lines.size()
+	editor.end_complex_operation()
+	_now_and_next_frame(editor, _restore_scroll.bind(scroll))
+
+
+static func _replace_lines(editor: CodeEdit, replacement: GDSExEditPlan.GDSExLineReplacement) -> int:
 	var caret_line := editor.get_caret_line()
 	var caret_column := editor.get_caret_column()
-	var scroll_before := editor.scroll_vertical
 	var breakpoints := _lines_in_range(editor.get_breakpointed_lines(), replacement)
 	var bookmarks := _lines_in_range(editor.get_bookmarked_lines(), replacement)
 	var folded := _lines_in_range(PackedInt32Array(editor.get_folded_lines()), replacement)
@@ -97,11 +132,14 @@ static func _replace_lines(editor: CodeEdit, replacement: GDSExEditPlan.GDSExLin
 		editor.fold_line(_moved_line(replacement, line))
 
 	var new_caret_line := mini(_moved_line(replacement, caret_line), editor.get_line_count() - 1)
+	if replacement.caret.x >= 0:
+		new_caret_line = replacement.first_line + replacement.caret.x
+		caret_column = replacement.caret.y
 	editor.remove_secondary_carets()
 	editor.deselect()
 	editor.set_caret_line(new_caret_line)
 	editor.set_caret_column(caret_column)
-	_now_and_next_frame(editor, _restore_scroll.bind(scroll_before + new_caret_line - caret_line))
+	return new_caret_line
 
 
 static func _remove_lines(editor: CodeEdit, first_line: int, last_line: int) -> void:
@@ -166,7 +204,7 @@ static func _resolve(editor: CodeEdit, insertion: GDSExEditPlan.GDSExInsertion, 
 	for index in snippet.lines.size():
 		var snippet_line := snippet.lines[index]
 		var prefix := ""
-		if not snippet_line.text.is_empty():
+		if not snippet_line.text.is_empty() and not snippet_line.is_verbatim:
 			prefix = point.indent_text + indent_unit.repeat(snippet_line.indent)
 		if snippet.selection_line == index:
 			resolved.has_selection = true

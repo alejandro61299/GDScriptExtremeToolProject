@@ -1,0 +1,19 @@
+action: describe_extraction
+=== input
+extends Node
+
+var member : int = 0
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	<|var offset := items.size()
+	print(offset)|>
+	var shift := func(value : int) -> int:
+		return value + offset
+	print(shift.call(1), factor)
+=== expected
+form: OUTPUT
+signature: func _new(items: Array[int]) -> int
+call: var offset := _new(items)
+=== end

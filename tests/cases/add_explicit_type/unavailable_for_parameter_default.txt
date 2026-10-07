@@ -1,0 +1,8 @@
+action: add_explicit_type
+=== input
+extends Node
+
+func scale(factor := 2.0) -> float:<|>
+	return factor
+
+=== end

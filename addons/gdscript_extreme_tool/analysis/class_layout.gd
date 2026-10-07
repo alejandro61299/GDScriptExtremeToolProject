@@ -87,11 +87,12 @@ class GDSExDraft:
 
 
 	func _copy_line(line: int, text: String) -> void:
-		line_map[line - first_line] = first_line + lines.size()
-		if rewrites.has(line):
-			lines.append_array(rewrites[line])
-		else:
+		if not rewrites.has(line):
+			line_map[line - first_line] = first_line + lines.size()
 			lines.append(text)
+		elif not rewrites[line].is_empty():
+			line_map[line - first_line] = first_line + lines.size()
+			lines.append_array(rewrites[line])
 
 
 	func _is_blank_line(line: int) -> bool:
@@ -114,7 +115,7 @@ static func reorder(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: Packed
 	return _compose(class_scope, blocks, ordered, _new_draft(class_scope, lines, body_first, body_last), body_last, false)
 
 
-static func format(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray) -> GDSExLayout:
+static func format(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray, indent_unit: String) -> GDSExLayout:
 	var blocks := _build_blocks(class_scope, false)
 	if blocks.is_empty():
 		return null
@@ -126,7 +127,7 @@ static func format(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Ar
 	if _has_header(class_scope):
 		_split_gap(_new_block(class_scope.header_end_line, class_scope.header_end_line, 0), blocks[0], lines)
 	var draft := _new_draft(class_scope, lines, scope_first, scope_last)
-	draft.rewrites = _code_rewrites(class_scope, statements, lines, scope_first, scope_last)
+	draft.rewrites = _code_rewrites(class_scope, statements, lines, _own_line_ranges(class_scope, scope_first, scope_last), indent_unit)
 	return _compose(class_scope, blocks, blocks, draft, scope_last, true)
 
 
@@ -137,14 +138,36 @@ static func _new_draft(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: Pac
 	return draft
 
 
-static func _code_rewrites(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray, first_line: int, last_line: int) -> Dictionary[int, PackedStringArray]:
-	var tidied_lines := GDSExTokenSpacing.tidy(_own_statements(class_scope, statements), lines, _own_line_ranges(class_scope, first_line, last_line))
+static func _code_rewrites(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray, line_ranges: Array[Vector2i], indent_unit: String) -> Dictionary[int, PackedStringArray]:
+	var own_statements := _own_statements(class_scope, statements)
+	var tidied_lines := GDSExTokenSpacing.tidy(own_statements, lines, line_ranges)
 	var tidied_statements := statements if tidied_lines == lines else GDSExSourceScanner.new().scan(tidied_lines)
-	var rewrites := _bracket_rewrites(class_scope, tidied_statements, tidied_lines)
-	for line in range(first_line, last_line + 1):
-		if tidied_lines[line] != lines[line] and not rewrites.has(line):
-			rewrites[line] = PackedStringArray([tidied_lines[line]])
+	var rewrites := GDSExBracketLayout.new(tidied_lines, indent_unit).rewrite(_member_statements(class_scope, tidied_statements))
+	for line_range in line_ranges:
+		for line in range(line_range.x, line_range.y + 1):
+			if tidied_lines[line] != lines[line] and not rewrites.has(line):
+				rewrites[line] = PackedStringArray([tidied_lines[line]])
+	_remove_extra_blank_lines(class_scope, statements, own_statements, lines, rewrites)
 	return rewrites
+
+
+static func _remove_extra_blank_lines(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], own_statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray, rewrites: Dictionary[int, PackedStringArray]) -> void:
+	var string_lines: Dictionary[int, bool] = {}
+	for statement in own_statements:
+		for line in statement.string_lines:
+			string_lines[line] = true
+	var max_blank_lines := GDSExPluginProjectSettings.max_blank_lines_inside_functions()
+	for statement in _scope_statements(class_scope, statements, false):
+		if _is_class_header(class_scope, statement):
+			continue
+		var blank_lines := 0
+		for line in range(statement.first_line, statement.last_line + 1):
+			if string_lines.has(line) or not _is_blank(lines[line]):
+				blank_lines = 0
+			elif not rewrites.has(line):
+				blank_lines += 1
+				if blank_lines > max_blank_lines:
+					rewrites[line] = PackedStringArray()
 
 
 static func _own_line_ranges(class_scope: GDSExSymbolIndex.GDSExClassScope, first_line: int, last_line: int) -> Array[Vector2i]:
@@ -160,35 +183,53 @@ static func _own_line_ranges(class_scope: GDSExSymbolIndex.GDSExClassScope, firs
 
 static func _own_statements(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement]) -> Array[GDSExSourceScanner.GDSExStatement]:
 	var own: Array[GDSExSourceScanner.GDSExStatement] = []
-	var scope_statements: Array[GDSExSourceScanner.GDSExStatement] = []
-	if class_scope.parent == null:
-		scope_statements = statements
-	else:
-		var class_statement := GDSExSourceScanner.find_statement_at(statements, class_scope.start_line)
-		if class_statement == null:
-			return own
-		own.append(class_statement)
-		for block in class_statement.blocks:
-			scope_statements.append_array(block.statements)
-	var inner_class_lines: Dictionary[int, bool] = {}
-	for member in class_scope.members:
-		if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CLASS:
-			inner_class_lines[member.start_line] = true
-	for statement in scope_statements:
-		if inner_class_lines.has(statement.first_line):
+	for statement in _scope_statements(class_scope, statements, true):
+		if _is_class_header(class_scope, statement):
 			own.append(statement)
 		else:
 			_collect_statements(statement, own)
 	return own
 
 
-static func _bracket_rewrites(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray) -> Dictionary[int, PackedStringArray]:
-	var formatted: Array[GDSExSourceScanner.GDSExStatement] = []
+static func _member_statements(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement]) -> Array[GDSExSourceScanner.GDSExStatement]:
+	var member_statements: Array[GDSExSourceScanner.GDSExStatement] = []
+	for statement in _scope_statements(class_scope, statements, false):
+		if not _is_class_header(class_scope, statement) and not _has_abandoned_statements(statement):
+			member_statements.append(statement)
+	return member_statements
+
+
+static func _has_abandoned_statements(statement: GDSExSourceScanner.GDSExStatement) -> bool:
+	if statement.is_abandoned:
+		return true
+	for block in statement.blocks:
+		for inner in block.statements:
+			if _has_abandoned_statements(inner):
+				return true
+	return false
+
+
+static func _scope_statements(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], includes_header: bool) -> Array[GDSExSourceScanner.GDSExStatement]:
+	if class_scope.parent == null:
+		return statements
+	var scope_statements: Array[GDSExSourceScanner.GDSExStatement] = []
+	var class_statement := GDSExSourceScanner.find_statement_at(statements, class_scope.start_line)
+	if class_statement == null:
+		return scope_statements
+	if includes_header:
+		scope_statements.append(class_statement)
+	for block in class_statement.blocks:
+		scope_statements.append_array(block.statements)
+	return scope_statements
+
+
+static func _is_class_header(class_scope: GDSExSymbolIndex.GDSExClassScope, statement: GDSExSourceScanner.GDSExStatement) -> bool:
+	if class_scope.parent != null and statement.first_line == class_scope.start_line:
+		return true
 	for member in class_scope.members:
-		var holds_code := member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.VARIABLE or member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CONSTANT or member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.FUNCTION
-		if holds_code and member.end_line > member.start_line:
-			_collect_statements(GDSExSourceScanner.find_statement_at(statements, member.start_line), formatted)
-	return GDSExBracketLayout.rewrite(formatted, lines)
+		if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CLASS and member.start_line == statement.first_line:
+			return true
+	return false
 
 
 static func _collect_statements(statement: GDSExSourceScanner.GDSExStatement, collected: Array[GDSExSourceScanner.GDSExStatement]) -> void:
@@ -459,7 +500,10 @@ static func _compose(class_scope: GDSExSymbolIndex.GDSExClassScope, blocks: Arra
 	var leading_blank := 0
 	while first_block.first_line - 1 - leading_blank >= head_first and _is_blank(lines[first_block.first_line - 1 - leading_blank]):
 		leading_blank += 1
-	_copy_outside_members(draft, head_first, first_block.first_line - 1 - leading_blank, applies_format)
+	var head_last := first_block.first_line - 1 - leading_blank
+	var header_last := class_scope.header_end_line if applies_format and _has_header(class_scope) else head_last
+	_copy_outside_members(draft, head_first, header_last, applies_format)
+	draft.copy_limiting_blank_lines(header_last + 1, head_last, 0)
 	var is_at_top := not _has_header(class_scope) and (applies_format or draft.lines.is_empty())
 
 	for index in ordered.size():

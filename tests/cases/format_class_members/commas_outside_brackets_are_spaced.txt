@@ -1,0 +1,42 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var health : int = 0 : set = _set_health ,get = _get_health
+
+
+func run(value : int) -> int:
+	match value:
+		1 , 2 ,3:
+			return 1
+	return 0
+
+
+func _set_health(value : int) -> void:
+	health = value
+
+
+func _get_health() -> int:
+	return health
+
+=== expected
+extends Node<|>
+
+var health : int = 0 : set = _set_health, get = _get_health
+
+
+func run(value : int) -> int:
+	match value:
+		1, 2, 3:
+			return 1
+	return 0
+
+
+func _set_health(value : int) -> void:
+	health = value
+
+
+func _get_health() -> int:
+	return health
+
+=== end

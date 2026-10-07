@@ -1,0 +1,16 @@
+action: format_class_members
+=== input
+extends Node<|>
+
+var person : Dictionary = {name = "Bob" , age = 27 ,}
+var handlers : Dictionary = {"run" :func(first : int , second : int) -> int: return first + second ,}
+var lua_handlers : Dictionary = {run = func() -> int: return 1 ,}
+
+=== expected
+extends Node<|>
+
+var person : Dictionary = { name = "Bob", age = 27 }
+var handlers : Dictionary = { "run" : func(first : int, second : int) -> int: return first + second }
+var lua_handlers : Dictionary = { run = func() -> int: return 1 }
+
+=== end

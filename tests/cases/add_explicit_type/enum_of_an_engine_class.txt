@@ -1,0 +1,18 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var process := Node2D.PROCESS_MODE_ALWAYS<|>
+	print(first, second)
+
+=== expected
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var process: Node.ProcessMode = Node2D.PROCESS_MODE_ALWAYS<|>
+	print(first, second)
+
+=== end

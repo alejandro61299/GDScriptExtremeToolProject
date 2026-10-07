@@ -1,5 +1,37 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Extract Function...** With some lines of a function selected, moves them to a new function and leaves the call in their place. A dialog asks for the name and shows the whole new function and the changed one, with the colors of the script editor. The local variables the code reads become parameters, and the one it changes or declares for later is returned. If the selection ends in a `return` or in a line that assigns a variable, the call takes the place of that value; when that line assigns a class variable, the dialog lets you choose between that and a function that assigns it itself. The action is not offered when the result could behave differently.
+- **Add Explicit Type.** On a local or class variable declared with `:=` or without a type, writes the type of its value: `var total := 0` becomes `var total: int = 0` and `var mode := Mode.FAST` becomes `var mode: Mode = Mode.FAST`. It is not offered when the type of the value is not known.
+- Setting `format/max_blank_lines_inside_functions`, `1` by default: Format keeps at most that many blank lines in a row inside a function, and inside any other member that spans several lines. Blank lines inside a multiline string are never removed.
+
+### Changed
+
+- The dialog of Generate Custom Init Definition... shows the whole function it will generate, with the colors and the font of the script editor, as the dialog of Extract Function... does. Its filters show clearly which ones are on and which ones have no variables.
+- Format spaces commas and brackets everywhere, not only in collections:
+  - No space before a comma and one after it, in calls, parameters, signals, annotations, type hints and `match` patterns.
+  - No spaces right inside parentheses and square brackets: `print( first )` becomes `print(first)`.
+  - No space between a name and the bracket of its call or subscript: `print ("foo")` becomes `print("foo")`, `table ["key"]` becomes `table["key"]` and `func (value)` becomes `func(value)`.
+  - One space between a keyword and a bracket: `if(ready)` becomes `if (ready)` and `return[1]` becomes `return [1]`.
+- Format lays out arrays, dictionaries and enums as the GDScript style guide does:
+  - Arrays and dictionaries on one line: no space before a comma, one space after it and no trailing comma. An array has no spaces inside its brackets; a dictionary keeps one inside its braces, `{ "key": value }`, and none when it is empty.
+  - Enums always have one item per line, so an enum written on one line is expanded.
+  - On several lines: the items start below the opening bracket with one indentation level, comments get the indentation of the items, the blank lines between them are removed, and the closing bracket goes on its own line after a trailing comma.
+  - The lines of an item that spans several lines, and the body of a lambda used as an item, move with it.
+  - The colon of a dictionary key has one space before it and one after it: `"key" : value`.
+- Format now applies these rules to collections written on one line too.
+
+### Fixed
+
+- A constant of a built-in type gets its real type: `Vector2.AXIS_X` is an `int`, not a `Vector2`. `PI`, `TAU`, `INF` and `NAN` are `float`.
+- An instance of a script loaded with `preload` into a constant gets the name of the constant as its type, so `GDSExSnippet.new()` is a `GDSExSnippet`, also when the constant comes from the base script.
+- Items of a collection written at the indentation of their statement are no longer taken for separate statements.
+- The closing parenthesis of a lambda argument no longer gets an indentation that GDScript rejects when its call starts on a continuation line.
+- Running Format a second time no longer moves the description of the class to the first member. A comment that belongs to the header is now written right below it, without a blank line above, as the comments of a member are.
+
 ## 0.2.0 — 2026-10-06
 
 ### Added

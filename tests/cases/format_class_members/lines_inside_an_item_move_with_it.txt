@@ -1,0 +1,42 @@
+action: format_class_members
+=== input
+extends Node
+
+
+func run() -> Array:<|>
+	return [
+				_sum(1,
+						2),
+				_sum(
+					3,
+					4,
+				),
+				5 +
+						6,
+	]
+
+
+func _sum(first : int, second : int) -> int:
+	return first + second
+
+=== expected
+extends Node
+
+
+func run() -> Array:<|>
+	return [
+		_sum(1,
+				2),
+		_sum(
+			3,
+			4,
+		),
+		5 +
+				6,
+	]
+
+
+func _sum(first : int, second : int) -> int:
+	return first + second
+
+=== end

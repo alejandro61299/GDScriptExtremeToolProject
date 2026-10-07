@@ -1,0 +1,14 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var data = _echo(first)<|>
+	print(data, second)
+
+
+func _echo(value):
+	return value
+
+=== end

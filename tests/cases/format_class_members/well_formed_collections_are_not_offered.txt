@@ -12,7 +12,7 @@ const MATRIX : Array[int] = [
 	1, 0,
 	0, 1,
 ]
-const ONE_LINE : Dictionary = {"alpha" : 2, "beta" : 3}
+const ONE_LINE : Dictionary = { "alpha" : 2, "beta" : 3 }
 
 var sizes : Dictionary = {
 	"alpha" : 2,

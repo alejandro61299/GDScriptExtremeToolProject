@@ -1,0 +1,27 @@
+action: describe_scopes
+=== input
+extends Node
+
+var table: Dictionary = {
+"a": 1,
+"b": 2,
+}
+var after: int = 3
+
+
+func first() -> void:
+	var values: Array = [
+	1,
+	2,
+	]
+	var last: int = values.size()
+	print(
+	last)
+=== expected
+class <root> 1-17
+  var table: Dictionary 3-6
+  var after: int 7
+  function first() -> void 10-17 body 11
+    var values: Array 11-14
+    var last: int 15
+=== end

@@ -1,0 +1,10 @@
+action: extract_function
+=== input
+extends Node
+
+
+func run(items : Array[int], factor : float) -> void:
+	print(1)<|>
+	print(items, factor)
+
+=== end
