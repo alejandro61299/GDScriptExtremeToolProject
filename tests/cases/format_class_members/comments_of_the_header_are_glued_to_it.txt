@@ -1,31 +1,17 @@
 action: format_class_members
 === input
-
-
-
-# License.
-
-
-@tool
-
-
-
 extends Node
-
-
 ## Describes the class.
 
+# More about the class.
 
 
 var value : int = 0<|>
 
 === expected
-# License.
-
-@tool
-
 extends Node
 ## Describes the class.
+# More about the class.
 
 var value : int = 0<|>
 

@@ -418,6 +418,8 @@ func _check_code_action(test_case: TestCase, action: GDSExCodeAction, editor: Co
 		problems.append("Breakpoints are on lines %s instead of %s." % [_one_based(editor.get_breakpointed_lines()), _one_based(test_case.expected_breakpoints)])
 	if editor.get_bookmarked_lines() != test_case.expected_bookmarks:
 		problems.append("Bookmarks are on lines %s instead of %s." % [_one_based(editor.get_bookmarked_lines()), _one_based(test_case.expected_bookmarks)])
+	if test_case.action == FORMAT_ACTION and action.build_plan(GDSExCodeContext.new(editor)) != null:
+		problems.append("Running the action again on the formatted result changes it.")
 	problems.append_array(_check_edit(test_case, editor))
 	return problems
 

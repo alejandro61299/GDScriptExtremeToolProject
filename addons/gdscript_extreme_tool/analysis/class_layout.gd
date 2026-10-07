@@ -479,7 +479,10 @@ static func _compose(class_scope: GDSExSymbolIndex.GDSExClassScope, blocks: Arra
 	var leading_blank := 0
 	while first_block.first_line - 1 - leading_blank >= head_first and _is_blank(lines[first_block.first_line - 1 - leading_blank]):
 		leading_blank += 1
-	_copy_outside_members(draft, head_first, first_block.first_line - 1 - leading_blank, applies_format)
+	var head_last := first_block.first_line - 1 - leading_blank
+	var header_last := class_scope.header_end_line if applies_format and _has_header(class_scope) else head_last
+	_copy_outside_members(draft, head_first, header_last, applies_format)
+	draft.copy_limiting_blank_lines(header_last + 1, head_last, 0)
 	var is_at_top := not _has_header(class_scope) and (applies_format or draft.lines.is_empty())
 
 	for index in ordered.size():

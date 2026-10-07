@@ -15,6 +15,7 @@
 
 - Items of a collection written at the indentation of their statement are no longer taken for separate statements.
 - The closing parenthesis of a lambda argument no longer gets an indentation that GDScript rejects when its call starts on a continuation line.
+- Running Format a second time no longer moves the description of the class to the first member. A comment that belongs to the header is now written right below it, without a blank line above, as the comments of a member are.
 
 ## 0.2.0 — 2026-10-06
 
