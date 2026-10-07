@@ -30,6 +30,8 @@
 - The value awaited from a signal is no longer taken for a `Signal`, and `load(path).new()` is no longer taken for a `Resource`: their type is not known.
 - A string written on several lines is a `String`, and a variable with accessors on its own line, `var health = 10: set = _set_health`, gets the type of its value.
 - An instance of a script loaded with `preload` into a constant gets the name of the constant as its type, so `GDSExSnippet.new()` is a `GDSExSnippet`, also when the constant comes from the base script.
+- A constant that loads a script by `uid://` counts as that script, like one that loads it by path.
+- The members of a base script given by a relative path, `extends "base.gd"`, are found.
 - Items of a collection written at the indentation of their statement are no longer taken for separate statements.
 - The closing parenthesis of a lambda argument no longer gets an indentation that GDScript rejects when its call starts on a continuation line.
 - Running Format a second time no longer moves the description of the class to the first member. A comment that belongs to the header is now written right below it, without a blank line above, as the comments of a member are.

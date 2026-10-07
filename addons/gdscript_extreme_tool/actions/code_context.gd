@@ -4,6 +4,7 @@ extends RefCounted
 const GDSExSymbolIndex = preload("res://addons/gdscript_extreme_tool/analysis/symbol_index.gd")
 const GDSExSymbolIndexBuilder = preload("res://addons/gdscript_extreme_tool/analysis/symbol_index_builder.gd")
 const GDSExSourceScanner = preload("res://addons/gdscript_extreme_tool/analysis/source_scanner.gd")
+const GDSExScriptLibrary = preload("res://addons/gdscript_extreme_tool/analysis/script_library.gd")
 const GDSExIndentation = preload("res://addons/gdscript_extreme_tool/editing/indentation.gd")
 
 const LINE_SEPARATOR: String = "\n"
@@ -17,11 +18,14 @@ var selection_to: int = -1
 var selection_first_line: int = -1
 var selection_last_line: int = -1
 var indent_unit: String = ""
+var script_path: String = ""
 
 
-func _init(editor: CodeEdit) -> void:
+func _init(editor: CodeEdit, edited_script_path: String = "", unsaved_sources: Dictionary[String, String] = {}) -> void:
+	script_path = edited_script_path
 	lines = editor.text.split(LINE_SEPARATOR)
-	index = GDSExSymbolIndexBuilder.build(lines)
+	GDSExScriptLibrary.refresh(unsaved_sources)
+	index = GDSExSymbolIndexBuilder.build(lines, script_path)
 	indent_unit = GDSExIndentation.detect_unit(lines, GDSExIndentation.editor_unit(editor))
 	var caret_line := editor.get_caret_line()
 	scope_info = GDSExSymbolIndex.get_scope_info_for_line(index, caret_line)

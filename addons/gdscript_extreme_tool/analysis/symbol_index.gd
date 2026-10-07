@@ -8,6 +8,7 @@ const TYPE_SEPARATOR: String = ","
 const TYPE_ANNOTATION: String = ":"
 const ASSIGNMENT: String = "="
 const LAMBDA_PREFIXES: Array[String] = ["func(", "func "]
+const UID_PREFIX: String = "uid://"
 const NUMBER_SEPARATOR: String = "_"
 
 static var _string_literal_pattern := RegEx.create_from_string("^(&|\\^|r)?[\"']{1,3}[? ]*[\"']{1,3}$")
@@ -26,6 +27,7 @@ class GDSExVariableSymbol:
 	var type: GDSExTypeData
 	var is_const: bool = false
 	var is_script_alias: bool = false
+	var script_path: String = ""
 	var is_untyped: bool = false
 	var start_line: int = 0
 	var end_line: int = 0
@@ -146,14 +148,22 @@ class GDSExClassScope extends GDSExScopeBase:
 	var extends_line: int = -1
 	var inherit_type: GDSExTypeData
 	var base_script_path: String = ""
+	var index: GDSExSymbolIndexData:
+		get:
+			return _index_reference.get_ref() as GDSExSymbolIndexData if _index_reference != null else null
+	var _index_reference: WeakRef
 
 	func accepts_declarations() -> bool:
 		return false
+
+	func belong_to(owner_index: GDSExSymbolIndexData) -> void:
+		_index_reference = weakref(owner_index)
 
 
 class GDSExSymbolIndexData:
 	var root: GDSExClassScope
 	var statements: Array[GDSExSourceScanner.GDSExStatement] = []
+	var script_path: String = ""
 
 
 class GDSExScopeInfo:
@@ -375,6 +385,22 @@ static func find_root_class(class_scope: GDSExClassScope) -> GDSExClassScope:
 	while current.parent is GDSExClassScope:
 		current = current.parent as GDSExClassScope
 	return current
+
+
+static func find_index(scope: GDSExScopeBase) -> GDSExSymbolIndexData:
+	var current := scope
+	while current != null and current.parent != null:
+		current = current.parent
+	return (current as GDSExClassScope).index if current is GDSExClassScope else null
+
+
+static func resolve_script_path(written_path: String, from_script_path: String) -> String:
+	if written_path.begins_with(UID_PREFIX):
+		var id := ResourceUID.text_to_id(written_path)
+		return ResourceUID.get_id_path(id) if id != ResourceUID.INVALID_ID and ResourceUID.has_id(id) else ""
+	if written_path.is_empty() or written_path.is_absolute_path():
+		return written_path
+	return "" if from_script_path.is_empty() else from_script_path.get_base_dir().path_join(written_path).simplify_path()
 
 
 static func find_class(root: GDSExClassScope, type_name: String) -> GDSExClassScope:

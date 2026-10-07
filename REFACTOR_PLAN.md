@@ -48,6 +48,7 @@ addons/gdscript_extreme_tool/
 ├── plugin.cfg
 ├── plugin.gd
 ├── code_actions_popup.gd
+├── open_scripts.gd
 ├── function_name_dialog.gd
 ├── init_function_dialog.gd
 ├── extract_function_dialog.gd
@@ -79,6 +80,7 @@ addons/gdscript_extreme_tool/
 │   ├── language.gd
 │   ├── member_categories.gd
 │   ├── param_names.gd
+│   ├── script_library.gd
 │   ├── source_scanner.gd
 │   ├── statement_range.gd
 │   ├── symbol_index.gd
@@ -96,6 +98,7 @@ addons/gdscript_extreme_tool/
 tests/
 ├── run_tests.gd
 ├── main.gd
+├── fixtures/
 └── cases/
 tools/
 └── generate_builtin_types.gd

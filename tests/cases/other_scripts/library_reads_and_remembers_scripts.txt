@@ -1,0 +1,5 @@
+action: check_script_library
+=== input
+extends Node
+
+=== end

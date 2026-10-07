@@ -25,6 +25,7 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	remove_context_menu_plugin(_context_menu_plugin)
 	_context_menu_plugin = null
+	GDSExCodeActionsPopup.forget_scripts()
 
 
 func _shortcut_input(event : InputEvent) -> void:

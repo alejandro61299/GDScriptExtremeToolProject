@@ -1,0 +1,11 @@
+action: add_explicit_type
+compile_check: skip
+=== input
+extends "base_with_aliases.gd"
+
+
+func run() -> void:
+	var copy := base_name
+	print(copy)
+
+=== end
