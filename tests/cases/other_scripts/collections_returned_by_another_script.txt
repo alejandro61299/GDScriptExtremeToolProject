@@ -1,0 +1,32 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var many := Shapes.make_all(2)
+	var named := Shapes.by_name()
+	var first_radius := many[0].radius
+	for circle in many:
+		var area := circle.area()
+		print(area)
+	print(named, first_radius)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var many: Array[Shapes.Circle] = Shapes.make_all(2)
+	var named: Dictionary[String, Shapes.Circle] = Shapes.by_name()
+	var first_radius: float = many[0].radius
+	for circle in many:
+		var area: float = circle.area()
+		print(area)
+	print(named, first_radius)
+
+=== end

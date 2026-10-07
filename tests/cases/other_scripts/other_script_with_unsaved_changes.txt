@@ -8,15 +8,24 @@ const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
 
 func run() -> void:
 	var sides := Shapes.sides()
+	var tip := Shapes.tip()
 	var limit := Shapes.LIMIT
-	print(sides, limit)
+	print(sides, tip, limit)
 
 === unsaved res://tests/fixtures/other_scripts/shapes.gd
 extends RefCounted
 
 
+class Tip:
+	var angle : float = 90.0
+
+
 static func sides() -> int:
 	return 4
+
+
+static func tip() -> Tip:
+	return Tip.new()
 === expected
 extends Node
 
@@ -25,7 +34,8 @@ const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
 
 func run() -> void:
 	var sides: int = Shapes.sides()
+	var tip: Shapes.Tip = Shapes.tip()
 	var limit := Shapes.LIMIT
-	print(sides, limit)
+	print(sides, tip, limit)
 
 === end

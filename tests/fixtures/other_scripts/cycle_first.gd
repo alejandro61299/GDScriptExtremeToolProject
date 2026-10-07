@@ -6,5 +6,9 @@ var second: CycleSecond
 var first_name: String = "first"
 
 
+class Item:
+	var weight: float = 1.0
+
+
 func other() -> CycleSecond:
 	return second

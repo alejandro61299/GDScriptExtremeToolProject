@@ -1,0 +1,22 @@
+action: add_explicit_type
+=== input
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func run() -> void:
+	var made := Shapes.make()
+	var kind := Shapes.kind_of(made)
+	var circle := Drawing.default_circle()
+	print(made, kind, circle)
+
+=== expected
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func run() -> void:
+	var made: Shapes.Circle = Shapes.make()
+	var kind: Shapes.Kind = Shapes.kind_of(made)
+	var circle: Shapes.Circle = Drawing.default_circle()
+	print(made, kind, circle)
+
+=== end

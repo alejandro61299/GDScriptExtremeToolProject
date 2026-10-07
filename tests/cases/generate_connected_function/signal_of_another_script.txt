@@ -18,7 +18,7 @@ func setup(shapes : Shapes) -> void:
 	shapes.changed.connect(_on_changed)
 
 
-func _on_changed(p_circle, p_amount: int) -> void:
+func _on_changed(p_circle: Shapes.Circle, p_amount: int) -> void:
 	<|pass|>
 
 === end

@@ -1,0 +1,26 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Figures = preload("res://tests/fixtures/other_scripts/shapes.gd")
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var made := Shapes.make()
+	var other := Figures.make()
+	print(made, other)
+
+=== expected
+extends Node
+
+const Figures = preload("res://tests/fixtures/other_scripts/shapes.gd")
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var made: Figures.Circle = Shapes.make()
+	var other: Figures.Circle = Figures.make()
+	print(made, other)
+
+=== end

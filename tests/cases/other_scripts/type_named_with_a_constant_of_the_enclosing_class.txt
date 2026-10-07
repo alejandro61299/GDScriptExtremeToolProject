@@ -1,0 +1,26 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+class Tool:
+	func run() -> void:
+		var made := Shapes.make()
+		var kind := Shapes.kind_of(made)
+		print(made, kind)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+class Tool:
+	func run() -> void:
+		var made: Shapes.Circle = Shapes.make()
+		var kind: Shapes.Kind = Shapes.kind_of(made)
+		print(made, kind)
+
+=== end

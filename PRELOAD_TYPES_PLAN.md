@@ -6,7 +6,7 @@ Hoy el plugin solo conoce bien los tipos del script que se está editando. Si un
 |---|---|---|
 | P1 | Biblioteca de scripts: rutas, lectura y caché | Hecha |
 | P2 | De un nombre a la clase de otro script, y sus miembros de tipo básico | Hecha |
-| P3 | Tipos del otro script nombrados desde el script actual | Pendiente |
+| P3 | Tipos del otro script nombrados desde el script actual | Hecha |
 | P4 | Herencia y clases globales por el mismo camino | Pendiente |
 | P5 | Repaso acción por acción y reglas de seguridad | Pendiente |
 | P6 | Pruebas masivas, rendimiento y documentación | Pendiente |
@@ -83,6 +83,7 @@ No los ha fijado el usuario; son la forma concreta que propongo y se pueden camb
 - **D8. Variables sin tipo.** Las reglas de prudencia de "Add Explicit Types" para las variables declaradas con `=` se extienden a los otros scripts: una función de otro script que no declara lo que devuelve, o una variable suya sin tipo, no bastan para tipar. Las declaradas con `:=` no se ven afectadas, porque Godot ya exige que su valor tenga tipo.
 - **D9. Scripts de prueba.** Los casos necesitan scripts reales en disco. Van en `tests/fixtures/`, que no se exporta. Uno de ellos declara un `class_name`; sus casos quedan como pendientes, con un mensaje, cuando la caché de clases globales del proyecto no lo conoce (un clon recién hecho que no ha abierto el editor).
 - **D11. Una clase escrita por su ruta se nombra con esa ruta.** `Shapes.Circle.new()` es de tipo `Shapes.Circle`: si el usuario pudo escribir esa ruta para llegar a la clase, la misma ruta vale como tipo. Salió en P2 y resuelve ya las instancias de clases internas de otro script, y también las de una clase anidada del propio script (`Outer.Nested.new()`), que antes no se reconocían.
+- **D12. A través de una clase interna del propio script.** Si la constante que carga el otro script está dentro de una clase interna que quien pregunta no ve, se escribe pasando por esa clase: `Holder.Shapes.Circle`. Va después de las constantes visibles y antes del salto por otro script. Salió en P3.
 - **D10. Pestañas y scripts.** Godot da por separado la lista de scripts abiertos y la de pestañas, y la segunda incluye las de archivos que no son scripts. Se emparejan por orden, descartando esas. Si las cuentas no cuadran, no se lee ninguna pestaña y se usa el archivo de todos los scripts: es la dirección segura. Fuera del editor (los tests) el texto sin guardar se da a mano.
 
 ## 4. Comportamiento
@@ -231,6 +232,39 @@ Un fallo que ya existía, encontrado por la prueba completa de extracciones y co
 
 Verificación: un caso por regla de 4.4 y por detalle: clase interna, enum, `Array` y `Dictionary` tipados, alias propio frente a alias de alias, alias heredado, alias de la clase envolvente, tipo sin nombre posible, nombre tapado por una clase global, cadena de tres scripts, dos scripts que se cargan mutuamente y dos constantes para el mismo script.
 
+Hecho el 2026-10-07:
+
+- **`analysis/script_type_names.gd`** (`GDSExScriptTypeNames`). `name_of_class` da el texto con el que una clase se escribe desde la clase que pregunta, o nada si no se puede. Dentro del mismo script, nombre corto si se ve y ruta completa si no. Para otro script sigue el detalle D1 (el `class_name`, una constante propia, heredada o de la clase envolvente), luego el D12 y por último el D2. `name_of_enum` hace lo mismo con un enum. Las ayudas de P2 para nombres dentro de un script se movieron aquí.
+- **Traducción en el resolvedor** (`_translated_type`). Lo que en P2 se descartaba ahora se traduce: la clase o el enum al que se refiere el texto en su archivo se nombra desde el script actual, y los tipos de dentro de `Array[...]` y `Dictionary[..., ...]` uno a uno. Si una sola parte no se puede escribir, el tipo entero es desconocido: no se rebaja a `Array` a secas.
+- **El script que se edita, alcanzado de vuelta.** Si otro script devuelve una clase del script que se está editando (dos scripts que se cargan mutuamente), se reconoce como propia y se nombra con su nombre corto.
+- **Detalle D6.** Está la comprobación, pero no se ha podido probar aquí: hace falta una clase global en el proyecto de pruebas, que llega en P4. Comprobado de paso en Godot 4.7.2: en una anotación de tipo, un enum global (`Corner`, `Side`, `Key`) gana a una clase interna, un enum o una constante del script con el mismo nombre, y ese script no compila; por eso un nombre así se sigue tomando por el global.
+- **Casos antiguos de "Extract Function..." rehechos.** Los 13 que usaban un valor de otro script como tipo desconocido usan ahora un tipo que de verdad no se puede escribir: el tercer script de una cadena (`chain_first.gd`, `chain_second.gd`, `chain_third.gd`, nuevos en `tests/fixtures/other_scripts/`). Comprueban lo mismo que antes.
+- **16 casos nuevos**, 784 en total: valor de una clase y de un enum de otro script, colecciones, constante propia frente al camino por otro script, nombre a través de otro script, constante heredada (de un script base y de una clase base del propio script), de la clase envolvente, de una clase interna usada desde fuera, tipo que no se puede escribir, dos constantes para el mismo script, el script editado alcanzado de vuelta, y en las acciones: extracción con parámetro y resultado de otro script, función generada con parámetros y con tipo devuelto de otro script. Se rompió el nombrado a propósito de seis maneras y los casos detectan las seis.
+
+Medido al cerrar el paso, sobre los scripts del proyecto:
+
+| Medida | Al empezar | Tras P2 | Ahora |
+|---|---|---|---|
+| Variables que "Add Explicit Types" deja sin tocar | 238 de 1.053 | 120 de 1.122 | 7 de 1.149 |
+| Extracciones rechazadas por tipo desconocido | 130 de 19.783 rangos | 94 de 21.063 | 4 de 21.395 |
+| Extracciones que no compilan | 0 de 9.596 | 0 de 10.407 | 0 de 10.641 |
+| Abrir el menú con los otros scripts ya leídos | 17 ms de media | 17 ms | 17 ms |
+
+Las 7 variables que quedan ya no tienen que ver con otros scripts: seis son valores del tipo «algo si se cumple, si no `null`» y una es un valor de un enum elegido con una condición. Se revisan en P6.
+
+**Contraste con lo que ya está escrito**, adelantado como prueba suelta (entra en la suite en P6). En los scripts del proyecto hay 1.871 sitios con un tipo escrito a mano y un valor: declaraciones con tipo y `return` de funciones que declaran lo que devuelven.
+
+| Resultado | Sitios |
+|---|---|
+| El plugin da exactamente el tipo escrito | 1.558, de ellos 333 con una clase de script |
+| El plugin da un tipo más concreto que el escrito | 16 |
+| Colección vacía o literal en una variable tipada, o valor `Variant` | 231 |
+| El plugin no sabe | 66, de ellos 45 con una clase de script |
+
+Los 16 son todos declaraciones más amplias a propósito (`Control` para un `HBoxContainer`, `GDSExScopeBase` para un `GDSExClassScope`). No hay ningún caso en que el plugin dé una clase equivocada ni la clase nativa en lugar de la de script. Los 45 desconocidos son valores de enum, condiciones con `null` y elementos de diccionarios sin tipo.
+
+En un editor sin ventana, con otra pestaña sin guardar, ejecutar "Add Explicit Types" desde el menú real escribe `var part: GDSExB.Part = GDSExB.part()` y tipa también el valor de una función que solo existe en la pestaña sin guardar.
+
 ### P4 — Herencia y clases globales
 
 - La búsqueda de miembros heredados sigue por el análisis del script base en lugar de por el motor.
@@ -240,11 +274,8 @@ Verificación: miembro heredado de un script base por ruta y por clase global, a
 
 ### P5 — Repaso acción por acción
 
-- **Add Explicit Types:** enums de otros scripts (`var k := GDSExB.Kind.ONE` da `GDSExB.Kind`). El detalle D8 se hizo en P2.
-- **Extract Function...:** parámetros y valor devuelto con tipos de otros scripts.
-- **Generate Function Definition:** tipos de los parámetros y del valor devuelto. El detalle D5 se hizo en P2.
-- **Generate Local Variable y Class Variable:** tipo deducido de una función o de un miembro de otro script.
-- **Generate Connected Function:** parámetros de una señal de otro script.
+- **Add Explicit Types:** valores de un enum de otro script (`var k := GDSExB.Kind.ONE` da `GDSExB.Kind`); lo que devuelve un enum ya se nombra desde P3. El detalle D8 se hizo en P2.
+- **Extract Function...**, **Generate Function Definition**, **Generate Local Variable** y **Generate Connected Function** tienen ya casos con tipos de otros scripts desde P2 y P3. Aquí se repasa lo que falte: **Generate Class Variable**, las vistas previas de los dos diálogos y las variaciones que no se hayan cubierto.
 
 Verificación: casos en la carpeta de cada acción, con variaciones: alias propio, heredado y alias de alias; clase interna; enum; tipo que no se puede escribir. Un caso por acción que compruebe que una clase de otro script no recibe código (D5).
 

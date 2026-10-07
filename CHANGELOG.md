@@ -10,7 +10,7 @@
 
 ### Changed
 
-- The actions read the scripts loaded with `preload`. A value that comes from a static function, a constant, a member or an inner class of another script has a type now when that type is a built-in one or an engine class: `var amount := Shapes.count_of(circles)` becomes `var amount: int = ...`, and `Shapes.Circle.new()` is a `Shapes.Circle`. If the other script is open with unsaved changes, the tab is read instead of the file.
+- The actions read the scripts loaded with `preload`. A value that comes from a function, a constant, a member, a signal or an inner class of another script has its type now, written as it has to be written in the current script: `var made := Shapes.make()` becomes `var made: Shapes.Circle = ...`, and a function that returns `Array[Circle]` there gives an `Array[Shapes.Circle]` here. This reaches every action: the parameters and the result of an extracted function, the parameters of a generated function or callback, and the type of a generated variable. When no constant of the current script leads to that class, the value stays without a type. If the other script is open with unsaved changes, the tab is read instead of the file.
 - The dialog of Generate Custom Init Definition... shows the whole function it will generate, with the colors and the font of the script editor, as the dialog of Extract Function... does. Its filters show clearly which ones are on and which ones have no variables.
 - Format spaces commas and brackets everywhere, not only in collections:
   - No space before a comma and one after it, in calls, parameters, signals, annotations, type hints and `match` patterns.

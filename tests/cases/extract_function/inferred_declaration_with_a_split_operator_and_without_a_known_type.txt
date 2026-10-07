@@ -3,29 +3,29 @@ options: {"name": "_lines_of"}
 === input
 extends Node
 
-const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
 
 
 func run(items : Array[int]) -> void:
-	var snippet := GDSExSnippet.new()
+	var snippet := ChainFirst.new()
 	<|print(items)
-	var lines : = snippet.lines|>
+	var lines : = snippet.second.parts|>
 	print(lines)
 
 === expected
 extends Node
 
-const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
 
 
 func run(items : Array[int]) -> void:
-	var snippet := GDSExSnippet.new()
+	var snippet := ChainFirst.new()
 	var lines = _lines_of(items, snippet)<|>
 	print(lines)
 
 
-func _lines_of(items: Array[int], snippet: GDSExSnippet):
+func _lines_of(items: Array[int], snippet: ChainFirst):
 	print(items)
-	return snippet.lines
+	return snippet.second.parts
 
 === end
