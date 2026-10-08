@@ -28,6 +28,7 @@ const GDSExTypeResolver = preload("res://addons/gdscript_extreme_tool/analysis/t
 const GDSExScriptTypeNames = preload("res://addons/gdscript_extreme_tool/analysis/script_type_names.gd")
 const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
 const GDSExPlacement = preload("res://addons/gdscript_extreme_tool/editing/placement.gd")
+const GDSExIndentation = preload("res://addons/gdscript_extreme_tool/editing/indentation.gd")
 const GDSExCallSiteParser = preload("res://addons/gdscript_extreme_tool/analysis/call_site_parser.gd")
 const GDSExExtractVariable = preload("res://addons/gdscript_extreme_tool/actions/extract_variable.gd")
 const GDSExValueFinder = preload("res://addons/gdscript_extreme_tool/analysis/value_finder.gd")
@@ -58,6 +59,17 @@ const VARIABLE_NAME_ACTION: String = "describe_variable_name"
 const VARIABLE_WARNINGS_ACTION: String = "describe_variable_warnings"
 const OPTIONS_HEADER: String = "options"
 const NO_WARNINGS_LABEL: String = "no warnings"
+const VARIABLE_SAMPLE_STEP: int = 150
+const VARIABLE_VALUES_MINIMUM: int = 20
+const VARIABLE_PROBLEMS_LIMIT: int = 40
+const PART_HEADER: String = "part"
+const SCRIPTS_ROOT_HEADER: String = "scripts_root"
+const PARTS_HEADER: String = "parts"
+const LINES_HEADER: String = "lines"
+const STATIC_GUARD: String = "static var gdsex_guard: int = [][0]"
+const STATIC_GUARD_MARK: String = "gdsex_static_value_ran"
+const STATIC_GUARD_PROBE: String = "extends RefCounted\n\nstatic var probe: int = mark()\n\nstatic func mark() -> int:\n\tEngine.set_meta(\"%s\", true)\n\treturn 1\n"
+const GLOBAL_NAME_LINE_PATTERN: String = "(?m)^class_name .*$"
 const VARIABLE_DIALOG_SAMPLE: String = "extends Node\n\nconst LIMIT: int = 3\n\nvar health: int = 10\n\n\nclass Item:\n\tvar size: int = 1\n\n\tfunc heavy(extra: int) -> bool:\n\t\tfor index in 3:\n\t\t\tif size > 5 + index:\n\t\t\t\treturn true\n\t\treturn size > extra\n\n\nfunc get_health() -> int:\n\treturn health\n\n\nfunc run(enemy: Node2D) -> void:\n\tfor index in 3:\n\t\tenemy.rotation = 120.0 * index\n\t\tprint(get_health(), str(index))\n\tprint($Sprite)\n"
 const NO_VALUE_LABEL: String = "no value"
 const WHERE_HEADER: String = "where"
@@ -241,6 +253,22 @@ class VariableTestAction extends "res://addons/gdscript_extreme_tool/actions/cod
 				return null
 			choice = GDSExExtractVariable.choice_with_option(extraction, choice, option, options[key])
 		return choice
+
+
+class VariableTally:
+	var sample_step: int = 1
+	var part: int = 0
+	var parts: int = 1
+	var values: int = 0
+	var extractions: int = 0
+	var accepted: int = 0
+	var refused: int = 0
+	var scripts: int = 0
+	var skipped_scripts: int = 0
+	var problems: PackedStringArray = []
+	var only_lines: PackedInt32Array = []
+	var editor: CodeEdit
+	var global_name: RegEx
 
 
 class OtherScriptTestAction extends "res://addons/gdscript_extreme_tool/actions/code_action.gd":
@@ -610,6 +638,10 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_variable_extraction_behavior(test_case, editor)
 		"run_extract_variable_dialog":
 			return _check_extract_variable_dialog_run(test_case, editor)
+		"check_variable_extraction_of_project_scripts":
+			return _check_variable_extraction_of_scripts(_project_script_paths(), test_case)
+		"check_variable_extraction_of_scripts_in":
+			return _check_variable_extraction_of_scripts(_collect_paths(test_case.headers.get(SCRIPTS_ROOT_HEADER, ""), SCRIPT_EXTENSION), test_case)
 		"check_extract_variable_dialog":
 			return _check_extract_variable_dialog()
 		"check_project_scripts":
@@ -1138,6 +1170,193 @@ func _check_extract_variable_dialog() -> PackedStringArray:
 	dialog.free()
 	editor.free()
 	return problems
+
+
+func _check_variable_extraction_of_scripts(paths: PackedStringArray, test_case: TestCase) -> PackedStringArray:
+	var tally := VariableTally.new()
+	tally.sample_step = int(test_case.headers.get(SAMPLE_STEP_HEADER, str(VARIABLE_SAMPLE_STEP)))
+	tally.part = int(test_case.headers.get(PART_HEADER, "0"))
+	tally.parts = int(test_case.headers.get(PARTS_HEADER, "1"))
+	for line in String(test_case.headers.get(LINES_HEADER, "")).split(",", false):
+		tally.only_lines.append(int(line) - 1)
+	tally.global_name = RegEx.create_from_string(GLOBAL_NAME_LINE_PATTERN)
+	if not _static_guard_works():
+		return PackedStringArray(["The guard does not stop the values of static variables from running: nothing was tried."])
+	tally.editor = CodeEdit.new()
+	root.add_child(tally.editor)
+	for path in paths:
+		GDSExScriptLibrary.refresh({})
+		var source := FileAccess.get_file_as_string(path)
+		if not _compiles(tally.global_name.sub(source, "")):
+			tally.skipped_scripts += 1
+			continue
+		tally.scripts += 1
+		var lines := source.split("\n")
+		var index := GDSExSymbolIndexBuilder.build(lines, path)
+		_check_variable_extraction_in(path, source, index, lines, index.statements, tally)
+	_error_collector.take()
+	tally.editor.free()
+	if tally.only_lines.is_empty() and tally.extractions < VARIABLE_VALUES_MINIMUM:
+		tally.problems.append("Only %d of %d values were tried: the check is not looking at the scripts." % [tally.extractions, tally.values])
+	if _shows_pending_details:
+		print("         %d scripts (%d more do not compile on their own), %d values, %d tried, %d ways that compile, %d ways rightly refused" % [tally.scripts, tally.skipped_scripts, tally.values, tally.extractions, tally.accepted, tally.refused])
+	return tally.problems
+
+
+func _check_variable_extraction_in(path: String, source: String, index: GDSExSymbolIndex.GDSExSymbolIndexData, lines: PackedStringArray, statements: Array[GDSExSourceScanner.GDSExStatement], tally: VariableTally) -> void:
+	for statement in statements:
+		for value in GDSExValueFinder.find_all(statement):
+			tally.values += 1
+			if tally.values % tally.sample_step != 0 or (tally.values / tally.sample_step) % tally.parts != tally.part:
+				continue
+			if not tally.only_lines.is_empty() and not tally.only_lines.has(value.first_position().x):
+				continue
+			var extraction := GDSExExtractVariable.analyze_selection(index, lines, statement, value.start, value.end)
+			if extraction != null and tally.problems.size() < VARIABLE_PROBLEMS_LIMIT:
+				tally.extractions += 1
+				_check_ways_to_extract(path, source, extraction, tally)
+		for block in statement.blocks:
+			_check_variable_extraction_in(path, source, index, lines, block.statements, tally)
+
+
+func _check_ways_to_extract(path: String, source: String, extraction: GDSExExtractVariable.GDSExExtraction, tally: VariableTally) -> void:
+	var where := "%s:%d: %s" % [path, extraction.value.first_position().x + 1, extraction.value.code.substr(0, 50)]
+	var dependencies := extraction.dependencies
+	for place in GDSExExtractVariable.PLACES:
+		var state := GDSExExtractVariable.place_state(extraction, place)
+		if not state.is_shown:
+			continue
+		var place_label: String = GDSExExtractVariable.PLACE_LABELS[place]
+		if not state.is_usable():
+			var refused := GDSExExtractVariable.GDSExChoice.new()
+			refused.place = place
+			refused.is_constant = place == GDSExExtractVariable.GDSExPlace.SCRIPT or extraction.needs_a_constant()
+			if _is_refused_because_it_would_not_compile(extraction, state.reason):
+				_expect_extraction(path, source, extraction, refused, false, "%s | %s is off (%s)" % [where, place_label, state.reason], tally)
+			continue
+		var choice := GDSExExtractVariable.choice_for_place(extraction, place, GDSExExtractVariable.GDSExChoice.new())
+		_expect_extraction(path, source, extraction, choice, true, "%s | %s %s" % [where, place_label, _choice_label(choice)], tally)
+		for option in GDSExExtractVariable.OPTIONS:
+			var option_state := GDSExExtractVariable.option_state(extraction, choice, option)
+			if option_state.is_enabled():
+				var chosen := GDSExExtractVariable.choice_with_option(extraction, choice, option, not choice.has(option))
+				_expect_extraction(path, source, extraction, chosen, true, "%s | %s %s" % [where, place_label, _choice_label(chosen)], tally)
+				continue
+			var forced := _forced_choice(extraction, choice, option, option_state)
+			if forced != null:
+				_expect_extraction(path, source, extraction, forced, false, "%s | %s as %s is refused (%s)" % [where, place_label, _choice_label(forced), option_state.reason], tally)
+
+
+func _forced_choice(extraction: GDSExExtractVariable.GDSExExtraction, choice: GDSExExtractVariable.GDSExChoice, option: GDSExExtractVariable.GDSExOption, state: GDSExExtractVariable.GDSExState) -> GDSExExtractVariable.GDSExChoice:
+	var forced := GDSExExtractVariable.GDSExChoice.new()
+	var dependencies := extraction.dependencies
+	forced.place = choice.place
+	forced.is_private = choice.is_private
+	match option:
+		GDSExExtractVariable.GDSExOption.CONSTANT:
+			forced.is_constant = not state.is_forced
+			return forced
+		GDSExExtractVariable.GDSExOption.STATIC:
+			if choice.place != GDSExExtractVariable.GDSExPlace.CLASS or extraction.needs_a_constant():
+				return null
+			if not state.is_forced and dependencies.member_name.is_empty() and not _is_only_a_node(extraction):
+				return null
+			if dependencies.member_name == GDSExLanguage.SELF_KEYWORD:
+				return null
+			forced.is_static = not state.is_forced
+			return forced
+		GDSExExtractVariable.GDSExOption.ON_READY:
+			if choice.place != GDSExExtractVariable.GDSExPlace.CLASS or extraction.needs_a_constant():
+				return null
+			if state.is_forced and not _is_only_a_node(extraction):
+				return null
+			forced.is_on_ready = not state.is_forced
+			return forced
+	return null
+
+
+func _is_only_a_node(extraction: GDSExExtractVariable.GDSExExtraction) -> bool:
+	var value := extraction.value
+	if value.kind == GDSExValueFinder.GDSExValue.GDSExKind.NODE:
+		return true
+	return value.call != null and value.call.name == "get_node" and value.call.receiver.is_empty()
+
+
+func _is_refused_because_it_would_not_compile(extraction: GDSExExtractVariable.GDSExExtraction, reason: String) -> bool:
+	if reason == GDSExExtractVariable.WHOLE_LINE_MESSAGE or reason == GDSExExtractVariable.ALREADY_A_VARIABLE_MESSAGE or reason == GDSExExtractVariable.AWAIT_MESSAGE:
+		return false
+	return not extraction.is_whole_statement
+
+
+func _expect_extraction(path: String, source: String, extraction: GDSExExtractVariable.GDSExExtraction, choice: GDSExExtractVariable.GDSExChoice, compiles: bool, label: String, tally: VariableTally) -> void:
+	var name_choice := choice.copy()
+	var variable_name := "gdsex_extracted_value"
+	if compiles:
+		variable_name = GDSExExtractVariable.default_name(extraction, choice)
+	elif choice.is_constant:
+		variable_name = variable_name.to_upper()
+	tally.editor.text = source
+	GDSExEditApplier.apply(tally.editor, GDSExExtractVariable.build_plan_for(extraction, name_choice, variable_name, GDSExIndentation.detect_unit(extraction.lines, "\t")))
+	_error_collector.take()
+	var changed := tally.editor.text
+	if name_choice.is_static:
+		changed = _guarded_against_running(changed, variable_name)
+		if changed.is_empty():
+			tally.problems.append("%s: the static variable was not found, so nothing was compiled." % label)
+			return
+	var compiled := _compiles(tally.global_name.sub(changed, ""))
+	var errors := _without_the_guard(_error_collector.take())
+	if compiled == compiles:
+		if compiles:
+			tally.accepted += 1
+		else:
+			tally.refused += 1
+		return
+	if compiles:
+		tally.problems.append("%s does not compile (%s):\n%s" % [label, " / ".join(errors), _changed_lines(source, tally.editor.text)])
+	else:
+		tally.problems.append("%s but it would compile." % label)
+
+
+func _guarded_against_running(text: String, variable_name: String) -> String:
+	var lines := text.split("\n")
+	var declaration := "static var %s" % variable_name
+	for line_index in lines.size():
+		var stripped := lines[line_index].strip_edges(true, false)
+		var following := stripped.substr(declaration.length(), 1)
+		if not stripped.begins_with(declaration) or (not following.is_empty() and GDSExSourceScanner.is_identifier_character(following)):
+			continue
+		lines.insert(line_index, lines[line_index].left(lines[line_index].length() - stripped.length()) + STATIC_GUARD)
+		return "\n".join(lines)
+	return ""
+
+
+func _without_the_guard(errors: PackedStringArray) -> PackedStringArray:
+	var kept := PackedStringArray()
+	for error in errors:
+		if not error.begins_with("Out of bounds get index"):
+			kept.append(error)
+	return kept
+
+
+func _static_guard_works() -> bool:
+	var probe := STATIC_GUARD_PROBE % STATIC_GUARD_MARK
+	Engine.remove_meta(STATIC_GUARD_MARK)
+	if not _compiles(probe) or not Engine.has_meta(STATIC_GUARD_MARK):
+		return false
+	Engine.remove_meta(STATIC_GUARD_MARK)
+	var is_compiled := _compiles(_guarded_against_running(probe, "probe"))
+	_error_collector.take()
+	return is_compiled and not Engine.has_meta(STATIC_GUARD_MARK)
+
+
+func _changed_lines(before: String, after: String) -> String:
+	var before_lines := before.split("\n")
+	var changed := PackedStringArray()
+	for line in after.split("\n"):
+		if not before_lines.has(line):
+			changed.append("  " + line.strip_edges())
+	return "\n".join(changed)
 
 
 func _describe_variable_places(editor: CodeEdit) -> String:

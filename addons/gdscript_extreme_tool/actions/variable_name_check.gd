@@ -4,6 +4,7 @@ extends RefCounted
 const GDSExSymbolIndex = preload("res://addons/gdscript_extreme_tool/analysis/symbol_index.gd")
 const GDSExTypeResolver = preload("res://addons/gdscript_extreme_tool/analysis/type_resolver.gd")
 const GDSExScriptLibrary = preload("res://addons/gdscript_extreme_tool/analysis/script_library.gd")
+const GDSExScriptTypeNames = preload("res://addons/gdscript_extreme_tool/analysis/script_type_names.gd")
 const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
 const GDSExFunctionNameCheck = preload("res://addons/gdscript_extreme_tool/actions/function_name_check.gd")
 
@@ -13,6 +14,10 @@ const INVALID_NAME_MESSAGE: String = "'%s' is not a valid variable name."
 const LOCAL_NAME_MESSAGE: String = "This function already has a variable named '%s'."
 const EXISTING_MEMBER_MESSAGE: String = "The class already has a member named '%s'."
 const ENGINE_PROPERTY_MESSAGE: String = "'%s' is a property of the engine class %s."
+const ENGINE_FUNCTION_MESSAGE: String = "'%s' is a function of the engine class %s."
+const ENGINE_TYPE_MESSAGE: String = "'%s' is a type of the engine."
+const DERIVED_MEMBER_MESSAGE: String = "The class %s, which extends this one, already has a member named '%s'."
+const LAMBDA_PARAMETER_MESSAGE: String = "'%s' is a parameter of the lambda that holds the value."
 const INHERITED_MEMBER_MESSAGE: String = "'%s' is already defined in a base class."
 const GLOBAL_CLASS_MESSAGE: String = "'%s' is the name of a global class."
 const HIDES_MEMBER_MESSAGE: String = "'%s' will hide the member of the class with that name."
@@ -27,7 +32,7 @@ static func check_local(variable_name: String, usage_scope: GDSExSymbolIndex.GDS
 		return GDSExFunctionNameCheck.error(LOCAL_NAME_MESSAGE % variable_name)
 	if _is_a_global_class(variable_name):
 		return GDSExFunctionNameCheck.warning(HIDES_GLOBAL_CLASS_MESSAGE % variable_name)
-	if not _find_member_conflict(variable_name, usage_scope.class_scope).is_empty():
+	if _hides_a_member(variable_name, usage_scope.class_scope):
 		return GDSExFunctionNameCheck.warning(HIDES_MEMBER_MESSAGE % variable_name)
 	return _valid()
 
@@ -57,6 +62,8 @@ static func _find_invalid(variable_name: String) -> String:
 		return EMPTY_NAME_MESSAGE
 	if not GDSExTypeResolver.is_identifier(variable_name) or _is_keyword(variable_name):
 		return INVALID_NAME_MESSAGE % variable_name
+	if GDSExLanguage.is_builtin_type(variable_name):
+		return ENGINE_TYPE_MESSAGE % variable_name
 	return ""
 
 
@@ -86,22 +93,52 @@ static func _is_a_global_class(variable_name: String) -> bool:
 
 
 static func _find_member_conflict(variable_name: String, class_scope: GDSExSymbolIndex.GDSExClassScope) -> String:
-	if class_scope.vars.has(variable_name) or class_scope.functions.has(variable_name) or class_scope.signals.has(variable_name) or class_scope.inner_classes.has(variable_name):
+	if _declares(class_scope, variable_name):
 		return EXISTING_MEMBER_MESSAGE % variable_name
 	var base_type := GDSExTypeResolver.engine_base_type(class_scope)
 	if _is_engine_property_or_signal(base_type, variable_name):
 		return ENGINE_PROPERTY_MESSAGE % [variable_name, base_type]
 	if ClassDB.class_has_method(base_type, variable_name):
-		return ""
-	return INHERITED_MEMBER_MESSAGE % variable_name if GDSExTypeResolver.find_class_member(class_scope, variable_name) != null else ""
+		return ENGINE_FUNCTION_MESSAGE % [variable_name, base_type]
+	if GDSExTypeResolver.find_class_member(class_scope, variable_name) != null:
+		return INHERITED_MEMBER_MESSAGE % variable_name
+	var derived := _find_derived_class_with(variable_name, class_scope, GDSExSymbolIndex.find_root_class(class_scope))
+	return "" if derived == null else DERIVED_MEMBER_MESSAGE % [derived.name, variable_name]
+
+
+static func _find_derived_class_with(variable_name: String, class_scope: GDSExSymbolIndex.GDSExClassScope, candidate: GDSExSymbolIndex.GDSExClassScope) -> GDSExSymbolIndex.GDSExClassScope:
+	if candidate != class_scope and _declares(candidate, variable_name) and _extends(candidate, class_scope):
+		return candidate
+	for inner_name: String in candidate.inner_classes:
+		var found := _find_derived_class_with(variable_name, class_scope, candidate.inner_classes[inner_name])
+		if found != null:
+			return found
+	return null
+
+
+static func _declares(class_scope: GDSExSymbolIndex.GDSExClassScope, member_name: String) -> bool:
+	return class_scope.vars.has(member_name) or class_scope.functions.has(member_name) or class_scope.signals.has(member_name) or class_scope.inner_classes.has(member_name)
+
+
+static func _extends(class_scope: GDSExSymbolIndex.GDSExClassScope, base: GDSExSymbolIndex.GDSExClassScope) -> bool:
+	var current := GDSExScriptTypeNames.find_base_class(class_scope)
+	for depth in GDSExTypeResolver.MAX_INHERITANCE_DEPTH:
+		if current == null or current == base:
+			break
+		current = GDSExScriptTypeNames.find_base_class(current)
+	return current == base
+
+
+static func _hides_a_member(variable_name: String, class_scope: GDSExSymbolIndex.GDSExClassScope) -> bool:
+	if class_scope.vars.has(variable_name) or class_scope.signals.has(variable_name) or class_scope.inner_classes.has(variable_name):
+		return true
+	if _is_engine_property_or_signal(GDSExTypeResolver.engine_base_type(class_scope), variable_name):
+		return true
+	var member := GDSExTypeResolver.find_class_member(class_scope, variable_name)
+	return member != null and member.kind != GDSExTypeResolver.GDSExMember.GDSExKind.FUNCTION
 
 
 static func _is_engine_property_or_signal(base_type: String, member_name: String) -> bool:
-	if not ClassDB.class_exists(base_type):
-		return false
-	if ClassDB.class_has_signal(base_type, member_name):
+	if ClassDB.class_exists(base_type) and ClassDB.class_has_signal(base_type, member_name):
 		return true
-	for property in ClassDB.class_get_property_list(base_type):
-		if property["name"] == member_name:
-			return true
-	return false
+	return GDSExTypeResolver.is_engine_property(base_type, member_name)

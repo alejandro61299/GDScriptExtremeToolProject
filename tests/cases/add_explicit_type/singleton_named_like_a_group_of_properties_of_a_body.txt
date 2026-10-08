@@ -1,0 +1,18 @@
+action: add_explicit_type
+=== input
+extends CharacterBody2D
+
+
+func _physics_process(_delta: float) -> void:
+	var direction := Input.get_axis("ui_left", "ui_right")<|>
+	velocity.x = direction * 300.0
+
+=== expected
+extends CharacterBody2D
+
+
+func _physics_process(_delta: float) -> void:
+	var direction: float = Input.get_axis("ui_left", "ui_right")<|>
+	velocity.x = direction * 300.0
+
+=== end

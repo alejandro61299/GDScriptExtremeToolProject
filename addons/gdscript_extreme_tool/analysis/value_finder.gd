@@ -9,7 +9,6 @@ const ANNOTATION_PREFIX: String = "@"
 const UNIQUE_NODE_PREFIX: String = "%"
 const MINUS_SIGN: String = "-"
 const MEMBER_ACCESS: String = "."
-const CALL_OPENER: String = "("
 const AWAIT_KEYWORD: String = "await"
 const BLANK_CHARACTERS: String = " \t"
 const OPERAND_ENDINGS: String = ")]}\"'"
@@ -17,6 +16,7 @@ const GROUP_OPENERS: String = "([{"
 const NODE_PREFIXES: String = "$%"
 const LINE_SEPARATOR: String = "\n"
 const UNEXTRACTABLE_STATEMENTS: Array[String] = ["signal", "class", "class_name", "extends"]
+const ACCESSOR_NAMES: Array[String] = ["get", "set"]
 
 static var _text_pattern := RegEx.create_from_string("(?:(?<![\\w.])r|[&^])?(\"\"\"|'''|\"|')[? ]*\\1")
 static var _number_pattern := RegEx.create_from_string("(?<![\\w.])(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|\\d[\\d_]*(?:\\.[\\d_]*)?(?:[eE][+-]?\\d+)?)(?!\\w)")
@@ -50,15 +50,32 @@ class GDSExValue:
 
 
 static func find(statement: GDSExSourceScanner.GDSExStatement, selection_from: int, selection_to: int) -> GDSExValue:
-	if statement == null or selection_from < 0 or selection_to < selection_from:
-		return null
-	var first_word := _first_word_pattern.search(statement.code)
-	if first_word != null and UNEXTRACTABLE_STATEMENTS.has(first_word.get_string(1)):
+	if statement == null or selection_from < 0 or selection_to < selection_from or not _can_hold_values(statement):
 		return null
 	var value := _find_selected(statement, selection_from, selection_to) if selection_from != selection_to else _find_at_caret(statement, selection_from)
 	if value == null or value.first_position().x == -1 or value.last_position().x == -1 or _holds_a_block(value):
 		return null
 	return value
+
+
+static func find_all(statement: GDSExSourceScanner.GDSExStatement) -> Array[GDSExValue]:
+	var values: Array[GDSExValue] = []
+	if not _can_hold_values(statement):
+		return values
+	for node in find_nodes(statement.code):
+		values.append(_new_value(GDSExValue.GDSExKind.NODE, statement, node.x, node.y))
+	for literal in _find_literals(statement.code):
+		values.append(_new_value(GDSExValue.GDSExKind.LITERAL, statement, literal.x, literal.y))
+	for call in _find_calls(statement.code):
+		values.append(_call_value(statement, call))
+	return values.filter(func(value: GDSExValue) -> bool: return value.first_position().x != -1 and value.last_position().x != -1 and not _holds_a_block(value))
+
+
+static func _can_hold_values(statement: GDSExSourceScanner.GDSExStatement) -> bool:
+	if statement.is_abandoned or statement.has_unclosed_text:
+		return false
+	var first_word := _first_word_pattern.search(statement.code)
+	return first_word == null or not UNEXTRACTABLE_STATEMENTS.has(first_word.get_string(1))
 
 
 static func source_lines(value: GDSExValue, lines: PackedStringArray) -> PackedStringArray:
@@ -130,12 +147,19 @@ static func _find_calls(code: String) -> Array[GDSExCallSiteParser.GDSExCallSite
 			continue
 		if call.name_offset > 0 and code[call.name_offset - 1] == ANNOTATION_PREFIX:
 			continue
-		if call.name == GDSExLanguage.SUPER_KEYWORD:
+		if call.name == GDSExLanguage.SUPER_KEYWORD or _is_an_accessor(code, call):
 			continue
 		if _previous_word(code, call.expression_offset) == AWAIT_KEYWORD and not _is_followed_by_a_member(code, call.expression_end()):
 			continue
 		calls.append(call)
 	return calls
+
+
+static func _is_an_accessor(code: String, call: GDSExCallSiteParser.GDSExCallSite) -> bool:
+	if call.name_offset != 0 or not ACCESSOR_NAMES.has(call.name):
+		return false
+	var next := GDSExSourceScanner.skip_spaces(code, call.expression_end())
+	return next < code.length() and code[next] == GDSExSourceScanner.BLOCK_OPENER
 
 
 static func _find_literals(code: String) -> Array[Vector2i]:

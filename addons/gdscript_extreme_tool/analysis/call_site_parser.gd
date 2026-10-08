@@ -13,6 +13,7 @@ const STRING_PREFIXES: String = "&^r$%"
 const QUOTES: String = "\"'"
 const SPACES: String = " \t"
 const DIGITS: String = "0123456789"
+const LINE_JOINT: String = " "
 
 
 class GDSExArgument:
@@ -165,13 +166,19 @@ static func _string_start(code: String, end: int) -> int:
 	var index := end
 	while index > 0 and code[index - 1] == quote:
 		index -= 1
-	while index > 0 and code[index - 1] == GDSExSourceScanner.STRING_FILLER:
+	while index > 0 and (code[index - 1] == GDSExSourceScanner.STRING_FILLER or _joins_lines_of_text(code, index - 1, quote)):
 		index -= 1
 	while index > 0 and code[index - 1] == quote:
 		index -= 1
 	if index > 0 and STRING_PREFIXES.contains(code[index - 1]):
 		index -= 1
 	return index
+
+
+static func _joins_lines_of_text(code: String, offset: int, quote: String) -> bool:
+	if code[offset] != LINE_JOINT or offset == 0:
+		return false
+	return code[offset - 1] == GDSExSourceScanner.STRING_FILLER or code[offset - 1] == quote
 
 
 static func _append_argument(arguments: Array[GDSExArgument], code: String, from: int, to: int) -> void:

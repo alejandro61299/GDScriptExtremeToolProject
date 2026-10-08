@@ -8,6 +8,7 @@ const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/langu
 const FUNCTION_KEYWORD: String = "func"
 const CONSTANT_KEYWORD: String = "const"
 const SETTER_NAME: String = "set"
+const AWAIT_KEYWORD: String = "await"
 const GETTER_NAME: String = "get"
 const RANGE_CALL: String = "range("
 const RETURN_ARROW: String = "->"
@@ -28,6 +29,8 @@ static var _return_pattern := RegEx.create_from_string("^return\\b(.*)$")
 static var _setter_pattern := RegEx.create_from_string("^set\\s*\\(\\s*(\\w+)\\s*\\)\\s*:")
 static var _getter_pattern := RegEx.create_from_string("^get\\s*(?:\\(\\s*\\))?\\s*:")
 static var _static_function_pattern := RegEx.create_from_string("\\bstatic\\s+func\\b")
+static var _static_variable_pattern := RegEx.create_from_string("\\bstatic\\s+var\\b")
+static var _await_pattern := RegEx.create_from_string("(?<![\\w.])await(?!\\w)")
 static var _preload_pattern := RegEx.create_from_string("=\\s*preload\\(\\s*[\"']([^\"']*)[\"']\\s*\\)")
 static var _enum_pattern := RegEx.create_from_string("^enum\\b\\s*(\\w*)\\s*\\{(.*)\\}")
 static var _annotation_pattern := RegEx.create_from_string("^@\\w+")
@@ -191,6 +194,7 @@ static func _add_function(class_scope: GDSExSymbolIndex.GDSExClassScope, stateme
 		class_scope.functions[function.name].append(function)
 	if body == null:
 		_record_inline_return(function, code, statement.first_line)
+		_note_await(function, code)
 	else:
 		_add_body_statements(function, body.statements)
 	_add_lambdas(function, statement, body)
@@ -223,6 +227,7 @@ static func _add_property(class_scope: GDSExSymbolIndex.GDSExClassScope, stateme
 			continue
 		var function := GDSExSymbolIndex.GDSExFunctionScope.new()
 		function.name = GETTER_NAME if setter_match == null else SETTER_NAME
+		function.is_static = _static_variable_pattern.search(statement.code) != null
 		if setter_match != null:
 			function.params[setter_match.get_string(1)] = variable.type
 		function.start_line = accessor.first_line
@@ -241,6 +246,7 @@ static func _add_body_statements(scope: GDSExSymbolIndex.GDSExScopeBase, stateme
 		var code := _strip_modifiers(statement.code)
 		var body := _own_block(statement, false)
 		var variable: GDSExSymbolIndex.GDSExVariableSymbol = null
+		_note_await(scope, code)
 		if _variable_pattern.search(code) != null:
 			variable = _parse_variable(code, statement)
 			scope.locals.append(variable)
@@ -251,6 +257,16 @@ static func _add_body_statements(scope: GDSExSymbolIndex.GDSExScopeBase, stateme
 		var lambdas := _add_lambdas(scope, statement, body)
 		if variable != null:
 			_link_function(variable, lambdas, scope, statement)
+
+
+static func _note_await(scope: GDSExSymbolIndex.GDSExScopeBase, code: String) -> void:
+	if not code.contains(AWAIT_KEYWORD) or _await_pattern.search(code) == null:
+		return
+	var current := scope
+	while current != null and not current is GDSExSymbolIndex.GDSExFunctionScope:
+		current = current.parent
+	if current != null:
+		(current as GDSExSymbolIndex.GDSExFunctionScope).is_coroutine = true
 
 
 static func _add_block(scope: GDSExSymbolIndex.GDSExScopeBase, statement: GDSExSourceScanner.GDSExStatement, body: GDSExSourceScanner.GDSExBlock, code: String) -> void:
@@ -266,6 +282,7 @@ static func _add_block(scope: GDSExSymbolIndex.GDSExScopeBase, statement: GDSExS
 	var subject := "" if subject_match == null else subject_match.get_string(1).strip_edges()
 	for branch in body.statements:
 		var branch_body := _own_block(branch, false)
+		_note_await(block_scope, branch.code)
 		if branch_body != null:
 			var branch_scope := _create_block_scope(GDSExSymbolIndex.GDSExBlockScope.GDSExKind.MATCH_BRANCH, branch, branch_body)
 			branch_scope.attach_to(block_scope)

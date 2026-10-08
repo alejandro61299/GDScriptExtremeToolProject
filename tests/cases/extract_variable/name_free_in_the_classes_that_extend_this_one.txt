@@ -1,0 +1,24 @@
+action: describe_variable_name
+options: {"name": "title", "where": "class"}
+=== input
+extends Node
+
+
+class Base:
+	func describe() -> String:
+		return "ba<|>se"
+
+
+class Child extends Base:
+	var label: String = "child"
+
+	func shout() -> String:
+		return label.to_upper()
+
+
+class Other:
+	var size: int = 1
+
+=== expected
+title: valid - Variable name is valid.
+=== end

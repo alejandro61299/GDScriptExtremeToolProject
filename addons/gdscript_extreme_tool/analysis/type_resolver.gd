@@ -41,6 +41,8 @@ const CONSTRUCTOR_TEMPLATE: String = "%s.new()"
 const TYPED_ARRAY_TEMPLATE: String = "Array[%s]"
 const ENUM_DEFAULT_VALUE: String = "0"
 const SCRIPT_CLASS_NAME: String = "GDScript"
+const OBJECT_SCRIPT_PROPERTY: String = "script"
+const PROPERTY_GROUPS: int = PROPERTY_USAGE_GROUP | PROPERTY_USAGE_SUBGROUP | PROPERTY_USAGE_CATEGORY
 
 static var _modifiers_pattern := RegEx.create_from_string("^(?:(?:@\\w+(?:\\([^)]*\\))?|static)\\s+)+")
 static var _declaration_pattern := RegEx.create_from_string("^(?:var|const)\\s+\\w+(.*)$")
@@ -1175,11 +1177,36 @@ static func _find_engine_member(type_name: String, member_name: String) -> GDSEx
 	if ClassDB.class_has_signal(type_name, member_name):
 		return _engine_callable_member(GDSExMember.GDSExKind.SIGNAL, ClassDB.class_get_signal(type_name, member_name))
 	for property in ClassDB.class_get_property_list(type_name):
-		if property["name"] == member_name:
+		if property["name"] == member_name and not is_a_group_of_properties(property):
 			return _variable_member(_type_from_info(property, false))
 	if ClassDB.class_has_integer_constant(type_name, member_name) or ClassDB.class_has_enum(type_name, member_name):
 		return _constant_member(GDSExSymbolIndex.make_type(GDSExLanguage.INTEGER_TYPE_NAME))
 	return null
+
+
+static func is_a_group_of_properties(property: Dictionary) -> bool:
+	return int(property["usage"]) & PROPERTY_GROUPS != 0
+
+
+static func is_engine_property(type_name: String, member_name: String) -> bool:
+	if member_name == OBJECT_SCRIPT_PROPERTY:
+		return true
+	if not ClassDB.class_exists(type_name):
+		return false
+	for property in ClassDB.class_get_property_list(type_name):
+		if property["name"] == member_name and not is_a_group_of_properties(property):
+			return true
+	return false
+
+
+static func gives_no_result_in_the_engine(type_name: String, function_name: String) -> bool:
+	if not ClassDB.class_exists(type_name):
+		return false
+	for function in ClassDB.class_get_method_list(type_name):
+		if function["name"] == function_name:
+			var result: Dictionary = function["return"]
+			return result["type"] == TYPE_NIL and int(result["usage"]) & PROPERTY_USAGE_NIL_IS_VARIANT == 0
+	return false
 
 
 static func _engine_callable_member(kind: GDSExMember.GDSExKind, info: Dictionary) -> GDSExMember:

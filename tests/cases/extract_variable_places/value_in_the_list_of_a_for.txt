@@ -48,12 +48,12 @@ func wait_done() -> int:
 
 
 func run(amount: int) -> void:
-	for index in ran<|>ge(helper()):
+	for index in out<|>er(helper()):
 		pass
 
 === expected
-value: range(helper())
+value: outer(helper())
 default: Function
 Function: ok []
-Class: ok [static private on_ready] ! The value will be computed once, when the object is created.
+Class: ok [private on_ready] ! The value will be computed once, when the object is created.
 === end

@@ -10,9 +10,11 @@ No se parece a "Generate Local Variable" ni a "Generate Class Variable". Aquella
 | V2 | De qué depende el valor, adónde puede ir y con qué opciones | Hecha |
 | V3 | La edición: declaración, sustitución y comprobación del nombre | Hecha |
 | V4 | El diálogo y la acción en el menú | Hecha |
-| V5 | Pruebas masivas, rendimiento y documentación | Pendiente |
+| V5 | Pruebas masivas, rendimiento y documentación | Hecha |
 
 Cada paso termina con la suite en verde y una pasada de `--headless --editor --quit` sin errores ni avisos, y se cierra con un commit en la rama `generate-outside`.
+
+El plan está terminado. Lo que se midió al cerrarlo está en el apartado 11, y lo que queda por mirar con ventana, en el 10.
 
 ## 1. Qué hace
 
@@ -179,7 +181,12 @@ Se comprueba mientras se escribe, como en los otros diálogos. Comprobado en el 
 | Igual que una local de otro bloque que no se ve desde esa línea | Sin problema | Sin problema |
 | Igual que un miembro de la clase | Aviso: lo tapa | Error |
 | Igual que una propiedad de la clase del motor (`position`) | Aviso: la tapa | Error |
+| Igual que una función de la clase del motor (`get_child_count`) | Sin problema | Error |
 | Igual que una clase global | Aviso | Error |
+| Igual que un tipo básico del motor (`int`, `float`, `AABB`) | Error | Error |
+| `script` | Aviso: tapa la propiedad | Error |
+| Igual que el parámetro de la lambda de una línea donde está el valor | Error | Error |
+| Igual que un miembro de una clase del mismo script que hereda de esta | Sin problema | Error |
 
 ### 4.6 Qué se ve
 
@@ -224,13 +231,41 @@ Una constante dentro de una función acepta y rechaza exactamente lo mismo que u
 - El orden importa y GDScript no avisa. Con `var reads_after: int = after + 1` escrita antes que `var after: int = 5`, `reads_after` vale 1 y no 6.
 - El valor se calcula antes de `_init`: una variable que lee otra a la que `_init` da valor ve el valor de antes.
 - Se calcula una vez por objeto: dos objetos de la misma clase llaman dos veces a la función.
+- `self` en el valor de una variable estática compila, aunque en una función estática no. Al ejecutarse vale `null`: `static var kept = self` deja `null` y `Callable(self, "run")` deja un `Callable` que no es válido. El plugin apaga "Static" igual. Es la tercera excepción a "apagado es que no compilaría", con los detalles D5 y D6.
+- `self` no vale en una constante: `const KEPT = Callable(self, "run")` no compila, aunque `Callable(...)` sea uno de los 27 constructores.
+- El `get` y el `set` de una variable estática son código estático: no pueden leer una variable del objeto.
+- `new()` sin nada delante compila en una variable de clase y en una estática. Es una función estática de la clase.
+- La ruta de un `preload` tiene que ser un texto constante. Vale una constante, de la clase o de la función; una variable no.
 
 ### Nombres
 
 - Una variable local puede llamarse como una variable o una constante de la clase, como una propiedad del motor o como una clase global.
 - No puede llamarse como un parámetro, ni como otra local del mismo bloque, ni como una local de fuera que ya esté declarada. Sí como la de un bloque que ya terminó o la de un bloque vecino.
 - Usar una variable local antes de su declaración no compila.
-- Una variable o una constante de clase no puede llamarse como otra variable o función de la clase, como una propiedad de la clase del motor ni como una clase global. Sí como una función del motor o una función global.
+- Una variable o una constante de clase no puede llamarse como otra variable o función de la clase, como una propiedad de la clase del motor ni como una clase global.
+- Una variable de clase con el nombre de una función del motor compila mientras el script no llame a esa función. En cuanto la llama, no compila. Se comprobó en V5, al fallar la prueba masiva: el plan la daba por buena y pasa a ser un error.
+- Una variable local con el nombre de una función, propia o del motor, compila y la función se puede seguir llamando.
+- Lo mismo con las funciones globales: una variable, local o de clase, puede llamarse `range`, `print`, `str`, `load` o `abs`, y la función se sigue pudiendo llamar.
+- Ningún nombre puede ser el de un tipo básico (`int`, `float`, `AABB`, `RID`). En una variable o una constante de clase no compila nunca. En una local compila mientras la función no vuelva a escribir ese tipo: `var int = 1` seguido de `var other: int = 2` no compila.
+- `script` no puede ser un miembro de la clase. Es una propiedad de `Object` que `ClassDB` no da en su lista de propiedades, así que hay que nombrarla aparte. Como variable local, compila.
+- Un miembro no puede llamarse como otro que ya tenga una clase que hereda de esta. El error sale en la clase hija, no en la que recibe el miembro.
+- Dentro de una lambda, su parámetro tapa a cualquier variable de fuera que se llame igual.
+- `ClassDB.class_get_property_list` devuelve también los títulos de los grupos del inspector. Quince de esos títulos son además el nombre de una clase o de un singleton: `Input` en `Control` y en todos los cuerpos de física, `Theme` en `Control` y `Window`, `Texture` y `Material` en `CanvasItem`, `Time` en los nodos de partículas. No son miembros.
+
+### Llamadas que no dejan nada que guardar
+
+- Una función con un `await` dentro solo se puede llamar sin `await` cuando no se usa lo que devuelve. `waits()` sola compila; `var kept = waits()` no, tenga o no tipo de retorno. Con un receptor sin tipo sí compila, porque GDScript no sabe qué función es.
+- Una función propia sin tipo de retorno devuelve `Variant`, y su resultado se puede guardar aunque no tenga ningún `return`.
+- Salvo que reescriba una función del motor que no devuelve nada, como `_ready` o `_update_layout`. Entonces vale la firma del motor y `var kept = _ready()` no compila.
+- `super.add_child(node)` no devuelve nada, igual que `add_child(node)`.
+- `for index in range(3)` da a `index` el tipo `int`. Con `var numbers: Array = range(3)` y `for index in numbers`, `index` pasa a ser `Variant`, y un `var next := index + 1` de más abajo deja de compilar.
+- `get():` y `set(value):`, con paréntesis, son formas válidas de escribir el `get` y el `set` de una propiedad. No son llamadas.
+
+### Compilar ejecuta código
+
+- `GDScript.reload()` ejecuta los valores de las variables estáticas del script que compila. Con `reload(true)` también.
+- No los ejecuta si el script no compila.
+- Si uno de ellos falla al ejecutarse, los que van detrás en la misma clase no se ejecutan.
 
 ### Sitios especiales
 
@@ -421,7 +456,7 @@ Hecho el 2026-10-08:
 - **Los avisos se juntan en la franja de abajo**, uno por línea: primero el del nombre, si lo hay, y luego los del sitio. Un error del nombre los tapa a todos y apaga "Extract".
 - **El estilo de los botones de dos posiciones** estaba en el diálogo del init; pasa a `function_name_dialog.gd` para que lo usen los dos.
 - **Runner:** `run_extract_variable_dialog` abre el diálogo desde el menú, pulsa lo que diga la cabecera `options:` y confirma o cancela; además compara el script resultante con lo que enseñaba la vista previa. `check_extract_variable_dialog` recorre el diálogo paso a paso.
-- **8 casos nuevos** en `tests/cases/menu/`, 1.239 en total. Uno de ellos hace 49 comprobaciones sobre el diálogo: qué sitios se enseñan en cada situación, qué opciones se pueden pulsar y el motivo de las que no, cómo cambia el nombre propuesto, las opciones que se excluyen entre sí, las obligadas, los avisos, los errores y que confirmar aplica lo que se veía.
+- **8 casos nuevos** en `tests/cases/menu/`, 1.239 en total. Uno de ellos hace 54 comprobaciones sobre el diálogo: qué sitios se enseñan en cada situación, qué opciones se pueden pulsar y el motivo de las que no, cómo cambia el nombre propuesto, las opciones que se excluyen entre sí, las obligadas, los avisos, los errores y que confirmar aplica lo que se veía.
 - Se rompió el comportamiento a propósito de veintidós maneras. Tres no las detectaba ningún caso: para dos se añadieron comprobaciones y la tercera era una línea que sobraba. Ahora se detectan las veintiuna que quedan.
 - **En un editor sin ventana**, con el menú de verdad: la acción aparece, el diálogo se abre con los colores del editor, y con un número, una llamada dentro de un bucle y un nodo la extracción queda en el script como la enseñaba el diálogo. Un deshacer la quita y el archivo no cambia. Cierra sin errores ni avisos.
 
@@ -444,6 +479,64 @@ Encontrado por la comprobación masiva del plan anterior: la primera versión de
 
 En cada paso se rompe el comportamiento a propósito de varias maneras y se comprueba que algún caso lo detecta.
 
+Hecho el 2026-10-08:
+
+- **La comprobación por los dos lados está en el runner.** `check_variable_extraction_of_project_scripts` recorre este proyecto y `check_variable_extraction_of_scripts_in`, con la cabecera `scripts_root`, cualquier carpeta. `sample_step` dice cada cuántos valores se prueba uno; `parts` y `part` reparten una pasada entre varios procesos; `lines` la limita a unas líneas, para repetir un fallo. Cuando algo no compila, el fallo lleva el error del compilador y las líneas que cambiaron.
+- **En la suite va una muestra**, un valor de cada 150: 82 valores con algo que ofrecer, 218 maneras que compilan y 143 rechazadas con razón, en unos 12 segundos.
+- **Completa, sobre este proyecto:** 56 scripts y 14.472 valores, de los que 12.021 tienen algo que ofrecer. 34.980 maneras se aplican y compilan; otras 20.045 están apagadas, se fuerzan y no compilan. Ningún fallo. Con 16 procesos son unos tres minutos.
+- **Completa, sobre GUT**, en una copia fuera de `TestProject`: 86 scripts, 9.994 valores, 9.023 con algo que ofrecer, 38.312 maneras que compilan y 13.311 rechazadas con razón. Ningún fallo.
+- **La primera pasada completa encontró dieciséis clases de fallo** que no habían visto ni la muestra ni los 328 casos escritos a mano. Están en la tabla de abajo, cada una con sus casos.
+- **Dos de los arreglos alcanzan a otras acciones.** En un script que hereda de `CharacterBody2D`, `Area2D` o `Control`, `Input` se tomaba por una propiedad del nodo, y `var direction := Input.get_axis("ui_left", "ui_right")` no ofrecía "Add Explicit Type". Y "Generate Function Definition", dentro del `get` de una variable estática, escribía una función que desde ahí no se puede llamar; ahora escribe `static func`. Los dos fallos estaban en la 0.3.0 y los dos tienen caso.
+- **66 casos nuevos, 1.305 en total.** De "Extract Variable" hay ya 389: 116 del valor, 134 de sitios y opciones, 131 de la edición y 8 del diálogo.
+- **Se rompió el comportamiento a propósito de 38 maneras**, una por cada regla nueva. La primera vez se detectaron 33. Las otras cinco eran casos míos que no probaban lo que decían: un valor dentro de un texto sin cerrar se rechazaba por los paréntesis que quedaban abiertos, no por el texto. Con los casos corregidos y tres más se detectan las 38.
+- **Tiempo de abrir el menú:** medido en el apartado 11. La acción añade alrededor de un milisegundo.
+- **README y CHANGELOG.** El apartado "Extract Variable" del README, la fila de la tabla de acciones y la entrada de la 0.4.0. `plugin.cfg` sigue en 0.3.0: el número se cambia al publicar.
+
+Lo que encontró la pasada completa:
+
+| Qué pasaba | Dónde salió | Ahora |
+|---|---|---|
+| Se proponía `int`, `float`, `AABB` o `RID` como nombre, y el script no compila | `int(part)`, `float(size)`, `AABB()` | El nombre propuesto es `value`. Escrito a mano, es un error |
+| Al valor de una variable `static` se le proponía el nombre de su tipo | `static var _generation: int = 0` | Toma el nombre de la variable, como en las demás |
+| `get()` y `set(value)` de una propiedad se tomaban por llamadas | GUT | No son valores |
+| Dentro del `get` de una variable estática se ofrecía una variable del objeto | GUT, `editor_globals.gd` | "Static" queda marcado y fijo, como en una función estática |
+| La ruta de un `preload` podía salir a una variable | GUT, `gut_plugin.gd` | "Constant" queda marcado y fijo |
+| `Callable(self, "run")` se daba por constante | GUT, `signal_watcher.gd` | `self` impide la constante |
+| `new()` sin nada delante se tomaba por una función del objeto | `explicit_types.gd` | Es estática: en una función estática se ofrece "Static" |
+| `Input` se tomaba por un miembro del objeto y apagaba "Static" | GUT, `OutputText.gd` | Los títulos de los grupos del inspector no son miembros |
+| Una llamada suelta a una función con `await` pasaba a `var x = ...` | GUT, siete sitios | No es un valor |
+| Lo mismo con una función del motor reescrita sin `-> void`, y con `super.add_child(...)` | GUT, `gut_dock.gd`, `test.gd` | No es un valor |
+| Sacar el `range(...)` de un `for` quitaba el tipo a la variable del bucle | `class_layout.gd` | No es un valor |
+| Se proponía un nombre igual al parámetro de la lambda donde está el valor | `value_finder.gd` | Error en el nombre |
+| Se aceptaba `script` como variable de la clase | GUT, tres sitios | Error en el nombre |
+| Se aceptaba un nombre que ya tiene una clase del script que hereda de esta | GUT, `panel_controls.gd` | Error en el nombre |
+| De la función de un texto de varias líneas se cogía solo la última línea, y las líneas del texto cambiaban de sangría | GUT, `warnings_manager.gd` | El valor es el texto entero y sus líneas se copian tal cual |
+| En un texto normal partido en dos líneas, `%s` se tomaba por un nodo | `run_tests.gd` | En una sentencia con un texto sin cerrar no hay valores |
+
+**La pasada completa ejecutaba código, y vació un archivo del proyecto.** Para saber si una extracción compila, el runner compila el script cambiado, y compilar ejecuta los valores de las variables estáticas (apartado 5). Al probar `FileAccess.open(OUTPUT_PATH, FileAccess.WRITE)` de `tools/generate_builtin_types.gd` como variable estática, Godot abrió `analysis/builtin_types.gd` para escribir y lo dejó vacío. Se restauró desde el último commit a los pocos minutos y no se tocó nada más; la carpeta de GUT era una copia. Desde entonces:
+
+- Antes de compilar un script con una variable estática nueva, el runner pone delante otra cuyo valor falla al ejecutarse (`[][0]`). El valor nuevo se compila igual, pero ya no se ejecuta.
+- Antes de probar nada, la comprobación verifica que esa guarda funciona: compila un script de prueba sin ella y con ella, y mira si su valor se ejecutó. Si la guarda no frena la ejecución, no prueba ningún script y el caso falla.
+- La primera pasada completa sobre este proyecto no vale: desde que se vació el archivo, casi todo dejó de compilar por otro motivo. Las cifras de arriba son de la pasada repetida con el código final.
+
+Detalles decididos al implementar:
+
+- **Lo que no deja nada que guardar no se ofrece.** Amplía el detalle D4 a las funciones que esperan con `await`, a las del motor reescritas sin tipo de retorno, a las llamadas con `super.` y al `range(...)` de un `for`. Como en D4, la acción no aparece: no hay ningún sitio donde el resultado compile.
+- **"Static" sigue apagado cuando el valor lee `self`**, aunque compilaría: al ejecutarse, `self` vale `null`. La comprobación por los dos lados lo sabe y no lo cuenta como fallo.
+- **El `get` y el `set` de una variable estática cuentan como funciones estáticas** en el índice de símbolos, no solo para esta acción. De ahí el arreglo de "Generate Function Definition".
+- **El nombre propuesto nunca es un tipo.** Si lo sería, en minúsculas o en mayúsculas, se propone `value`.
+- **Las líneas de un texto de varias líneas van tal cual** en la declaración, sin la sangría del sitio nuevo. Cambiarla cambiaría el texto.
+- **Un texto sin cerrar alcanza como mucho 40 líneas.** Si en ese tramo aparece la línea que lo cierra, todas las sentencias de en medio quedan sin valores. Si no aparece, se da por un texto a medio escribir y solo queda sin valores su línea. Sin ese límite, una comilla sin cerrar apagaría la acción en el resto del script.
+- **Tampoco hay valores en una sentencia con un paréntesis sin cerrar.**
+- **Un miembro nuevo se compara con las clases del mismo script que heredan de la suya.** Las de otros scripts quedan fuera (apartado 8).
+
+Errores míos al escribir las pruebas, corregidos al ejecutarlas:
+
+- Esperaba la declaración antes de la variable estática cuyo `get` la usa. Va detrás, con las de su categoría: a un `get` le da igual el orden.
+- Esperaba "Function" como opción por defecto para la ruta de un `preload`. Es "Function constant": la opción obligada forma parte de la opción por defecto.
+- Un caso de "Generate Function Definition" esperaba `-> int` con `pass`, que no compila, y el parámetro `arg_0`, que se llama `param_0`.
+- Los cinco casos que no detectaban su rotura, ya contados arriba.
+
 ## 8. Qué queda fuera
 
 - **Operaciones** (`a + b`, `not ready`, `x if c else y`). Hace falta saber si lo seleccionado es una pieza completa de la expresión. Mientras tanto, lo que va entre paréntesis sí se puede extraer (detalle D1).
@@ -454,6 +547,9 @@ En cada paso se rompe el comportamiento a propósito de varias maneras y se comp
 - Una variable estática en "Script". Haría falta que el script tuviera `class_name` para leerla desde la clase interna.
 - Crear la variable en otro script.
 - El caso contrario: quitar una variable y poner su valor donde se usa.
+- **Un nombre que ya usa una clase de otro script que hereda de esta.** El plugin mira las clases del mismo script. Para las de otros haría falta leer todos los scripts del proyecto; les pasa lo mismo a "Generate Class Variable" y a "Generate Function Definition".
+- **Los valores de una sentencia con un texto sin cerrar en su línea.** Un texto normal, el que no va entre tres comillas, puede seguir en la línea siguiente, pero también puede ser un texto a medio escribir. Ahí no se ofrece nada (V5).
+- **El `range(...)` de un `for`** y las llamadas a funciones que esperan con `await` (V5).
 
 ## 9. Riesgos
 
@@ -474,3 +570,42 @@ Para pasar al cerrar V5:
 4. La vista previa usa los colores y la fuente del editor, y las dos líneas marcadas se ven.
 5. Al confirmar, el cursor queda en un sitio razonable y un solo deshacer lo quita todo.
 6. Con Intro se confirma y con Escape se cancela.
+
+## 11. Resultado
+
+Cerrado el 2026-10-08, con Godot 4.7.2.
+
+| Medida | Resultado |
+|---|---|
+| Casos de la suite | 1.305, todos en verde; 389 son de "Extract Variable" |
+| Valores de este proyecto probados de todas las maneras | 12.021 de 14.472 tienen algo que ofrecer; 34.980 maneras compilan y 20.045 se rechazan con razón |
+| Valores de GUT | 9.023 de 9.994; 38.312 maneras compilan y 13.311 se rechazan con razón |
+| Roturas a propósito, en los cinco pasos | 16, 44, 31, 21 y 38; todas detectadas |
+| Editor sin ventana | Abre y cierra sin errores ni avisos |
+
+### Lo que cuesta en el menú
+
+Abrir el menú con el código de antes de esta acción (commit `f2d6a27`) y con el de ahora, sobre los mismos scripts. Cada medida se repitió dos veces; donde las dos no coinciden van las dos.
+
+| Medida | Antes | Ahora |
+|---|---|---|
+| 48 scripts de este plugin, primera apertura, media | 31,0 y 31,2 ms | 31,9 y 32,1 ms |
+| Los mismos, aperturas siguientes, media | 18,4 y 18,5 ms | 18,7 y 18,8 ms |
+| El más largo (`run_tests.gd`, 1.974 líneas), primera apertura | 300,7 y 302,1 ms | 310,0 y 305,7 ms |
+| Cursor sobre una llamada, 240 sitios | 16,2 y 16,3 ms | 17,3 y 17,4 ms |
+| Cursor sobre un número, 40 sitios | 23,9 y 24,0 ms | 24,6 y 24,7 ms |
+| Cursor al final de una línea, 333 sitios | 16,6 y 16,7 ms | 17,1 ms |
+| 86 scripts de GUT, primera apertura, media | 15,0 ms | 15,2 y 15,3 ms |
+| GUT, cursor sobre una llamada, 445 sitios | 16,1 y 16,6 ms | 17,2 ms |
+| GUT, cursor sobre un número, 51 sitios | 15,1 y 15,4 ms | 15,9 ms |
+| GUT, cursor al final de una línea, 648 sitios | 13,9 y 14,3 ms | 14,5 ms |
+
+La acción añade entre medio milisegundo y algo más de uno a cada apertura, sobre 15 a 25. En los 240 sitios con una llamada se ofrece en 173; en los 40 con un número, en los 40; y en 85 de los 333 finales de línea, donde el cursor queda tocando el final de un valor. En GUT, en 349 de las 445 llamadas, en los 51 números y en 261 de los 648 finales de línea.
+
+La segunda medida de "antes" sobre GUT con el cursor en un valor se tomó mientras corría la suite, y por eso sale algo más alta que la primera.
+
+### Lo que queda
+
+- La lista del apartado 10, que pide ventana.
+- El número de versión de `plugin.cfg`, que sigue en 0.3.0.
+- Lo que el apartado 8 deja fuera.

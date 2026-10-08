@@ -106,6 +106,7 @@ class GDSExFunctionScope extends GDSExScopeBase:
 	var is_lambda: bool = false
 	var is_static: bool = false
 	var is_inline: bool = false
+	var is_coroutine: bool = false
 	var params: Dictionary = {}
 	var untyped_params: PackedStringArray = []
 	var return_type: GDSExTypeData

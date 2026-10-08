@@ -127,7 +127,7 @@ static func _check_calls(found: GDSExDependencies, code: String, scope_info: GDS
 		if _is_a_constant_function(call.name):
 			continue
 		found.block(CALL_TEMPLATE % call.name, true)
-		if GDSExLanguage.GLOBAL_FUNCTIONS.has(call.name) or GDSExLanguage.is_known_type(call.name):
+		if GDSExLanguage.GLOBAL_FUNCTIONS.has(call.name) or GDSExLanguage.is_known_type(call.name) or call.name == GDSExLanguage.CONSTRUCTOR_NAME:
 			continue
 		var member := GDSExTypeResolver.find_class_member(scope_info.class_scope, call.name)
 		var is_static := member != null and (member.kind == GDSExTypeResolver.GDSExMember.GDSExKind.CLASS or (member.function != null and member.function.is_static))
@@ -152,6 +152,7 @@ static func _check_names(found: GDSExDependencies, code: String, scope_info: GDS
 		if GDSExLanguage.NON_CALL_KEYWORDS.has(name):
 			continue
 		if name == GDSExLanguage.SELF_KEYWORD or name == GDSExLanguage.SUPER_KEYWORD:
+			found.block(name, false)
 			_note_member(found, name)
 			continue
 		var lookup := GDSExSymbolIndex.find_variable(name, scope_info)

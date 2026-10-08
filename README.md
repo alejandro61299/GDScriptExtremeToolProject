@@ -2,7 +2,7 @@
 
 <img src="icon.svg" width="128" alt="GDScript Extreme Tool icon">
 
-A Godot editor plugin that adds code actions to the script editor's context menu: it generates functions, variables, signal callbacks and init functions from the code under the caret, writes the types of the variables, extracts functions, reorders the members of a class and formats it.
+A Godot editor plugin that adds code actions to the script editor's context menu: it generates functions, variables, signal callbacks and init functions from the code under the caret, writes the types of the variables, extracts functions and variables, reorders the members of a class and formats it.
 
 ## Actions
 
@@ -20,6 +20,7 @@ The script is analyzed only when you open that menu, so a plain right-click cost
 | Generate Custom Init Definition... | Opens a dialog to choose the name of the function and which variables become parameters: private, public or exported. It shows the function as you change it, with the colors of the script editor, and marks a name that cannot be used. |
 | Add Explicit Types | Writes the type of every variable of the script that has none, in class variables and in the local variables of every function: `var total := 0` becomes `var total: int = 0`. It does not matter how the `:=` is spaced. A variable declared with a plain `=` gets a type only when everything the script assigns to it has that type, so `var timer = 0` is left alone if the script does `timer += delta`. Variables whose type is not known are left as they are. |
 | Extract Function... | With some lines of a function selected, moves them to a new function and leaves the call in their place. A dialog asks for the name and shows the whole new function and the changed one, with the colors of the script editor. The variables the code reads become parameters and the one it changes is returned; if the last line is a `return` or assigns a variable, the call takes its place. When the last line assigns a class variable you choose whether the function assigns it or returns the value. It is not offered when the result could behave differently: a `return` in the middle, a `break` of an outer loop or more than one variable to return. |
+| Extract Variable... | With the caret on a value (`120.0`, `"text"`, `true`, `Enemy.new()`, `shapes.make()`, `$Sprite2D`), declares a variable with that value and leaves its name in its place. A dialog asks for the name, where the variable lives and whether it is a constant, static, private or `@onready`. See "Extract Variable". |
 | Reorder Class Members | Sorts the members of the class under the caret: signals, constants, static variables, enums, exports, onready, public and private variables, inner classes, static functions, `_init`, engine callbacks, public and private functions. |
 | Format Class Members | Normalizes blank lines between members, around comments and inside functions, lays out arrays, dictionaries and enums as the GDScript style guide does, puts the closing parenthesis of a multiline lambda argument on its own line, spaces commas and brackets as the guide does (`print(first, second)`, `table["key"]`, `if (ready)`), and removes extra spaces between tokens and at the end of lines. It never changes the order of the code. |
 
@@ -76,6 +77,32 @@ func scaled_area(p_circle: Circle, param_1: float) -> float:
 - The other script is changed in its tab and it is not saved. Godot compiles against the saved file, so the call stays marked as an error until you save that tab. Undo in that tab removes the function, and the back button of the script editor returns to the call.
 - It works on any script the plugin can read, also one inside `res://addons`. What you add to an addon you did not write is lost when you update it.
 - It is not offered for a class of the engine, for `super`, or when Godot is set to open scripts in an external editor.
+
+## Extract Variable
+
+Put the caret on a value, or select it, and choose **Extract Variable...**. A value is a number, a text, `true` or `false`, a call with everything before it (`shapes.make()`, not only `make()`), or a node (`$Sprite2D`, `%HealthBar`). With a selection you can also take anything written between brackets, such as `(health * 2)` or `[1, 2, 3]`.
+
+The dialog asks where the variable lives. Only the places that differ are shown, so most of the time there are two:
+
+| Where | The declaration goes |
+|---|---|
+| Block | On the line before, in the same block. Shown when the value is inside an `if`, a loop, a `match` or a lambda. |
+| Function | In the body of the function, before the statement that holds the value: before the `for`, not at the top. |
+| Class | With the members of the class, in the place **Reorder Class Members** would give it. |
+| Script | With the constants of the script. Shown when the function belongs to an inner class. |
+
+And its options: **Constant**, **Static**, **Private** and **On ready**. The proposed name follows them (`speed`, `SPEED`, `_speed`) until you type one.
+
+Two rules decide what you can choose:
+
+- **A button that is off would not compile**, and says why when you hover it. A value that reads a parameter cannot go to the class; a value that reads the variable of a loop cannot leave the loop; `Enemy.new()` cannot be a constant; an inner class can only read the constants of its script.
+- **A warning means the code compiles but the value is computed at another moment.** A class variable is computed once, when the object is created. A value taken out of a loop is computed once, before the loop. A value taken from the right side of an `and` is computed even when the left side is false, so `node.is_ready()` in `if node != null and node.is_ready():` would now run with a `null` node. Numbers, texts and other constants never get a warning.
+
+`@onready` is offered in scripts that extend `Node`, and it is set for you when the value needs the scene tree. A **Constant** is set for you where only a constant can go: the path of a `preload`, the argument of an annotation, the value of an `enum`.
+
+Some calls are not offered, because their result cannot be kept in a variable: a function that returns nothing, a function that waits with `await` (its result can only be read with `await`), and the `range(...)` of a `for`, which is what tells the loop that its variable is a whole number.
+
+Not included yet: operations without brackets (`a + b`), reading a member (`player.health`), and replacing every equal value at once.
 
 ## Requirements
 

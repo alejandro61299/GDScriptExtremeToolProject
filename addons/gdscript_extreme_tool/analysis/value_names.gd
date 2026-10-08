@@ -20,6 +20,7 @@ const FILE_FUNCTIONS: Array[String] = ["preload", "load"]
 
 static var _quoted_pattern := RegEx.create_from_string("[\"']([^\"']*)[\"']")
 static var _target_end_pattern := RegEx.create_from_string("(\\w+)\\s*(?::[^=]*)?$")
+static var _modifiers_pattern := RegEx.create_from_string("^(?:(?:@\\w+(?:\\([^)]*\\))?|static)\\s+)+")
 
 
 static func propose(value: GDSExValueFinder.GDSExValue, lines: PackedStringArray, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> String:
@@ -79,9 +80,12 @@ static func _from_path(path: String) -> String:
 
 static func _from_use(value: GDSExValueFinder.GDSExValue, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> String:
 	var code := value.statement.code
-	var assignment := GDSExVariableUsage.parse_assignment(code)
-	if assignment != null and assignment.value_start == value.start and value.end == code.length():
-		var target := _target_end_pattern.search(code.substr(assignment.statement_start, assignment.operator_start - assignment.statement_start).strip_edges())
+	var modifiers := _modifiers_pattern.search(code)
+	var declared := code if modifiers == null else code.substr(modifiers.get_end())
+	var shift := code.length() - declared.length()
+	var assignment := GDSExVariableUsage.parse_assignment(declared)
+	if assignment != null and assignment.value_start + shift == value.start and value.end == code.length():
+		var target := _target_end_pattern.search(declared.substr(assignment.statement_start, assignment.operator_start - assignment.statement_start).strip_edges())
 		if target != null:
 			return target.get_string(1)
 	for call in GDSExCallSiteParser.parse(code):
@@ -104,4 +108,6 @@ static func _parameter_name(call: GDSExCallSiteParser.GDSExCallSite, index: int,
 
 
 static func _is_usable(text: String) -> bool:
+	if GDSExLanguage.is_builtin_type(text) or GDSExLanguage.is_builtin_type(text.to_upper()):
+		return false
 	return GDSExTypeResolver.is_identifier(text) and not GDSExLanguage.NON_CALL_KEYWORDS.has(text) and not GDSExLanguage.LITERAL_KEYWORDS.has(text) and not GDSExLanguage.DECLARATION_KEYWORDS.has(text)

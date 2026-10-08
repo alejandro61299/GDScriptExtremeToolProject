@@ -78,6 +78,9 @@ const SHORT_CIRCUIT_WORDS: Array[String] = ["and", "or", "else"]
 const SHORT_CIRCUIT_SIGNS: Array[String] = ["&&", "||"]
 const CONDITION_WORD: String = "if"
 const SEPARATOR: String = ","
+const RANGE_FUNCTION: String = "range"
+const LOOP_KEYWORD: String = "for"
+const LOOP_SOURCE_WORD: String = " in"
 
 static var _modifiers_pattern := RegEx.create_from_string("^(?:(?:@\\w+(?:\\([^)]*\\))?|static)\\s+)+")
 static var _first_word_pattern := RegEx.create_from_string("^\\w+")
@@ -159,12 +162,13 @@ class GDSExExtraction:
 	var is_whole_constant_value: bool = false
 	var is_inside_a_constant: bool = false
 	var is_inside_a_static_variable: bool = false
+	var is_inside_a_preload: bool = false
 
 	func is_nested() -> bool:
 		return block_anchor != function_anchor
 
 	func needs_a_constant() -> bool:
-		return site == GDSExSite.ANNOTATION or site == GDSExSite.ENUM or is_inside_a_constant
+		return site == GDSExSite.ANNOTATION or site == GDSExSite.ENUM or is_inside_a_constant or is_inside_a_preload
 
 	func is_in_a_static_function() -> bool:
 		return is_inside_a_static_variable or (top_function != null and top_function.is_static)
@@ -180,7 +184,7 @@ static func analyze_selection(index: GDSExSymbolIndex.GDSExSymbolIndexData, line
 		return null
 	var scope_info := GDSExSymbolIndex.get_scope_info_for_line(index, value.first_position().x)
 	var resolved := GDSExTypeResolver.resolve_expression(value.code, scope_info)
-	if resolved.returns_nothing or resolved.is_class_reference:
+	if resolved.returns_nothing or resolved.is_class_reference or _gives_nothing_to_keep(value, scope_info) or _is_the_range_of_a_loop(value):
 		return null
 	var extraction := GDSExExtraction.new()
 	extraction.index = index
@@ -194,6 +198,7 @@ static func analyze_selection(index: GDSExSymbolIndex.GDSExSymbolIndexData, line
 	extraction.proposed_name = GDSExValueNames.propose(value, lines, scope_info)
 	extraction.loads_a_script = value.call != null and value.call.name == PRELOAD_FUNCTION and extraction.value_text.contains(SCRIPT_EXTENSION)
 	extraction.dependencies = GDSExValueDependencies.find(value, scope_info)
+	extraction.is_inside_a_preload = _is_inside_a_preload(value)
 	_find_site(extraction, index)
 	return extraction if default_choice(extraction) != null else null
 
@@ -376,6 +381,8 @@ static func written_name(extraction: GDSExExtraction, choice: GDSExChoice, base_
 
 
 static func check_name(extraction: GDSExExtraction, choice: GDSExChoice, variable_name: String) -> GDSExFunctionNameCheck.GDSExNameCheck:
+	if _is_a_parameter_of_its_lambda(extraction.value, variable_name):
+		return GDSExFunctionNameCheck.error(GDSExVariableNameCheck.LAMBDA_PARAMETER_MESSAGE % variable_name)
 	if choice.place == GDSExPlace.BLOCK or choice.place == GDSExPlace.FUNCTION:
 		var anchor_line := extraction.block_anchor_line if choice.place == GDSExPlace.BLOCK else extraction.function_anchor_line
 		return GDSExVariableNameCheck.check_local(variable_name, extraction.scope_info, GDSExSymbolIndex.get_scope_info_for_line(extraction.index, anchor_line))
@@ -394,10 +401,13 @@ static func declaration_prefix(extraction: GDSExExtraction, choice: GDSExChoice,
 
 
 static func declaration_lines(extraction: GDSExExtraction, choice: GDSExChoice, variable_name: String) -> PackedStringArray:
+	var statement := extraction.value.statement
+	var first_line := extraction.value.first_position().x
 	var source := GDSExValueFinder.source_lines(extraction.value, extraction.lines)
 	var declared := PackedStringArray([declaration_prefix(extraction, choice, variable_name) + source[0]])
 	for line_index in range(1, source.size()):
-		declared.append(source[line_index].trim_prefix(extraction.value.statement.indent_text))
+		var is_text := statement.string_lines.has(first_line + line_index)
+		declared.append(source[line_index] if is_text else source[line_index].trim_prefix(statement.indent_text))
 	return declared
 
 
@@ -419,8 +429,12 @@ static func build_plan_for(extraction: GDSExExtraction, choice: GDSExChoice, var
 		plan.replace_lines(first.x, last.x, PackedStringArray([extraction.lines[first.x].substr(0, first.y) + variable_name + extraction.lines[last.x].substr(last.y)]), line_map)
 		plan.line_replacement.caret = Vector2i(0, first.y + variable_name.length())
 	var snippet := GDSExSnippet.new()
-	for line in declaration_lines(extraction, choice, variable_name):
-		snippet.add_line(0, line)
+	var declared := declaration_lines(extraction, choice, variable_name)
+	for line_index in declared.size():
+		if extraction.value.statement.string_lines.has(first.x + line_index):
+			snippet.add_verbatim_line(declared[line_index])
+		else:
+			snippet.add_line(0, declared[line_index])
 	plan.insert(_declaration_point(extraction, choice, variable_name, indent_unit), snippet)
 	return plan
 
@@ -464,14 +478,59 @@ static func _class_of(extraction: GDSExExtraction, choice: GDSExChoice) -> GDSEx
 
 
 static func _calls_a_function_without_a_declared_result(value: GDSExValueFinder.GDSExValue, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> bool:
-	if value.call == null:
-		return false
-	var member: GDSExTypeResolver.GDSExMember = null
-	if value.call.receiver.is_empty():
-		member = GDSExTypeResolver.find_class_member(scope_info.class_scope, value.call.name)
-	else:
-		member = GDSExTypeResolver.find_member(GDSExTypeResolver.resolve_expression(value.call.receiver, scope_info), value.call.name)
+	var member := _called_member(value, scope_info)
 	return member != null and member.function != null and member.function.return_type == null
+
+
+static func _called_member(value: GDSExValueFinder.GDSExValue, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExTypeResolver.GDSExMember:
+	if value.call == null:
+		return null
+	if _is_called_on_the_object(value.call):
+		return GDSExTypeResolver.find_class_member(scope_info.class_scope, value.call.name)
+	return GDSExTypeResolver.find_member(GDSExTypeResolver.resolve_expression(value.call.receiver, scope_info), value.call.name)
+
+
+static func _is_called_on_the_object(call: GDSExCallSiteParser.GDSExCallSite) -> bool:
+	return call.receiver.is_empty() or call.receiver == GDSExLanguage.SELF_KEYWORD or call.receiver == GDSExLanguage.SUPER_KEYWORD
+
+
+static func _gives_nothing_to_keep(value: GDSExValueFinder.GDSExValue, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> bool:
+	var member := _called_member(value, scope_info)
+	if member == null or member.kind != GDSExTypeResolver.GDSExMember.GDSExKind.FUNCTION:
+		return false
+	if member.type != null and member.type.name == GDSExLanguage.VOID_TYPE_NAME:
+		return true
+	if member.function == null:
+		return false
+	if member.function.is_coroutine:
+		return true
+	if member.function.return_type != null or not _is_called_on_the_object(value.call):
+		return false
+	return GDSExTypeResolver.gives_no_result_in_the_engine(GDSExTypeResolver.engine_base_type(scope_info.class_scope), value.call.name)
+
+
+static func _is_the_range_of_a_loop(value: GDSExValueFinder.GDSExValue) -> bool:
+	if value.call == null or value.call.name != RANGE_FUNCTION or not value.call.receiver.is_empty():
+		return false
+	var code := value.statement.code
+	if _first_word_of(code) != LOOP_KEYWORD or not code.substr(0, value.start).strip_edges().ends_with(LOOP_SOURCE_WORD):
+		return false
+	var next := GDSExSourceScanner.skip_spaces(code, value.end)
+	return next < code.length() and code[next] == GDSExSourceScanner.BLOCK_OPENER
+
+
+static func _is_inside_a_preload(value: GDSExValueFinder.GDSExValue) -> bool:
+	for call in GDSExCallSiteParser.parse(value.statement.code):
+		if call.name == PRELOAD_FUNCTION and call.receiver.is_empty() and value.start > call.open_offset and value.end <= call.close_offset:
+			return true
+	return false
+
+
+static func _is_a_parameter_of_its_lambda(value: GDSExValueFinder.GDSExValue, variable_name: String) -> bool:
+	for lambda in GDSExVariableUsage.find_lambdas(value.statement):
+		if value.start > lambda.close_offset and value.start < lambda.end_offset and lambda.parameter_names.has(variable_name):
+			return true
+	return false
 
 
 static func _find_site(extraction: GDSExExtraction, index: GDSExSymbolIndex.GDSExSymbolIndexData) -> void:

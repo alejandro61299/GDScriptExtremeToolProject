@@ -40,5 +40,5 @@ func run(enemy: Node2D) -> void:
 	print(before, after)
 
 === expected
-get_child_count: valid - Variable name is valid.
+get_child_count: error - 'get_child_count' is a function of the engine class Node.
 === end

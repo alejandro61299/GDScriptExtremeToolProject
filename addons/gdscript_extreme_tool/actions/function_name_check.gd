@@ -77,6 +77,6 @@ static func _is_engine_property_or_signal(base_type: String, member_name: String
 	if ClassDB.class_has_signal(base_type, member_name):
 		return true
 	for property in ClassDB.class_get_property_list(base_type):
-		if property["name"] == member_name:
+		if property["name"] == member_name and not GDSExTypeResolver.is_a_group_of_properties(property):
 			return true
 	return false
