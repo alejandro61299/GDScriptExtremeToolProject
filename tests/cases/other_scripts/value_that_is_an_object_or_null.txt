@@ -1,0 +1,34 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(flag : bool, node : Node, amount : int, circle : Shapes.Circle) -> void:
+	var chosen := node if flag else null
+	var other := null if flag else node
+	var fresh := Node2D.new() if flag else null
+	var picked := circle if flag else null
+	var made := Shapes.make() if flag else null
+	var number = amount if flag else null
+	var text = "a" if flag else null
+	print(chosen, other, fresh, picked, made, number, text)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(flag : bool, node : Node, amount : int, circle : Shapes.Circle) -> void:
+	var chosen: Node = node if flag else null
+	var other: Node = null if flag else node
+	var fresh: Node2D = Node2D.new() if flag else null
+	var picked: Shapes.Circle = circle if flag else null
+	var made: Shapes.Circle = Shapes.make() if flag else null
+	var number = amount if flag else null
+	var text = "a" if flag else null
+	print(chosen, other, fresh, picked, made, number, text)
+
+=== end

@@ -25,7 +25,31 @@ The script is analyzed only when you open that menu, so a plain right-click cost
 
 Inner classes, lambdas and nested blocks are handled as their own scopes. Reordering, formatting and the init actions apply to the class under the caret and do not enter its inner classes. Add Explicit Types applies to the whole script, inner classes included, wherever the caret is.
 
-Add Explicit Types only reads the script it runs on. If another script assigns a value of a different type to one of its class variables, that assignment will need the old declaration back.
+Add Explicit Types does not look at how other scripts use the script it runs on. If another script assigns a value of a different type to one of its class variables, that assignment will need the old declaration back.
+
+## Types from other scripts
+
+The actions read the other scripts your script uses, so the types they write are the real ones:
+
+- Scripts loaded into a constant with `preload`, by path, by a path relative to the script or by `uid://`.
+- The base script, given as `extends "base.gd"` or as a class with `class_name`, and the bases above it.
+- Classes with `class_name`.
+
+A type declared in another script is written the way your script has to write it. If `shapes.gd` has a function that returns its inner class `Circle`, and your script loads it with `const Shapes = preload("shapes.gd")`, Add Explicit Types turns the first line into the second:
+
+```gdscript
+var made := Shapes.make()
+var made: Shapes.Circle = Shapes.make()
+```
+
+Every action uses the same name: the parameters and the result of an extracted function, the parameters of a generated function or signal callback, and the type of a generated variable. Enums work the same way: `Shapes.Kind.ROUND` is a `Shapes.Kind`.
+
+Things to know:
+
+- When no constant of your script leads to that class, the value is left without a type. The plugin does not add `preload` constants on its own.
+- If the other script is open in a tab with unsaved changes, the tab is read instead of the file. Godot compiles against the saved file, so it reports an error in your script until you save the other one.
+- `load()`, `get_script()`, scripts built at runtime and autoloads are not followed.
+- The plugin never writes in another script. Generate Function Definition is not offered for a call on an instance of another script.
 
 ## Requirements
 
@@ -79,6 +103,8 @@ This repository is a Godot project with the plugin in `addons/gdscript_extreme_t
 ```
 godot --headless --path . --script res://tests/run_tests.gd
 ```
+
+Some cases use the scripts in `tests/fixtures`, and two of those declare a global class. Godot has to know them: open the project once in the editor, or run `godot --headless --path . --import`. Until then the cases that need them are reported as pending.
 
 `addons/gdscript_extreme_tool/analysis/builtin_types.gd` is generated from the engine's API dump. Regenerate it when targeting a new Godot version:
 

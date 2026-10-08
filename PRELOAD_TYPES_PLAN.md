@@ -9,9 +9,11 @@ Hoy el plugin solo conoce bien los tipos del script que se está editando. Si un
 | P3 | Tipos del otro script nombrados desde el script actual | Hecha |
 | P4 | Herencia y clases globales por el mismo camino | Hecha |
 | P5 | Repaso acción por acción y reglas de seguridad | Hecha |
-| P6 | Pruebas masivas, rendimiento y documentación | Pendiente |
+| P6 | Pruebas masivas, rendimiento y documentación | Hecha |
 
 Cada paso termina con la suite en verde y una pasada de `--headless --editor --quit` sin errores ni avisos. Los commits los hace el usuario al cerrar cada paso.
+
+El plan está terminado. El resultado medido está en el apartado 7 y lo que queda fuera en el 8.
 
 ## 1. Qué cambia
 
@@ -347,21 +349,48 @@ Las 8 variables que quedan son todas del tipo «algo si se cumple, si no `null`�
 - Tiempo de abrir el menú, con la caché vacía y llena, en los scripts más grandes.
 - README, CHANGELOG y el apartado de límites de este plan.
 
-## 7. Cómo se mide
+Hecho el 2026-10-08:
 
-Medido el 2026-10-07 sobre los 46 scripts del proyecto, antes de empezar.
+- **Las variables que quedaban.** Las 8 eran valores del tipo «algo si se cumple, si no `null`». Cuando ese algo es un objeto, el valor tiene su tipo: `var chosen: Node = node if ready else null`. Con un número o un texto no, porque ahí Godot tampoco lo sabe. Ya no queda en el proyecto ninguna variable que "Add Explicit Types" deje sin tocar.
+- **Contraste con lo que ya está escrito, en la suite.** `action: check_written_types_of_project_scripts` recorre los scripts del proyecto y, en cada declaración con tipo y valor y en cada `return` de una función que declara lo que devuelve, compara el tipo escrito con el que da el plugin. Si alguno de los dos nombra una clase de script, tienen que coincidir, o el del plugin ser más concreto (una clase que hereda de la escrita), o el plugin no saber. Cualquier otra cosa es un fallo. Se comprobó rompiendo el nombrado de dos maneras: escribiendo la clase nativa en lugar de la de script y escribiendo otra clase del mismo script. Detecta las dos.
+- **Pruebas masivas.** Las dos que ya estaban en la suite (tipar todos los scripts y compilar; extraer uno de cada 60 rangos y compilar) ejercitan lo nuevo sin haberlas tocado. La prueba completa de extracciones se lanzó a mano al cerrar cada paso desde P2.
+- **README:** apartado nuevo, "Types from other scripts", y una nota en "Development" sobre los casos que necesitan las clases globales de prueba.
+- **CHANGELOG:** la entrada "Types from other scripts" en "Added" y las correcciones que salieron por el camino en "Fixed".
+- **`.gitattributes`:** quitadas las tres líneas de planes que ya no existen.
+- **2 casos nuevos**, 830 en total.
 
-| Medida | Hoy | Objetivo |
+## 7. Resultado
+
+Sobre los scripts del proyecto. La primera columna se midió el 2026-10-07, antes de empezar; la segunda el 2026-10-08, al terminar.
+
+| Medida | Al empezar | Al terminar |
 |---|---|---|
-| Variables que "Add Explicit Types" deja sin tocar | 238 de 1.053 | Las que de verdad no tienen tipo conocido; se revisan una a una en P6 |
-| De ellas, función estática de otro script | 116 | 0 |
-| De ellas, miembro de un valor cuyo tipo viene de otro script | 95 | 0 |
-| De ellas, instancia de una clase interna de otro script | 17 | 0 |
-| Extracciones rechazadas por tipo desconocido | 130 de 19.783 rangos | Cerca de 0 |
-| Extracciones que no compilan | 0 de 9.596 | 0 |
-| Suite | 734 casos | Todos, más los nuevos |
+| Variables que "Add Explicit Types" deja sin tocar | 238 de 1.053 | 0 de 1.174 |
+| Extracciones rechazadas por tipo desconocido | 130 de 19.783 rangos | 0 de 21.796 |
+| Extracciones que no compilan | 0 de 9.596 | 0 de 10.831 |
+| Tipos escritos a mano que el plugin acierta | sin medir | 1.660 de 1.927, de ellos 388 con una clase de script |
+| Tipos escritos a mano en que el plugin se equivoca | sin medir | 0 |
+| Suite | 734 casos | 830 casos |
 
-Coste de analizar otros scripts, que es lo que se añade al abrir el menú la primera vez:
+De los 1.927 sitios con un tipo escrito a mano, en los 267 que no coinciden el plugin da un tipo más concreto que el escrito (16), el valor es una colección vacía o un `Variant` (229) o el plugin no sabe (22).
+
+Fuera del proyecto, el addon GUT (76 scripts sin tipar, con clases globales) sigue compilando entero después de tipar 620 variables, y los 1.160 scripts que salen de los casos de la suite también.
+
+Tiempo de abrir el menú, medido en las mismas condiciones con el código de antes del plan y con el de ahora:
+
+| Script | Antes | Ahora, primera vez | Ahora, las siguientes |
+|---|---|---|---|
+| Media de los scripts del proyecto | 18 ms | 34 ms | 20 ms |
+| `class_layout.gd` (568 líneas, igual en los dos) | 21 ms | 55 ms | 24 ms |
+| `builtin_types.gd` (1.996 líneas, igual en los dos) | 125 ms | 128 ms | 128 ms |
+| `type_resolver.gd` (911 líneas antes, 1.181 ahora) | 69 ms | 124 ms | 95 ms |
+| `run_tests.gd` (1.546 líneas antes, 1.675 ahora) | 171 ms | 295 ms | 193 ms |
+
+La primera vez hay que leer los otros scripts; las siguientes cuestan en torno a un 10 % más que antes, a igualdad de líneas. `run_tests.gd` es el peor caso porque carga 24 scripts.
+
+Observado de paso y ajeno a este plan: el menú tarda 125 ms en `builtin_types.gd`, que es solo una tabla de constantes de 2.000 líneas. Ya pasaba antes.
+
+Coste de analizar otros scripts, medido antes de empezar para decidir la caché:
 
 | Medida | Valor |
 |---|---|
@@ -370,9 +399,7 @@ Coste de analizar otros scripts, que es lo que se añade al abrir el menú la pr
 | Scripts que carga un script directamente | 3,7 de media, 23 el que más |
 | Scripts alcanzables en total | 11,6 de media, 43 el que más |
 
-Con la caché llena el menú no debería tardar más que hoy. Con la caché vacía, el peor caso posible en este proyecto es analizarlos todos: 185 ms una vez.
-
-## 8. Límites que ya se conocen
+## 8. Límites
 
 - `load()`, `get_script()` y los scripts creados en ejecución.
 - Lo que el plugin lee de una pestaña sin guardar, Godot aún no lo ve (decisión 2).
@@ -381,6 +408,10 @@ Con la caché llena el menú no debería tardar más que hoy. Con la caché vac�
 - Autoloads. El mecanismo serviría para leer sus miembros, pero un autoload no tiene nombre de tipo salvo que declare `class_name`. Queda como candidato para después.
 - Scripts que no son GDScript.
 - Generar código en otro archivo: "Generate Function Definition" sobre una instancia de otro script sigue sin ofrecerse (detalle D5).
+- Un tipo al que solo se llega con más de un salto por otros scripts no se escribe (detalle D2).
+- Una función de otro script que no declara lo que devuelve, o una variable suya sin tipo, no sirven para tipar una variable declarada con `=` (detalle D8). Sí sirven para todo lo demás, como suposición.
+- Las funciones del motor que devuelven un enum (`json.parse()` devuelve `Error`) se siguen escribiendo como `int`. Ya pasaba antes y no es de este plan.
+- Ninguna de las pruebas se ha hecho en un editor con ventana: el menú, los diálogos y la lectura de pestañas se comprobaron en un editor sin ventana sobre proyectos temporales.
 
 ### Para después: crear funciones en otro script
 

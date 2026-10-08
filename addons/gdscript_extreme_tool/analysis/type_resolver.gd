@@ -307,7 +307,7 @@ static func is_enum_type(type_name: String, scope_info: GDSExSymbolIndex.GDSExSc
 		return false
 	if is_global_enum(type_name) or GDSExLanguage.is_known_type(type_name.get_slice(MEMBER_ACCESS, 0)):
 		return true
-	if scope_info == null or _find_type_class(type_name, scope_info) != null:
+	if scope_info == null or find_type_class(type_name, scope_info) != null:
 		return false
 	var enum_name := type_name.get_slice(MEMBER_ACCESS, type_name.get_slice_count(MEMBER_ACCESS) - 1)
 	return _find_enum_class(type_name, enum_name, scope_info, false) != null
@@ -460,9 +460,13 @@ static func _resolve_operation(text: String, scope_info: GDSExSymbolIndex.GDSExS
 	var condition := _find_text(text, TERNARY_CONDITION, 0)
 	var alternative := _find_text(text, TERNARY_ALTERNATIVE, condition + 1) if condition != -1 else -1
 	if alternative != -1:
-		var first := resolve_expression(text.substr(0, condition), scope_info)
-		var second := resolve_expression(text.substr(alternative + TERNARY_ALTERNATIVE.length()), scope_info)
-		return first if _same_type(first, second) else GDSExResolved.new()
+		var first_text := text.substr(0, condition).strip_edges()
+		var second_text := text.substr(alternative + TERNARY_ALTERNATIVE.length()).strip_edges()
+		var first := resolve_expression(first_text, scope_info)
+		var second := resolve_expression(second_text, scope_info)
+		if _same_type(first, second) or (second_text == NULL_LITERAL and _is_an_object(first)):
+			return first
+		return second if first_text == NULL_LITERAL and _is_an_object(second) else GDSExResolved.new()
 
 	for operator in BOOLEAN_OPERATORS:
 		if _find_text(text, operator, 0) != -1:
@@ -549,6 +553,12 @@ static func _arithmetic_result(left: GDSExResolved, right: GDSExResolved, operat
 	if numbers.has(left_name):
 		return right
 	return GDSExResolved.new()
+
+
+static func _is_an_object(resolved: GDSExResolved) -> bool:
+	if resolved.type == null or resolved.is_class_reference:
+		return false
+	return resolved.class_scope != null or ClassDB.class_exists(resolved.type.name)
 
 
 static func _same_type(first: GDSExResolved, second: GDSExResolved) -> bool:
@@ -845,7 +855,7 @@ static func _translated_name(type_name: String, written_in: GDSExSymbolIndex.GDS
 		return type_name
 	var is_another_script := written_in.index != scope_info.index
 	var enum_name := ""
-	var named_class := _find_type_class(type_name, written_in)
+	var named_class := find_type_class(type_name, written_in)
 	if named_class == null:
 		enum_name = type_name.get_slice(MEMBER_ACCESS, type_name.get_slice_count(MEMBER_ACCESS) - 1)
 		named_class = _find_enum_class(type_name, enum_name, written_in, false)
@@ -863,7 +873,7 @@ static func _find_enum_class(type_name: String, enum_name: String, scope_info: G
 		var declaring_class := GDSExScriptTypeNames.find_declaring_class(enum_name, scope_info.class_scope)
 		return declaring_class if declaring_class != null and GDSExScriptTypeNames.declares_enum(declaring_class, enum_name) else null
 	var owner_name := type_name.trim_suffix(MEMBER_ACCESS + enum_name)
-	var owner_class := _find_visible_class(owner_name, scope_info) if is_strict else _find_type_class(owner_name, scope_info)
+	var owner_class := _find_visible_class(owner_name, scope_info) if is_strict else find_type_class(owner_name, scope_info)
 	return null if owner_class == null else GDSExScriptTypeNames.find_enum_class(enum_name, owner_class)
 
 
@@ -909,11 +919,11 @@ static func _resolved_type(type: GDSExSymbolIndex.GDSExTypeData, scope_info: GDS
 	var resolved := GDSExResolved.new()
 	resolved.type = type
 	if type != null:
-		resolved.class_scope = _find_type_class(type.name, scope_info)
+		resolved.class_scope = find_type_class(type.name, scope_info)
 	return resolved
 
 
-static func _find_type_class(type_name: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExSymbolIndex.GDSExClassScope:
+static func find_type_class(type_name: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExSymbolIndex.GDSExClassScope:
 	var names := type_name.split(MEMBER_ACCESS)
 	var found := _find_named_class(names[0], scope_info)
 	for index in range(1, names.size()):

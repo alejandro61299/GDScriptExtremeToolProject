@@ -25,6 +25,8 @@ const GDSExStatementRange = preload("res://addons/gdscript_extreme_tool/analysis
 const GDSExExtractFunction = preload("res://addons/gdscript_extreme_tool/actions/extract_function.gd")
 const GDSExScriptLibrary = preload("res://addons/gdscript_extreme_tool/analysis/script_library.gd")
 const GDSExTypeResolver = preload("res://addons/gdscript_extreme_tool/analysis/type_resolver.gd")
+const GDSExScriptTypeNames = preload("res://addons/gdscript_extreme_tool/analysis/script_type_names.gd")
+const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -64,6 +66,8 @@ const EXPLICIT_TYPE_ACTION: String = "add_explicit_type"
 const FIXTURES_ROOT: String = "res://tests/fixtures/other_scripts"
 const TEMPORARY_ROOT: String = "user://gdscript_extreme_tool_tests"
 const LIBRARY_SCRIPT_VERSIONS: Array[String] = ["extends RefCounted\n\n\nfunc first() -> int:\n\treturn 1\n", "extends RefCounted\n\n\nfunc second() -> int:\n\treturn 2\n", "extends RefCounted\n\n\nfunc unsaved() -> int:\n\treturn 3\n"]
+const WRITTEN_TYPES_MINIMUM: int = 100
+const NULL_VALUE: String = "null"
 const SPLIT_OPERATORS: Array[String] = [" : = ", ":\t=", " :  =\t", ": =", " :="]
 const SETTING_COUNT: int = 10
 const NAME_CHECK_LEVELS: Array[String] = ["valid", "warning", "error"]
@@ -467,6 +471,8 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_explicit_types_of_project_scripts()
 		"check_script_library":
 			return _check_script_library()
+		"check_written_types_of_project_scripts":
+			return _check_written_types_of_project_scripts()
 	var action := _find_code_action(test_case.action)
 	if action == null:
 		return PackedStringArray(["Unknown action '%s'." % test_case.action])
@@ -1295,6 +1301,73 @@ func _split_inferred_operators(source: String) -> String:
 		lines[from.x] = lines[from.x].substr(0, from.y) + SPLIT_OPERATORS[declaration_count % SPLIT_OPERATORS.size()] + lines[from.x].substr(to.y)
 		declaration_count += 1
 	return "\n".join(lines)
+
+
+func _check_written_types_of_project_scripts() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var match_count := 0
+	for path in _project_script_paths():
+		GDSExScriptLibrary.refresh({})
+		var index := GDSExSymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"), path)
+		for symbol in GDSExSymbolIndex.find_variables(index.root):
+			var declaration := symbol.declaration
+			if declaration != null and declaration.has_type() and declaration.has_value():
+				match_count += _compare_with_written_type(path, index, symbol.start_line, GDSExSymbolIndex.parse_type(declaration.type_text), declaration.value, problems)
+		match_count += _compare_with_returned_types(path, index, index.root, problems)
+	if match_count < WRITTEN_TYPES_MINIMUM:
+		problems.append("Only %d written types that name a script class were matched: the check is not looking at the project." % match_count)
+	return problems
+
+
+func _compare_with_returned_types(path: String, index: GDSExSymbolIndex.GDSExSymbolIndexData, scope: GDSExSymbolIndex.GDSExScopeBase, problems: PackedStringArray) -> int:
+	var match_count := 0
+	var function := scope as GDSExSymbolIndex.GDSExFunctionScope
+	if function != null and function.return_type != null and not function.is_inline:
+		for return_index in function.return_codes.size():
+			match_count += _compare_with_written_type(path, index, function.return_lines[return_index], function.return_type, function.return_codes[return_index], problems)
+	for child in scope.children:
+		match_count += _compare_with_returned_types(path, index, child, problems)
+	return match_count
+
+
+func _compare_with_written_type(path: String, index: GDSExSymbolIndex.GDSExSymbolIndexData, line: int, written: GDSExSymbolIndex.GDSExTypeData, value: String, problems: PackedStringArray) -> int:
+	if value.is_empty() or value == NULL_VALUE:
+		return 0
+	var scope_info := GDSExSymbolIndex.get_scope_info_for_line(index, line)
+	var resolved := GDSExTypeResolver.resolve_expression(value, scope_info)
+	if resolved.type == null or resolved.is_class_reference or resolved.type.name == GDSExLanguage.VARIANT_TYPE_NAME:
+		return 0
+	if not _names_a_script_class(written) and not _names_a_script_class(resolved.type):
+		return 0
+	if GDSExSymbolIndex.type_to_string(resolved.type) == GDSExSymbolIndex.type_to_string(written):
+		return 1
+	if not _is_at_least(resolved.type, written, scope_info):
+		problems.append("%s:%d: the code says %s but the plugin takes the value for a %s." % [path, line + 1, GDSExSymbolIndex.type_to_string(written), GDSExSymbolIndex.type_to_string(resolved.type)])
+	return 0
+
+
+func _names_a_script_class(type: GDSExSymbolIndex.GDSExTypeData) -> bool:
+	for generic in type.generics:
+		if _names_a_script_class(generic):
+			return true
+	var owner_name := type.name.get_slice(".", 0)
+	return not GDSExLanguage.is_known_type(owner_name) and not GDSExTypeResolver.is_global_enum(owner_name) and type.name != GDSExLanguage.VOID_TYPE_NAME
+
+
+func _is_at_least(resolved: GDSExSymbolIndex.GDSExTypeData, written: GDSExSymbolIndex.GDSExTypeData, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> bool:
+	if resolved.name == written.name:
+		for generic_index in mini(resolved.generics.size(), written.generics.size()):
+			if not _is_at_least(resolved.generics[generic_index], written.generics[generic_index], scope_info):
+				return false
+		return true
+	var resolved_class := GDSExTypeResolver.find_type_class(resolved.name, scope_info)
+	var written_class := GDSExTypeResolver.find_type_class(written.name, scope_info)
+	if resolved_class != null and written_class != null:
+		return GDSExScriptTypeNames.class_and_bases(resolved_class).has(written_class)
+	if resolved_class != null:
+		var engine_base := GDSExTypeResolver.engine_base_type(resolved_class)
+		return engine_base == written.name or ClassDB.is_parent_class(engine_base, written.name)
+	return ClassDB.class_exists(resolved.name) and ClassDB.class_exists(written.name) and ClassDB.is_parent_class(resolved.name, written.name)
 
 
 func _check_script_library() -> PackedStringArray:
