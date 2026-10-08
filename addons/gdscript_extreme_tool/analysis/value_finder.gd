@@ -79,7 +79,7 @@ static func source_text(value: GDSExValue, lines: PackedStringArray) -> String:
 
 static func _find_at_caret(statement: GDSExSourceScanner.GDSExStatement, caret: int) -> GDSExValue:
 	var code := statement.code
-	for node in _find_nodes(code):
+	for node in find_nodes(code):
 		if caret >= node.x and caret <= node.y:
 			return _new_value(GDSExValue.GDSExKind.NODE, statement, node.x, node.y)
 	for literal in _find_literals(code):
@@ -109,7 +109,7 @@ static func _find_selected(statement: GDSExSourceScanner.GDSExStatement, selecti
 		to -= 1
 	if from == to:
 		return null
-	for node in _find_nodes(code):
+	for node in find_nodes(code):
 		if node.x == from and node.y == to:
 			return _new_value(GDSExValue.GDSExKind.NODE, statement, from, to)
 	for literal in _find_literals(code):
@@ -150,7 +150,7 @@ static func _find_literals(code: String) -> Array[Vector2i]:
 	return literals
 
 
-static func _find_nodes(code: String) -> Array[Vector2i]:
+static func find_nodes(code: String) -> Array[Vector2i]:
 	var nodes: Array[Vector2i] = []
 	for node in _node_pattern.search_all(code):
 		if code[node.get_start()] == UNIQUE_NODE_PREFIX and _follows_an_operand(code, node.get_start()):

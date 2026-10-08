@@ -150,7 +150,7 @@ static func _collect_local_names(scope: GDSExSymbolIndex.GDSExScopeBase, names: 
 
 static func _collect_occurrences(index: GDSExSymbolIndex.GDSExSymbolIndexData, statement: GDSExSourceScanner.GDSExStatement, local_names: Dictionary[String, bool], occurrences: Array[GDSExOccurrence]) -> void:
 	var code := statement.code
-	var lambdas := _find_lambdas(statement)
+	var lambdas := find_lambdas(statement)
 	var groups: GDSExBracketGroups.GDSExGroups = null
 	for identifier in _identifier_pattern.search_all(code):
 		var name := identifier.get_string()
@@ -223,7 +223,7 @@ static func _is_dictionary_key(code: String, groups: GDSExBracketGroups.GDSExGro
 	return group != null and code[group.open_offset] == GDSExBracketGroups.DICTIONARY_OPENING
 
 
-static func _find_lambdas(statement: GDSExSourceScanner.GDSExStatement) -> Array[GDSExLambda]:
+static func find_lambdas(statement: GDSExSourceScanner.GDSExStatement) -> Array[GDSExLambda]:
 	var lambdas: Array[GDSExLambda] = []
 	var code := statement.code
 	for header in _lambda_header_pattern.search_all(code):

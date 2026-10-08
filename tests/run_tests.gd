@@ -50,8 +50,11 @@ const EXTRACTION_SAMPLE_STEP: int = 60
 const EXTRACTION_RANGE_SIZES: Array[int] = [0, 1, 2]
 const TYPES_ACTION: String = "describe_types"
 const VALUE_ACTION: String = "describe_value"
+const PLACES_ACTION: String = "describe_variable_places"
+const OPTIONS_ACTION: String = "describe_variable_options"
 const NO_VALUE_LABEL: String = "no value"
-const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION, TYPES_ACTION, VALUE_ACTION]
+const WHERE_HEADER: String = "where"
+const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION, TYPES_ACTION, VALUE_ACTION, PLACES_ACTION, OPTIONS_ACTION]
 const UNSAVED_SECTION_PREFIX: String = "unsaved "
 const TAB_SECTION_PREFIX: String = "tab "
 const EXPECTED_SECTION_PREFIX: String = "expected "
@@ -545,6 +548,10 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_description(test_case, _describe_types(editor))
 		VALUE_ACTION:
 			return _check_description(test_case, _describe_value(editor))
+		PLACES_ACTION:
+			return _check_description(test_case, _describe_variable_places(editor))
+		OPTIONS_ACTION:
+			return _check_description(test_case, _describe_variable_options(editor, test_case.headers.get(WHERE_HEADER, "")))
 		"check_project_scripts":
 			return _check_project_scripts()
 		"check_no_false_targets":
@@ -822,6 +829,63 @@ func _describe_value(editor: CodeEdit) -> String:
 		"type: %s" % (UNKNOWN_TYPE_LABEL if extraction.type == null else GDSExSymbolIndex.type_to_string(extraction.type)),
 		"name: %s" % extraction.proposed_name,
 	]))
+
+
+func _describe_variable_places(editor: CodeEdit) -> String:
+	var extraction := GDSExExtractVariable.analyze(_context(editor))
+	if extraction == null:
+		return NO_VALUE_LABEL
+	var described := PackedStringArray(["value: %s" % extraction.value_text, "default: %s" % _choice_label(GDSExExtractVariable.default_choice(extraction))])
+	for place in GDSExExtractVariable.PLACES:
+		var state := GDSExExtractVariable.place_state(extraction, place)
+		if not state.is_shown:
+			continue
+		var label: String = GDSExExtractVariable.PLACE_LABELS[place]
+		if not state.reason.is_empty():
+			described.append("%s: off - %s" % [label, state.reason])
+			continue
+		var choice := GDSExExtractVariable.choice_for_place(extraction, place, GDSExExtractVariable.GDSExChoice.new())
+		var options := PackedStringArray()
+		for option in GDSExExtractVariable.OPTIONS:
+			var option_state := GDSExExtractVariable.option_state(extraction, choice, option)
+			if option_state.is_forced or option_state.reason.is_empty():
+				options.append(("=" if option_state.is_forced else "") + _option_word(option))
+		var line := "%s: ok [%s]" % [label, " ".join(options)]
+		for warning in GDSExExtractVariable.find_warnings(extraction, choice):
+			line += " ! " + warning
+		described.append(line)
+	return "\n".join(described)
+
+
+func _describe_variable_options(editor: CodeEdit, place_name: String) -> String:
+	var extraction := GDSExExtractVariable.analyze(_context(editor))
+	if extraction == null:
+		return NO_VALUE_LABEL
+	var place: GDSExExtractVariable.GDSExPlace = GDSExExtractVariable.PLACES[maxi(0, GDSExExtractVariable.PLACE_LABELS.find(place_name.capitalize()))]
+	var choice := GDSExExtractVariable.choice_for_place(extraction, place, GDSExExtractVariable.GDSExChoice.new())
+	var described := PackedStringArray()
+	for option in GDSExExtractVariable.OPTIONS:
+		var state := GDSExExtractVariable.option_state(extraction, choice, option)
+		var label: String = GDSExExtractVariable.OPTION_LABELS[option]
+		if state.is_forced:
+			described.append("%s: on - %s" % [label, state.reason])
+		elif state.reason.is_empty():
+			described.append("%s: ok" % label)
+		else:
+			described.append("%s: off - %s" % [label, state.reason])
+	return "\n".join(described)
+
+
+func _choice_label(choice: GDSExExtractVariable.GDSExChoice) -> String:
+	var words := PackedStringArray([GDSExExtractVariable.PLACE_LABELS[choice.place]])
+	for option in GDSExExtractVariable.OPTIONS:
+		if choice.has(option):
+			words.append(_option_word(option))
+	return " ".join(words)
+
+
+func _option_word(option: GDSExExtractVariable.GDSExOption) -> String:
+	return String(GDSExExtractVariable.OPTION_LABELS[option]).to_lower().replace(" ", "_")
 
 
 func _describe_types(editor: CodeEdit) -> String:

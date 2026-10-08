@@ -7,7 +7,7 @@ No se parece a "Generate Local Variable" ni a "Generate Class Variable". Aquella
 | Paso | Contenido | Estado |
 |---|---|---|
 | V1 | El valor bajo el cursor, su tipo y el nombre que se propone | Hecha |
-| V2 | De qué depende el valor, adónde puede ir y con qué opciones | Pendiente |
+| V2 | De qué depende el valor, adónde puede ir y con qué opciones | Hecha |
 | V3 | La edición: declaración, sustitución y comprobación del nombre | Pendiente |
 | V4 | El diálogo y la acción en el menú | Pendiente |
 | V5 | Pruebas masivas, rendimiento y documentación | Pendiente |
@@ -332,6 +332,44 @@ Comprobado de paso, porque condiciona qué tipo se puede escribir: una variable 
 - El motivo de cada botón apagado y el aviso de cada combinación que lo lleva (apartado 4.4).
 
 Verificación: `describe_variable_kinds` enseña cada sitio y cada opción con su motivo o su aviso. Un caso por fila de las tablas de los apartados 4.2, 4.3 y 4.4, y además: valor directamente en el cuerpo de la función, dentro de uno y de varios bloques, en una lambda de una y de varias líneas, en una función estática, en una clase interna y en una a dos niveles, valor por defecto de un parámetro, argumento de una anotación, valor de un enum, y un valor que lee a la vez una local y un miembro. Se repite la medida del apartado 5 separando lo que lee parámetros de lo que lee variables de un bloque.
+
+Hecho el 2026-10-08:
+
+- **`analysis/value_dependencies.gd`** (`GDSExValueDependencies`). Qué lee el valor: variables de un bloque, locales y parámetros, miembros del objeto, cosas de una clase interna, el árbol de escena, y si GDScript lo aceptaría en una constante. De cada cosa guarda el primer nombre, que es el que sale en el motivo.
+- **`actions/extract_variable.gd`**: los sitios que existen para un valor y cuáles se pueden usar, las opciones de cada sitio, la elección por defecto y cómo queda una elección al cambiar de sitio o pulsar una opción, y los avisos.
+- **`builtin_types.gd`** gana `MATH_FUNCTIONS`, las 78 funciones que valen en una constante, generada del volcado de la API. El resto del archivo regenerado es idéntico.
+- **Runner:** `describe_variable_places` enseña cada sitio, las opciones que admite y sus avisos; `describe_variable_options`, cada opción de un sitio con su motivo.
+- **103 casos** en `tests/cases/extract_variable_places/`, 1.125 en total. Uno o más por fila de las tablas de los apartados 4.2, 4.3 y 4.4, y los sitios especiales: función estática, clase interna y a dos niveles, lambda de una y de varias líneas, valor de una variable y de una constante de clase, valor por defecto de un parámetro, anotación, enum, función de una línea, patrón de un `match` y script que no es un nodo.
+- 100 de los 103 se escribieron a mano antes de ejecutarlos y pasaron a la primera. Los otros tres eran expectativas mías.
+- Se rompió el comportamiento a propósito de cuarenta y cinco maneras y se detectan cuarenta y cuatro. La que no, era una línea que sobraba y se quitó.
+
+Detalles decididos al implementar:
+
+- **Las cuatro opciones se enseñan siempre.** Las que no valen para el sitio elegido salen apagadas con su motivo ("Only a variable of the class can be static."). Así la fila no cambia de forma al cambiar de sitio. Los sitios sí se esconden cuando no son distintos, que es la decisión 8.
+- **Una opción puede estar obligada**: marcada y sin poder quitarse, con el motivo al pasar el ratón. Pasa con "Constant" en "Script" y dentro de una anotación o de un enum, con "On ready" cuando el valor usa el árbol de escena, y con "Static" dentro de una función estática si no se elige "Constant".
+- **Un valor que lee el parámetro de una lambda escrita en una línea no se puede extraer.** No hay línea dentro de la lambda donde declarar la variable. La acción no se ofrece.
+- **El aviso de orden no cuenta las funciones matemáticas ni los constructores de tipos básicos** que van antes: no tienen efectos.
+- **El motivo de "Constant" nombra lo primero que estorba**: en `Shapes.make().grown(2.0)` es `Shapes.make()`.
+- **Dentro del patrón de un `match`** la declaración va antes del `match`: entre dos patrones no cabe.
+
+Medido con el análisis ya hecho, sobre los valores que son llamadas:
+
+| Medida | Este proyecto (53 scripts) | GUT (86 scripts) |
+|---|---|---|
+| Llamadas dentro de funciones | 5.275 | 5.437 |
+| De ellas, son un valor que se puede extraer | 3.826 | 4.465 |
+| Están dentro de un bloque | 1.645 | 2.015 |
+| De esas, pueden salir a "Function" | 792 | 930 |
+| No pueden: leen algo del bloque | 853 | 1.085 |
+| Pueden ir a "Class" | 641 | 1.052 |
+| Pueden ser "Static" | 244 | 271 |
+| Pueden ser "Constant" | 3 | 41 |
+| El sitio más cercano lleva el aviso de «a veces o más de una vez» | 667 | 257 |
+| El sitio más cercano lleva el aviso de orden | 154 | 128 |
+
+Las llamadas que no son un valor son casi todas las que no devuelven nada. Los 1.078 números del proyecto y los 769 de GUT son todos extraíbles y constantes. Analizar los 6.353 valores del proyecto tarda 3,4 segundos, medio milisegundo por valor.
+
+Se revisó una muestra de 37 avisos del proyecto, uno de cada 23 de los de «a veces» y uno de cada 19 de los de orden: todos son correctos. El de «a veces» sale en el 17 % de las llamadas, más que el «una de cada ocho» estimado en el apartado 5, porque cuenta también las ramas de los valores condicionales y las lambdas de una línea.
 
 ### V3 — La edición
 
