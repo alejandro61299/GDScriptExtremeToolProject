@@ -1,6 +1,8 @@
 class_name GDSExTestGadget
 extends RefCounted
 
+signal resized(size: Size, part: Part)
+
 enum Size { SMALL, BIG }
 
 const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")

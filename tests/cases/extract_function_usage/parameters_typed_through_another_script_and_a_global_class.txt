@@ -1,0 +1,21 @@
+action: describe_extraction
+requires_global_class: GDSExTestGadget, GDSExTestGadgetChild
+=== input
+extends Node
+
+const Drawing = preload("res://tests/fixtures/other_scripts/drawing.gd")
+
+var names : Array[String] = []
+
+
+func run(gadget : GDSExTestGadget) -> void:
+	var circle := Drawing.default_circle()
+	var part := gadget.part
+	<|print(circle.radius, part.length)
+	var kind := Drawing.default_kind()|>
+	print(kind)
+=== expected
+form: ASSIGNMENT
+signature: func _new(circle: Drawing.Shapes.Circle, part: GDSExTestGadget.Part) -> Drawing.Shapes.Kind
+call: var kind := _new(circle, part)
+=== end

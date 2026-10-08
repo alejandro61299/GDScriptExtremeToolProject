@@ -46,7 +46,7 @@ func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
 		target.name = callback_name
 		target.target_class = context.scope_info.class_scope
 		target.signal_member = connection.signal_member
-		var snippet := _build_snippet(_build_signature(target, code, context.scope_info))
+		var snippet := _build_snippet(_build_signature(target, code, context.scope_info), context.scope_info)
 		plan.reveal(plan.insert(GDSExPlacement.new_function(target.target_class, context.scope_info, context.lines, context.indent_unit), snippet))
 	return plan
 

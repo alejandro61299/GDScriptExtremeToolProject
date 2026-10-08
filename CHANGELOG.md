@@ -10,7 +10,7 @@
 
 ### Changed
 
-- The actions read the scripts loaded with `preload`. A value that comes from a function, a constant, a member, a signal or an inner class of another script has its type now, written as it has to be written in the current script: `var made := Shapes.make()` becomes `var made: Shapes.Circle = ...`, and a function that returns `Array[Circle]` there gives an `Array[Shapes.Circle]` here. This reaches every action: the parameters and the result of an extracted function, the parameters of a generated function or callback, and the type of a generated variable. When no constant of the current script leads to that class, the value stays without a type. The same goes for a class with `class_name` and its inner classes, `Gadget.Part`, and for what a script inherits from its base script. If the other script is open with unsaved changes, the tab is read instead of the file.
+- The actions read the scripts loaded with `preload`. A value that comes from a function, a constant, a member, a signal or an inner class of another script has its type now, written as it has to be written in the current script: `var made := Shapes.make()` becomes `var made: Shapes.Circle = ...`, and a function that returns `Array[Circle]` there gives an `Array[Shapes.Circle]` here. This reaches every action: the parameters and the result of an extracted function, the parameters of a generated function or callback, and the type of a generated variable. When no constant of the current script leads to that class, the value stays without a type. The same goes for a class with `class_name` and its inner classes, `Gadget.Part`, and for what a script inherits from its base script. A value of an enum of another script has that enum as its type: `Shapes.Kind.ROUND` is a `Shapes.Kind`. If the other script is open with unsaved changes, the tab is read instead of the file.
 - The dialog of Generate Custom Init Definition... shows the whole function it will generate, with the colors and the font of the script editor, as the dialog of Extract Function... does. Its filters show clearly which ones are on and which ones have no variables.
 - Format spaces commas and brackets everywhere, not only in collections:
   - No space before a comma and one after it, in calls, parameters, signals, annotations, type hints and `match` patterns.
@@ -35,6 +35,8 @@
 - The members of a base script given by a relative path, `extends "base.gd"`, are found.
 - A member inherited from a base script has its real type. A function of the base script that returns one of its own classes was taken for its native class, such as `RefCounted`.
 - A class with `class_name` is known when it is used by its name: `Gadget.new()` is a `Gadget`.
+- Generate Local Variable and Generate Function Definition write `0`, not `null`, as the placeholder value of an enum type. `var pressed: Key = null` and a `return null` in a function that returns an enum did not compile.
+- A value chosen between two values of an enum, `Mode.ON if ready else Mode.OFF`, has that enum as its type, and so does a value of an enum of a nested class, `Outer.Mode.ON`.
 - A class or an enum nested in another class of the script is written with its full path, `Outer.Nested`, when it is used outside that class. The short name did not compile there.
 - A value created through the path of a nested class, `Outer.Nested.new()`, has that class as its type.
 - Items of a collection written at the indentation of their statement are no longer taken for separate statements.

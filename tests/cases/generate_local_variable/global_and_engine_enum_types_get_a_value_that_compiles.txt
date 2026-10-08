@@ -1,0 +1,19 @@
+action: generate_local_variable
+=== input
+extends Node
+
+
+func run(key : Key) -> void:
+	<|pressed|> = key
+	print(pressed)
+
+=== expected
+extends Node
+
+
+func run(key : Key) -> void:
+	var pressed: Key = <|0|>
+	pressed = key
+	print(pressed)
+
+=== end

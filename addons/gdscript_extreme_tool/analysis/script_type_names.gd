@@ -117,8 +117,10 @@ static func _prefix_of(holder: GDSExSymbolIndex.GDSExClassScope, asking_class: G
 	if _is_in_the_script_of(holder, asking_class):
 		prefix.text = class_path(holder)
 		return prefix
-	var heir := _find_heir(GDSExSymbolIndex.find_root_class(asking_class), holder)
-	prefix.text = name_of_class(holder, asking_class, written_in) if heir == null else name_of_class(heir, asking_class)
+	prefix.text = name_of_class(holder, asking_class, written_in)
+	var heir := _find_heir(GDSExSymbolIndex.find_root_class(asking_class), holder) if prefix.text.is_empty() else null
+	if heir != null:
+		prefix.text = name_of_class(heir, asking_class)
 	prefix.is_known = not prefix.text.is_empty()
 	return prefix
 

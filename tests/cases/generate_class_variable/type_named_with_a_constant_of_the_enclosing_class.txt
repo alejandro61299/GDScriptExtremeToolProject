@@ -1,0 +1,25 @@
+action: generate_class_variable
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+class Tool:
+	func run() -> void:
+		<|_kind|> = Shapes.Kind.SQUARE
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+class Tool:
+	var _kind: Shapes.Kind
+	
+	
+	func run() -> void:
+		<|_kind|> = Shapes.Kind.SQUARE
+
+=== end

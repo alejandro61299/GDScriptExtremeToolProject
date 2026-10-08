@@ -1,0 +1,32 @@
+action: run_extract_function_dialog
+options: {"name": "_kind_of"}
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(shapes : Shapes) -> void:
+	var circle := shapes.pick()
+	<|var kind := Shapes.kind_of(circle)
+	print(kind)|>
+	print(kind, circle)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(shapes : Shapes) -> void:
+	var circle := shapes.pick()
+	var kind := _kind_of(circle)<|>
+	print(kind, circle)
+
+
+func _kind_of(circle: Shapes.Circle) -> Shapes.Kind:
+	var kind := Shapes.kind_of(circle)
+	print(kind)
+	return kind
+
+=== end

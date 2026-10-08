@@ -1,0 +1,18 @@
+action: describe_extraction
+=== input
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+var names : Array[String] = []
+
+
+func run(factor : float) -> void:
+	var tool := make_tool()
+	var mode := Mode.ON
+	var circle := base_made()
+	<|print(tool.power, mode, circle.radius)|>
+	print(factor)
+=== expected
+form: PLAIN
+signature: func _new(tool: Tool, mode: Mode, circle: Shapes.Circle) -> void
+call: _new(tool, mode, circle)
+=== end

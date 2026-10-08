@@ -39,6 +39,7 @@ const MAX_DEFERRED_DEPTH: int = 16
 const NULL_LITERAL: String = "null"
 const CONSTRUCTOR_TEMPLATE: String = "%s.new()"
 const TYPED_ARRAY_TEMPLATE: String = "Array[%s]"
+const ENUM_DEFAULT_VALUE: String = "0"
 
 static var _modifiers_pattern := RegEx.create_from_string("^(?:(?:@\\w+(?:\\([^)]*\\))?|static)\\s+)+")
 static var _declaration_pattern := RegEx.create_from_string("^(?:var|const)\\s+\\w+(.*)$")
@@ -53,7 +54,7 @@ static var _guess_count: int = 0
 
 
 class GDSExMember:
-	enum GDSExKind { VARIABLE, FUNCTION, SIGNAL, CLASS }
+	enum GDSExKind { VARIABLE, FUNCTION, SIGNAL, CLASS, ENUM }
 
 	var kind: GDSExKind = GDSExKind.VARIABLE
 	var type: GDSExSymbolIndex.GDSExTypeData
@@ -72,11 +73,13 @@ class GDSExResolved:
 	var type: GDSExSymbolIndex.GDSExTypeData
 	var class_scope: GDSExSymbolIndex.GDSExClassScope
 	var function: GDSExSymbolIndex.GDSExFunctionScope
+	var enum_class: GDSExSymbolIndex.GDSExClassScope
+	var enum_name: String = ""
 	var is_class_reference: bool = false
 	var is_preloaded: bool = false
 
 	func is_known() -> bool:
-		return type != null or class_scope != null
+		return type != null or class_scope != null or enum_class != null
 
 
 class GDSExChainToken:
@@ -268,20 +271,24 @@ static func expected_value_type(statement_code: String, start: int, end: int, sc
 	return known_type
 
 
-static func default_variable_value(type: GDSExSymbolIndex.GDSExTypeData) -> String:
+static func default_variable_value(type: GDSExSymbolIndex.GDSExTypeData, scope_info: GDSExSymbolIndex.GDSExScopeInfo = null) -> String:
 	var type_name := GDSExSymbolIndex.get_base_type_name(type)
+	if is_enum_type(type_name, scope_info):
+		return ENUM_DEFAULT_VALUE
 	if type_name == GDSExLanguage.OBJECT_TYPE_NAME or not GDSExLanguage.is_builtin_type(type_name):
 		return NULL_LITERAL
 	var value := default_value_text(type)
 	return NULL_LITERAL if value.is_empty() else value
 
 
-static func default_value_text(type: GDSExSymbolIndex.GDSExTypeData) -> String:
+static func default_value_text(type: GDSExSymbolIndex.GDSExTypeData, scope_info: GDSExSymbolIndex.GDSExScopeInfo = null) -> String:
 	var type_name := GDSExSymbolIndex.get_base_type_name(type)
 	if type_name == GDSExLanguage.VOID_TYPE_NAME:
 		return ""
 	if type_name == GDSExLanguage.VARIANT_TYPE_NAME:
 		return NULL_LITERAL
+	if is_enum_type(type_name, scope_info):
+		return ENUM_DEFAULT_VALUE
 	for builtin_type in TYPE_MAX:
 		if type_string(builtin_type) != type_name:
 			continue
@@ -293,6 +300,17 @@ static func default_value_text(type: GDSExSymbolIndex.GDSExTypeData) -> String:
 	if ClassDB.class_exists(type_name) and not ClassDB.can_instantiate(type_name):
 		return NULL_LITERAL
 	return CONSTRUCTOR_TEMPLATE % type_name
+
+
+static func is_enum_type(type_name: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> bool:
+	if type_name.is_empty() or GDSExLanguage.is_known_type(type_name):
+		return false
+	if is_global_enum(type_name) or GDSExLanguage.is_known_type(type_name.get_slice(MEMBER_ACCESS, 0)):
+		return true
+	if scope_info == null or _find_type_class(type_name, scope_info) != null:
+		return false
+	var enum_name := type_name.get_slice(MEMBER_ACCESS, type_name.get_slice_count(MEMBER_ACCESS) - 1)
+	return _find_enum_class(type_name, enum_name, scope_info, false) != null
 
 
 static func _expected_type(statement_code: String, expression: String, parent: GDSExCallSiteParser.GDSExCallSite, argument_index: int, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExSymbolIndex.GDSExTypeData:
@@ -613,6 +631,9 @@ static func _resolve_bare_call(function_name: String, scope_info: GDSExSymbolInd
 
 static func _resolve_identifier(identifier: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
 	var variable := GDSExSymbolIndex.find_variable(identifier, scope_info)
+	var declaring_class := variable.scope as GDSExSymbolIndex.GDSExClassScope
+	if declaring_class != null and GDSExScriptTypeNames.declares_enum(declaring_class, identifier):
+		return _enum_reference(declaring_class, identifier)
 	if variable.is_defined:
 		return _resolve_symbol(variable.symbol, variable.type, scope_info)
 	var member := find_class_member(scope_info.class_scope, identifier)
@@ -661,6 +682,11 @@ static func _resolve_member_token(owner: GDSExResolved, token_text: String, scop
 	if not token.is_valid or token.name.is_empty():
 		return GDSExResolved.new()
 	var resolved := GDSExResolved.new()
+	if owner.enum_class != null and not token.is_call and not token.is_indexed:
+		var enum_type_name := GDSExScriptTypeNames.name_of_enum(owner.enum_name, owner.enum_class, scope_info.class_scope)
+		return resolved if enum_type_name.is_empty() else _resolved_name(enum_type_name, scope_info)
+	if owner.enum_class != null:
+		owner = _resolved_name(GDSExLanguage.DICTIONARY_TYPE_NAME, scope_info)
 	if owner.function != null and token.is_call and GDSExLanguage.CALLABLE_INVOCATIONS.has(token.name):
 		var home := _home_scope_info(owner.function, scope_info)
 		resolved = _exported(_resolved_return(function_return_type(owner.function, home), home), home, scope_info)
@@ -690,6 +716,13 @@ static func _builtin_constant_type(type_name: String, token: GDSExChainToken) ->
 	return GDSExSymbolIndex.make_type(GDSExLanguage.INTEGER_TYPE_NAME if constant_type.contains(MEMBER_ACCESS) else constant_type)
 
 
+static func _enum_reference(declaring_class: GDSExSymbolIndex.GDSExClassScope, enum_name: String) -> GDSExResolved:
+	var reference := GDSExResolved.new()
+	reference.enum_class = declaring_class
+	reference.enum_name = enum_name
+	return reference
+
+
 static func _class_alias(alias_name: String, script_path: String) -> GDSExResolved:
 	var alias := GDSExResolved.new()
 	alias.type = GDSExSymbolIndex.make_type(alias_name)
@@ -710,6 +743,8 @@ static func _resolved_member_at_home(member: GDSExMember, is_call: bool, home: G
 	if member.is_class_alias:
 		return _class_alias(member.type.name, member.script_path)
 	match member.kind:
+		GDSExMember.GDSExKind.ENUM:
+			return _enum_reference(member.owner_scope, member.symbol.name)
 		GDSExMember.GDSExKind.CLASS:
 			var reference := GDSExResolved.new()
 			reference.type = GDSExSymbolIndex.make_type(member.class_scope.name)
@@ -973,6 +1008,8 @@ static func _find_own_member(class_scope: GDSExSymbolIndex.GDSExClassScope, memb
 		member = _function_member(class_scope.functions[member_name][0])
 	elif class_scope.vars.has(member_name):
 		member = _symbol_member(class_scope.vars[member_name])
+		if GDSExScriptTypeNames.declares_enum(class_scope, member_name):
+			member.kind = GDSExMember.GDSExKind.ENUM
 	elif class_scope.signals.has(member_name):
 		member = _signal_member(class_scope.signals[member_name])
 	elif class_scope.inner_classes.has(member_name):

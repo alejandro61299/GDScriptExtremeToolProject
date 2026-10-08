@@ -1,0 +1,36 @@
+action: add_explicit_type
+=== input
+extends Node
+
+enum Mode { OFF, ON }
+
+
+class Tool:
+	func run(flag : bool) -> void:
+		var chosen := Mode.ON if flag else Mode.OFF
+		print(chosen)
+
+
+func run(flag : bool) -> void:
+	var chosen := Mode.ON if flag else Mode.OFF
+	var names := Mode.keys()
+	print(chosen, names)
+
+=== expected
+extends Node
+
+enum Mode { OFF, ON }
+
+
+class Tool:
+	func run(flag : bool) -> void:
+		var chosen: Mode = Mode.ON if flag else Mode.OFF
+		print(chosen)
+
+
+func run(flag : bool) -> void:
+	var chosen: Mode = Mode.ON if flag else Mode.OFF
+	var names: Array = Mode.keys()
+	print(chosen, names)
+
+=== end

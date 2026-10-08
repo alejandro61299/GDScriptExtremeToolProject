@@ -1,0 +1,24 @@
+action: generate_connected_function
+=== input
+extends Node
+
+const Drawing = preload("res://tests/fixtures/other_scripts/drawing.gd")
+
+
+func setup(drawing : Drawing) -> void:
+	drawing.shapes.changed.connect(<|>)
+
+=== expected
+extends Node
+
+const Drawing = preload("res://tests/fixtures/other_scripts/drawing.gd")
+
+
+func setup(drawing : Drawing) -> void:
+	drawing.shapes.changed.connect(_on_changed)
+
+
+func _on_changed(p_circle: Drawing.Shapes.Circle, p_amount: int) -> void:
+	<|pass|>
+
+=== end

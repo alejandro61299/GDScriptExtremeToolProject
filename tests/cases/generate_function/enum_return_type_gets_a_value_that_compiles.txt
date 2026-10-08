@@ -1,0 +1,30 @@
+action: generate_function
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+enum Mode { OFF, ON }
+
+
+func run() -> void:
+	var mode : Mode = _pick()<|>
+	print(mode)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+enum Mode { OFF, ON }
+
+
+func run() -> void:
+	var mode : Mode = _pick()
+	print(mode)
+
+
+func _pick() -> Mode:
+	<|return 0|>
+
+=== end

@@ -8,7 +8,7 @@ Hoy el plugin solo conoce bien los tipos del script que se está editando. Si un
 | P2 | De un nombre a la clase de otro script, y sus miembros de tipo básico | Hecha |
 | P3 | Tipos del otro script nombrados desde el script actual | Hecha |
 | P4 | Herencia y clases globales por el mismo camino | Hecha |
-| P5 | Repaso acción por acción y reglas de seguridad | Pendiente |
+| P5 | Repaso acción por acción y reglas de seguridad | Hecha |
 | P6 | Pruebas masivas, rendimiento y documentación | Pendiente |
 
 Cada paso termina con la suite en verde y una pasada de `--headless --editor --quit` sin errores ni avisos. Los commits los hace el usuario al cerrar cada paso.
@@ -87,6 +87,7 @@ No los ha fijado el usuario; son la forma concreta que propongo y se pueden camb
 - **D13. A través de una clase del script que hereda.** Si una clase interna del script hereda del script donde está el tipo, se escribe pasando por ella: `Worker.Tool`. Salió en P4.
 - **D14. A través del script donde está escrito el tipo.** Si ese script tiene nombre directo (un `class_name` o una constante visible), vale como salto: `GDSExTestGadget.Shapes.Circle`. Es el mismo salto único del detalle D2, sin buscar. Salió en P4.
 - **D15. El texto del usuario se respeta.** Si el nombre tal como está escrito significa lo mismo desde donde se pregunta, no se cambia por otro equivalente. Evita, por ejemplo, sustituir la constante que usó el usuario por el `class_name` del mismo script. Salió en P4.
+- **D16. Valor por defecto de un enum.** Donde una acción escribe un valor de relleno para un tipo que es un enum, escribe `0`. Es lo único que Godot acepta para cualquier enum, sea del script, de otro script, global o del motor, sin tener que conocer sus valores. Salió en P5.
 - **D10. Pestañas y scripts.** Godot da por separado la lista de scripts abiertos y la de pestañas, y la segunda incluye las de archivos que no son scripts. Se emparejan por orden, descartando esas. Si las cuentas no cuadran, no se lee ninguna pestaña y se usa el archivo de todos los scripts: es la dirección segura. Fuera del editor (los tests) el texto sin guardar se da a mano.
 
 ## 4. Comportamiento
@@ -309,6 +310,34 @@ En una copia del proyecto sin la caché de Godot, los 8 casos de clases globales
 - **Extract Function...**, **Generate Function Definition**, **Generate Local Variable** y **Generate Connected Function** tienen ya casos con tipos de otros scripts desde P2 y P3. Aquí se repasa lo que falte: **Generate Class Variable**, las vistas previas de los dos diálogos y las variaciones que no se hayan cubierto.
 
 Verificación: casos en la carpeta de cada acción, con variaciones: alias propio, heredado y alias de alias; clase interna; enum; tipo que no se puede escribir. Un caso por acción que compruebe que una clase de otro script no recibe código (D5).
+
+Hecho el 2026-10-08:
+
+- **Un valor de un enum tiene ese enum como tipo**, en el resolvedor y por tanto en todas las acciones: `Shapes.Kind.ROUND` es `Shapes.Kind`, `Outer.Mode.ON` es `Outer.Mode`, `Mode.ON` con un enum heredado es `Mode`, y `GDSExTestGadget.Size.BIG` es `GDSExTestGadget.Size`. También cuando se elige entre dos valores con una condición. Las funciones de un enum (`Kind.keys()`, `Kind.size()`) son las de un diccionario, que es lo que es un enum en GDScript.
+- **Un fallo que ya existía, corregido** (detalle D16). "Generate Local Variable" y "Generate Function Definition" escribían `null` como valor de relleno para un tipo enum, y eso no compila: `var pressed: Key = null`, o `return null` en una función que devuelve un enum. Pasaba con cualquier enum, también los globales y los del motor. Ahora escriben `0`.
+- **Orden al nombrar.** El nombre directo del otro script (su `class_name` o una constante visible) va antes que el camino por una clase interna que hereda (detalle D13): `GDSExTestGadget.Size`, no `Child.Size`.
+- **Repaso por acción**, con casos nuevos en la carpeta de cada una:
+  - Add Explicit Types: valores de un enum de otro script, a través de otro script, heredado, de una clase global, de una clase anidada y del propio script elegido con una condición.
+  - Generate Class Variable: tipo sacado de una función, de un enum y de un parámetro de otro script, con la constante de la clase envolvente, y sin tipo cuando no se puede escribir.
+  - Generate Local Variable: tipo de una función de otro script, de una clase y un enum heredados, sin tipo cuando no se puede escribir, y los tres casos del valor de relleno de un enum.
+  - Generate Function Definition: parámetros con enums de otros scripts y del propio, parámetro cuyo tipo no se puede escribir, tipo devuelto sacado de una variable de otro script, los dos casos del `return` de un enum, y dos del detalle D5: no se ofrece sobre una clase heredada de un script base, y sí se ofrece, escribiendo en el propio script, cuando se llega al script editado de vuelta a través de otro.
+  - Generate Connected Function: señal alcanzada a través de otro script, señal de una clase global y parámetro cuyo tipo no se puede escribir.
+  - Extract Function...: parámetros con nombres heredados, a través de otro script y de una clase global, y el diálogo con tipos de otro script.
+  - Init: "Generate Default Init Definition" con variables tipadas o inferidas con clases de otro script, y el diálogo de "Generate Custom Init Definition..." con nombres heredados.
+- **Las vistas previas de los dos diálogos** usan las mismas funciones que la acción, así que basta con los dos casos que pasan por el diálogo.
+- **31 casos nuevos**, 828 en total. Se rompió el comportamiento a propósito de cinco maneras; una no la detectaba ningún caso, se añadieron dos y ahora se detectan las cinco. Seis de los casos nuevos se probaron contra el commit anterior y fallan allí.
+
+Medido al cerrar el paso, sobre los scripts del proyecto:
+
+| Medida | Al empezar | Tras P4 | Ahora |
+|---|---|---|---|
+| Variables que "Add Explicit Types" deja sin tocar | 238 de 1.053 | 8 de 1.156 | 8 de 1.160 |
+| Extracciones rechazadas por tipo desconocido | 130 de 19.783 rangos | 6 de 21.531 | 6 de 21.622 |
+| Extracciones que no compilan | 0 de 9.596 | 0 de 10.695 | 0 de 10.738 |
+| Tipos escritos a mano que el plugin acierta | sin medir | 1.582 de 1.895 | 1.619 de 1.907 |
+| Abrir el menú con los otros scripts ya leídos | 17,0 ms de media | 17,8 ms | 17,7 ms |
+
+Las 8 variables que quedan son todas del tipo «algo si se cumple, si no `null`». El valor de un enum elegido con una condición, que era la otra que quedaba, ya se tipa. En el contraste con los tipos escritos a mano siguen los mismos 16 sitios donde el plugin da un tipo más concreto que el escrito, y ninguno equivocado.
 
 ### P6 — Pruebas masivas, rendimiento y cierre
 

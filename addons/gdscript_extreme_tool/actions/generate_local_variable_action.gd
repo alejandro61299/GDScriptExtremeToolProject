@@ -17,7 +17,7 @@ func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
 	if scope == null:
 		return null
 	var declaration := INITIALIZER_TEMPLATE % declaration_text(identifier)
-	var value := GDSExTypeResolver.default_variable_value(identifier.type)
+	var value := GDSExTypeResolver.default_variable_value(identifier.type, context.scope_info)
 	var snippet := GDSExSnippet.new()
 	snippet.add_line(0, declaration + value)
 	snippet.select(0, declaration.length(), declaration.length() + value.length())

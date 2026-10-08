@@ -54,7 +54,7 @@ func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
 		return null
 	var signature := _build_signature(target, code, context.scope_info)
 	var plan := GDSExEditPlan.new()
-	plan.reveal(plan.insert(GDSExPlacement.new_function(target.target_class, context.scope_info, context.lines, context.indent_unit), _build_snippet(signature)))
+	plan.reveal(plan.insert(GDSExPlacement.new_function(target.target_class, context.scope_info, context.lines, context.indent_unit), _build_snippet(signature, context.scope_info)))
 	return plan
 
 
@@ -159,13 +159,13 @@ func _add_param(signature: GDSExFunctionSignature, source_name: String, type: GD
 	signature.param_types.append(type)
 
 
-func _build_snippet(signature: GDSExFunctionSignature) -> GDSExSnippet:
+func _build_snippet(signature: GDSExFunctionSignature, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExSnippet:
 	var params := PackedStringArray()
 	for index in signature.param_names.size():
 		var type_text := GDSExSymbolIndex.type_to_string(signature.param_types[index])
 		var param_name := signature.param_names[index]
 		params.append(param_name if type_text.is_empty() else TYPED_PARAM_TEMPLATE % [param_name, type_text])
-	var default_value := GDSExTypeResolver.default_value_text(signature.return_type)
+	var default_value := GDSExTypeResolver.default_value_text(signature.return_type, scope_info)
 	var snippet := GDSExSnippet.new()
 	snippet.add_line(0, FUNCTION_HEADER_TEMPLATE % [
 		STATIC_PREFIX if signature.is_static else "",

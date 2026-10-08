@@ -1,0 +1,24 @@
+action: generate_function
+=== input
+extends Node
+
+enum Mode { OFF, ON }
+
+
+func run() -> void:
+	_show(Mode.ON)<|>
+
+=== expected
+extends Node
+
+enum Mode { OFF, ON }
+
+
+func run() -> void:
+	_show(Mode.ON)
+
+
+func _show(param_0: Mode) -> void:
+	<|pass|>
+
+=== end

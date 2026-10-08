@@ -1,0 +1,36 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+class Outer:
+	enum Mode { OFF, ON }
+
+	func inside() -> void:
+		var own := Mode.ON
+		print(own)
+
+
+func run(flag : bool) -> void:
+	var mode := Outer.Mode.ON
+	var chosen := Outer.Mode.ON if flag else Outer.Mode.OFF
+	print(mode, chosen)
+
+=== expected
+extends Node
+
+
+class Outer:
+	enum Mode { OFF, ON }
+
+	func inside() -> void:
+		var own: Mode = Mode.ON
+		print(own)
+
+
+func run(flag : bool) -> void:
+	var mode: Outer.Mode = Outer.Mode.ON
+	var chosen: Outer.Mode = Outer.Mode.ON if flag else Outer.Mode.OFF
+	print(mode, chosen)
+
+=== end

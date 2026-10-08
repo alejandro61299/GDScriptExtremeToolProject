@@ -1,0 +1,22 @@
+action: generate_class_variable
+=== input
+extends Node
+
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
+
+
+func run(first : ChainFirst) -> void:
+	<|_third|> = first.second.third
+
+=== expected
+extends Node
+
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
+
+var _third
+
+
+func run(first : ChainFirst) -> void:
+	<|_third|> = first.second.third
+
+=== end
