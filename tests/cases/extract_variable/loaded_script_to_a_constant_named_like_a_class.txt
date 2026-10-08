@@ -1,0 +1,64 @@
+action: extract_variable
+options: {"where": "class", "constant": true}
+=== input
+extends Node
+
+signal changed
+
+const LIMIT: int = 3
+
+static var shared: int = 0
+
+@export var title: String = ""
+
+@onready var root_node: Node = get_parent()
+
+var health: int = 10
+var items: Array[int] = []
+
+var _cache: Array[int] = []
+
+
+static func helper() -> int:
+	return 1
+
+
+func get_health() -> int:
+	return health
+
+
+func run(enemy: Node2D) -> void:
+	print(prel<|>oad("res://tests/fixtures/other_scripts/shapes.gd"), enemy)
+
+=== expected
+extends Node
+
+signal changed
+
+const LIMIT: int = 3
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+static var shared: int = 0
+
+@export var title: String = ""
+
+@onready var root_node: Node = get_parent()
+
+var health: int = 10
+var items: Array[int] = []
+
+var _cache: Array[int] = []
+
+
+static func helper() -> int:
+	return 1
+
+
+func get_health() -> int:
+	return health
+
+
+func run(enemy: Node2D) -> void:
+	print(Shapes<|>, enemy)
+
+=== end

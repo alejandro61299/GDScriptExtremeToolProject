@@ -52,9 +52,13 @@ const TYPES_ACTION: String = "describe_types"
 const VALUE_ACTION: String = "describe_value"
 const PLACES_ACTION: String = "describe_variable_places"
 const OPTIONS_ACTION: String = "describe_variable_options"
+const VARIABLE_NAME_ACTION: String = "describe_variable_name"
+const VARIABLE_WARNINGS_ACTION: String = "describe_variable_warnings"
+const OPTIONS_HEADER: String = "options"
+const NO_WARNINGS_LABEL: String = "no warnings"
 const NO_VALUE_LABEL: String = "no value"
 const WHERE_HEADER: String = "where"
-const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION, TYPES_ACTION, VALUE_ACTION, PLACES_ACTION, OPTIONS_ACTION]
+const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION, TYPES_ACTION, VALUE_ACTION, PLACES_ACTION, OPTIONS_ACTION, VARIABLE_NAME_ACTION, VARIABLE_WARNINGS_ACTION]
 const UNSAVED_SECTION_PREFIX: String = "unsaved "
 const TAB_SECTION_PREFIX: String = "tab "
 const EXPECTED_SECTION_PREFIX: String = "expected "
@@ -193,6 +197,47 @@ class GenerationTally:
 	var parameters: int = 0
 	var compiled: int = 0
 	var problems: PackedStringArray = []
+
+
+class VariableTestAction extends "res://addons/gdscript_extreme_tool/actions/code_action.gd":
+	const NAME_OPTION: String = "name"
+	const WHERE_OPTION: String = "where"
+
+	var options: Dictionary = {}
+
+	func get_label() -> String:
+		return "Extract Variable Test"
+
+	func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
+		var extraction := GDSExExtractVariable.analyze(context)
+		var choice := choose(extraction)
+		if choice == null:
+			return null
+		var variable_name := name_for(extraction, choice)
+		if GDSExExtractVariable.check_name(extraction, choice, variable_name).is_error():
+			return null
+		return GDSExExtractVariable.build_plan_for(extraction, choice, variable_name, context.indent_unit)
+
+	func name_for(extraction: GDSExExtractVariable.GDSExExtraction, choice: GDSExExtractVariable.GDSExChoice) -> String:
+		return options.get(NAME_OPTION, GDSExExtractVariable.default_name(extraction, choice))
+
+	func choose(extraction: GDSExExtractVariable.GDSExExtraction) -> GDSExExtractVariable.GDSExChoice:
+		if extraction == null:
+			return null
+		var choice := GDSExExtractVariable.default_choice(extraction)
+		if options.has(WHERE_OPTION):
+			var place: GDSExExtractVariable.GDSExPlace = GDSExExtractVariable.PLACES[GDSExExtractVariable.PLACE_LABELS.find(String(options[WHERE_OPTION]).capitalize())]
+			if not GDSExExtractVariable.place_state(extraction, place).is_usable():
+				return null
+			choice = GDSExExtractVariable.choice_for_place(extraction, place, choice)
+		for option in GDSExExtractVariable.OPTIONS:
+			var key := String(GDSExExtractVariable.OPTION_LABELS[option]).to_lower().replace(" ", "_")
+			if not options.has(key) or options[key] == choice.has(option):
+				continue
+			if not GDSExExtractVariable.option_state(extraction, choice, option).is_enabled():
+				return null
+			choice = GDSExExtractVariable.choice_with_option(extraction, choice, option, options[key])
+		return choice
 
 
 class OtherScriptTestAction extends "res://addons/gdscript_extreme_tool/actions/code_action.gd":
@@ -552,6 +597,14 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_description(test_case, _describe_variable_places(editor))
 		OPTIONS_ACTION:
 			return _check_description(test_case, _describe_variable_options(editor, test_case.headers.get(WHERE_HEADER, "")))
+		VARIABLE_NAME_ACTION:
+			return _check_description(test_case, _describe_variable_name(test_case, editor))
+		VARIABLE_WARNINGS_ACTION:
+			return _check_description(test_case, _describe_variable_warnings(test_case, editor))
+		"extract_variable":
+			return _check_code_action(test_case, _variable_action(test_case), editor)
+		"check_variable_extraction_behavior":
+			return _check_variable_extraction_behavior(test_case, editor)
 		"check_project_scripts":
 			return _check_project_scripts()
 		"check_no_false_targets":
@@ -829,6 +882,61 @@ func _describe_value(editor: CodeEdit) -> String:
 		"type: %s" % (UNKNOWN_TYPE_LABEL if extraction.type == null else GDSExSymbolIndex.type_to_string(extraction.type)),
 		"name: %s" % extraction.proposed_name,
 	]))
+
+
+func _variable_action(test_case: TestCase) -> VariableTestAction:
+	var action := VariableTestAction.new()
+	var options: Variant = str_to_var(test_case.headers.get(OPTIONS_HEADER, "{}"))
+	if options is Dictionary:
+		action.options = options
+	return action
+
+
+func _describe_variable_name(test_case: TestCase, editor: CodeEdit) -> String:
+	var action := _variable_action(test_case)
+	var extraction := GDSExExtractVariable.analyze(_context(editor))
+	var choice := action.choose(extraction)
+	if choice == null:
+		return NO_VALUE_LABEL
+	var variable_name := action.name_for(extraction, choice)
+	var check := GDSExExtractVariable.check_name(extraction, choice, variable_name)
+	return "%s: %s - %s" % [variable_name, NAME_CHECK_LEVELS[check.level], check.message]
+
+
+func _describe_variable_warnings(test_case: TestCase, editor: CodeEdit) -> String:
+	var extraction := GDSExExtractVariable.analyze(_context(editor))
+	var choice := _variable_action(test_case).choose(extraction)
+	if choice == null:
+		return NO_VALUE_LABEL
+	var warnings := GDSExExtractVariable.find_warnings(extraction, choice)
+	return NO_WARNINGS_LABEL if warnings.is_empty() else "
+".join(warnings)
+
+
+func _check_variable_extraction_behavior(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	var original := GDScript.new()
+	original.source_code = editor.text
+	if original.reload() != OK:
+		return PackedStringArray(["The script of the case does not compile."])
+	var plan := _variable_action(test_case).build_plan(_context(editor))
+	if plan == null:
+		return PackedStringArray(["The value cannot be extracted that way."])
+	GDSExEditApplier.apply(editor, plan)
+	var extracted := GDScript.new()
+	extracted.source_code = editor.text
+	if extracted.reload() != OK:
+		return PackedStringArray(["The script does not compile after extracting.
+%s" % _visualize(editor.text)])
+	var problems := PackedStringArray()
+	var before: Object = original.new()
+	var after: Object = extracted.new()
+	for arguments: Array in before.call("samples"):
+		var expected := _run_sample(before, arguments)
+		var actual := _run_sample(after, arguments)
+		if expected != actual:
+			problems.append("run%s gives %s after extracting instead of %s.
+%s" % [arguments, actual, expected, _visualize(editor.text)])
+	return problems
 
 
 func _describe_variable_places(editor: CodeEdit) -> String:

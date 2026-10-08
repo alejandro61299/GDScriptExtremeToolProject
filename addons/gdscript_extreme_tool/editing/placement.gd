@@ -86,6 +86,46 @@ static func member_variable(class_scope: GDSExSymbolIndex.GDSExClassScope, lines
 	return point
 
 
+static func variable_by_order(class_scope: GDSExSymbolIndex.GDSExClassScope, category: String, lines: PackedStringArray, indent_unit: String) -> GDSExEditPlan.GDSExInsertionPoint:
+	var order := GDSExMemberCategories.index_of(category)
+	var variable_categories := GDSExMemberCategories.of_variables(class_scope)
+	var previous: GDSExSymbolIndex.GDSExClassMember = null
+	var previous_category := ""
+	var next: GDSExSymbolIndex.GDSExClassMember = null
+	for member in class_scope.members:
+		var member_category: String = variable_categories.get(member.name, "") if member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.VARIABLE else GDSExMemberCategories.of_member(member, member.modifiers, class_scope)
+		if member_category.is_empty():
+			continue
+		if GDSExMemberCategories.index_of(member_category) <= order:
+			previous = member
+			previous_category = member_category
+			next = null
+		elif next == null:
+			next = member
+	var point := GDSExEditPlan.GDSExInsertionPoint.new()
+	point.indent_text = _member_indent_text(class_scope, lines, indent_unit)
+	if previous == null and next == null:
+		return class_header(class_scope, lines, indent_unit)
+	if previous != null:
+		point.line = previous.end_line + 1
+		point.blank_lines_before = 0 if previous_category == category else GDSExPluginProjectSettings.blank_lines_between_member_categories()
+		return point
+	var is_code := next.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.FUNCTION or next.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.CLASS
+	point.line = class_scope.header_end_line + 1
+	while point.line < lines.size() and lines[point.line].strip_edges().begins_with(COMMENT_START):
+		point.line += 1
+	point.blank_lines_before = BLANK_LINES_AFTER_CLASS_HEADER if class_scope.parent == null and class_scope.header_end_line >= 0 else 0
+	point.blank_lines_after = GDSExPluginProjectSettings.blank_lines_around_functions_and_classes() if is_code else GDSExPluginProjectSettings.blank_lines_between_member_categories()
+	return point
+
+
+static func before_statement(first_line: int, indent_text: String) -> GDSExEditPlan.GDSExInsertionPoint:
+	var point := GDSExEditPlan.GDSExInsertionPoint.new()
+	point.line = first_line
+	point.indent_text = indent_text
+	return point
+
+
 static func _member_point(class_scope: GDSExSymbolIndex.GDSExClassScope, line: int, blank_lines_before: int, lines: PackedStringArray, indent_unit: String) -> GDSExEditPlan.GDSExInsertionPoint:
 	var point := GDSExEditPlan.GDSExInsertionPoint.new()
 	point.line = line

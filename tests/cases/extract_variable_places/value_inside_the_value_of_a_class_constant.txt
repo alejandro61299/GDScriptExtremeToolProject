@@ -49,6 +49,6 @@ func wait_done() -> int:
 
 === expected
 value: 8
-default: Class private
-Class: ok [constant static private on_ready]
+default: Class constant
+Class: ok [=constant private]
 === end

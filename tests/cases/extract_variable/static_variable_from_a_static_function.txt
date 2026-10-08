@@ -1,0 +1,31 @@
+action: extract_variable
+options: {"name": "_step", "where": "class"}
+=== input
+extends Node
+
+var health: int = 10
+
+
+static func twice() -> int:
+	return hel<|>per() * 2
+
+
+static func helper() -> int:
+	return 1
+
+=== expected
+extends Node
+
+static var _step: int = helper()
+
+var health: int = 10
+
+
+static func twice() -> int:
+	return _step<|> * 2
+
+
+static func helper() -> int:
+	return 1
+
+=== end

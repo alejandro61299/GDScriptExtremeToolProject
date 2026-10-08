@@ -1,0 +1,33 @@
+action: extract_variable
+options: {"name": "two words"}
+=== input
+extends Node
+
+signal changed
+
+const LIMIT: int = 3
+
+static var shared: int = 0
+
+@export var title: String = ""
+
+@onready var root_node: Node = get_parent()
+
+var health: int = 10
+var items: Array[int] = []
+
+var _cache: Array[int] = []
+
+
+static func helper() -> int:
+	return 1
+
+
+func get_health() -> int:
+	return health
+
+
+func run(enemy: Node2D) -> void:
+	enemy.rotation = 12<|>0.0
+
+=== end

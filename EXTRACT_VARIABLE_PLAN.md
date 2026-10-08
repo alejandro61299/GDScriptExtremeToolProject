@@ -8,7 +8,7 @@ No se parece a "Generate Local Variable" ni a "Generate Class Variable". Aquella
 |---|---|---|
 | V1 | El valor bajo el cursor, su tipo y el nombre que se propone | Hecha |
 | V2 | De qué depende el valor, adónde puede ir y con qué opciones | Hecha |
-| V3 | La edición: declaración, sustitución y comprobación del nombre | Pendiente |
+| V3 | La edición: declaración, sustitución y comprobación del nombre | Hecha |
 | V4 | El diálogo y la acción en el menú | Pendiente |
 | V5 | Pruebas masivas, rendimiento y documentación | Pendiente |
 
@@ -381,6 +381,30 @@ Se revisó una muestra de 37 avisos del proyecto, uno de cada 23 de los de «a v
 Todavía sin diálogo: los casos eligen opción y nombre con una cabecera, como hacen hoy los de "Extract Function...".
 
 Verificación: casos por sitio y por opción, con variaciones de sangría, bloques anidados, clases internas y sentencias de varias líneas. Casos de comportamiento, que ejecutan la función antes y después y comparan el resultado, con el mecanismo que ya usa "Extract Function...": en los sitios sin aviso tiene que dar lo mismo. Casos del nombre, uno por celda de la tabla del 4.5.
+
+Hecho el 2026-10-08:
+
+- **La edición** (`GDSExExtractVariable.build_plan_for`): la declaración, con `@onready`, `static`, `var` o `const`, el nombre, el tipo si se conoce y el valor; y el nombre en el sitio del valor. Un valor de varias líneas se declara con sus líneas tal cual, recolocadas a la sangría nueva.
+- **Colocación local.** En la línea anterior a la sentencia, o a la sentencia del cuerpo de la función en "Function". Tres casos en que esa línea no vale y se sube: delante de un `elif` o de un `else` se va antes del `if`; dentro del patrón de un `match`, antes del `match`; y si la línea de antes es una anotación suelta (`@warning_ignore(...)`), por encima de ella.
+- **Colocación en la clase** (`GDSExPlacement.variable_by_order`): detrás del último miembro de su categoría o de una anterior. Si es el primero de la clase, tras la cabecera y su comentario de descripción.
+- **`actions/variable_name_check.gd`** (`GDSExVariableNameCheck`), con las reglas del apartado 4.5.
+- **El nombre propuesto evita los que dan error o aviso**, añadiendo un número: `health_2`.
+- **Runner:** `action: extract_variable` con la cabecera `options:` (nombre, sitio y opciones), `describe_variable_name`, `describe_variable_warnings` y `check_variable_extraction_behavior`, que ejecuta la función antes y después.
+- **106 casos** en `tests/cases/extract_variable/`, 1.231 en total: 30 de colocación local, 26 de colocación en la clase y en el script, 8 de combinaciones que se rechazan, 30 del nombre, 5 de avisos y 7 de comportamiento.
+- 101 de los primeros 105 se escribieron a mano antes de ejecutarlos y pasaron a la primera. De los otros cuatro, uno era una expectativa mía y tres destaparon las líneas en blanco de más que se cuentan abajo.
+- Se rompió el comportamiento a propósito de treinta y tres maneras y se detectan treinta y una. Las otras dos eran código que ya no hacía falta, y se quitó.
+
+Detalles decididos al implementar:
+
+- **Las líneas en blanco que ya hay se respetan.** Al meter una variable detrás de otra, no se añade separación con lo que viene después: se queda la que el usuario tenía. Solo se añade una línea en blanco delante cuando la variable empieza una categoría nueva, y detrás cuando es el primer miembro de la clase.
+- **Una constante que usa otra constante va justo antes de ella**, no al final de las constantes. Lo mismo una variable de clase que se usa en el valor de otra: tiene que ir antes, o la otra leería su valor por defecto.
+- **El valor dentro de una constante solo puede ser otra constante**, sea de clase o local. Se trata igual que una anotación o un enum: "Constant" va obligada.
+- **El valor dentro de una variable estática** se trata como el de una función estática.
+- **Una función que no declara lo que devuelve no da tipo.** El resolvedor lo deduce de sus `return`, pero es una suposición; la variable se declara sin tipo.
+- **Un nombre local que tapa a un miembro lleva aviso, y el propuesto lo evita.** No es solo estilo: las líneas siguientes del bloque que usaban el miembro pasarían a usar la variable nueva.
+- **Lo que carga un script se propone con nombre de clase** cuando es una constante: `const Shapes = preload(...)`, sin tipo.
+- **El cursor queda detrás del nombre**, en el sitio donde estaba el valor. Si el valor era toda la línea, delante del valor.
+- **El tipo en "Script" no se traduce.** Una constante solo puede ser de un tipo básico, que se escribe igual en todas partes.
 
 ### V4 — El diálogo y la acción en el menú
 

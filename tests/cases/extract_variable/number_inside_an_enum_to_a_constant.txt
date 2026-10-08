@@ -1,0 +1,15 @@
+action: extract_variable
+options: {"name": "FIRST_VALUE"}
+=== input
+extends Node
+
+enum Mode { OFF = <|>5, ON }
+
+=== expected
+extends Node
+
+const FIRST_VALUE: int = 5
+
+enum Mode { OFF = FIRST_VALUE<|>, ON }
+
+=== end

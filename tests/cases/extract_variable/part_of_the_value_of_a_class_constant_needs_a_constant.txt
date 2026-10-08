@@ -1,0 +1,14 @@
+action: extract_variable
+options: {"name": "BASE"}
+=== input
+extends Node
+
+const LIMIT: int = <|>8 * 2
+
+=== expected
+extends Node
+
+const BASE: int = 8
+const LIMIT: int = BASE<|> * 2
+
+=== end

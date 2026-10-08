@@ -11,6 +11,12 @@ const GDSExValueFinder = preload("res://addons/gdscript_extreme_tool/analysis/va
 const GDSExValueNames = preload("res://addons/gdscript_extreme_tool/analysis/value_names.gd")
 const GDSExValueDependencies = preload("res://addons/gdscript_extreme_tool/analysis/value_dependencies.gd")
 const GDSExBuiltinTypes = preload("res://addons/gdscript_extreme_tool/analysis/builtin_types.gd")
+const GDSExMemberCategories = preload("res://addons/gdscript_extreme_tool/analysis/member_categories.gd")
+const GDSExVariableNameCheck = preload("res://addons/gdscript_extreme_tool/actions/variable_name_check.gd")
+const GDSExFunctionNameCheck = preload("res://addons/gdscript_extreme_tool/actions/function_name_check.gd")
+const GDSExEditPlan = preload("res://addons/gdscript_extreme_tool/editing/edit_plan.gd")
+const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
+const GDSExPlacement = preload("res://addons/gdscript_extreme_tool/editing/placement.gd")
 const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
 
 enum GDSExPlace { BLOCK, FUNCTION, CLASS, SCRIPT }
@@ -51,12 +57,23 @@ const OBJECT_WARNING: String = "The value will be computed once, when the object
 const SCRIPT_WARNING: String = "The value will be computed once, when the script is loaded."
 const READY_WARNING: String = "The value will be computed once, when the node is ready."
 
+const ON_READY_PREFIX: String = "@onready "
+const STATIC_PREFIX: String = "static "
+const VARIABLE_KEYWORD: String = "var"
+const DECLARATION_TEMPLATE: String = "%s%s%s %s%s = "
+const TYPE_TEMPLATE: String = ": %s"
+const PRELOAD_FUNCTION: String = "preload"
+const SCRIPT_EXTENSION: String = ".gd"
+const PRIVATE_PREFIX: String = "_"
+const FIRST_NAME_NUMBER: int = 2
+const LAST_NAME_NUMBER: int = 50
 const ANNOTATION_PREFIX: String = "@"
 const ENUM_KEYWORD: String = "enum"
 const MATCH_KEYWORD: String = "match"
 const CONSTANT_KEYWORD: String = "const"
 const CALL_TEMPLATE: String = "%s()"
 const REPEATED_HEADERS: Array[String] = ["while", "elif"]
+const CHAINED_KEYWORDS: Array[String] = ["elif", "else"]
 const SHORT_CIRCUIT_WORDS: Array[String] = ["and", "or", "else"]
 const SHORT_CIRCUIT_SIGNS: Array[String] = ["&&", "||"]
 const CONDITION_WORD: String = "if"
@@ -64,7 +81,8 @@ const SEPARATOR: String = ","
 
 static var _modifiers_pattern := RegEx.create_from_string("^(?:(?:@\\w+(?:\\([^)]*\\))?|static)\\s+)+")
 static var _first_word_pattern := RegEx.create_from_string("^\\w+")
-static var _word_pattern := RegEx.create_from_string("\\w+")
+static var _annotation_line_pattern := RegEx.create_from_string("^@\\w+(?:\\(.*\\))?$")
+static var _static_pattern := RegEx.create_from_string("(?:^|\\s)static\\s")
 
 
 class GDSExChoice:
@@ -120,29 +138,36 @@ class GDSExState:
 
 
 class GDSExExtraction:
+	var index: GDSExSymbolIndex.GDSExSymbolIndexData
+	var lines: PackedStringArray = []
 	var value: GDSExValueFinder.GDSExValue
 	var scope_info: GDSExSymbolIndex.GDSExScopeInfo
 	var type: GDSExSymbolIndex.GDSExTypeData
 	var proposed_name: String = ""
 	var value_text: String = ""
+	var loads_a_script: bool = false
 	var dependencies: GDSExValueDependencies.GDSExDependencies
 	var site: GDSExSite = GDSExSite.BODY
 	var top_function: GDSExSymbolIndex.GDSExFunctionScope
 	var block_anchor: GDSExSourceScanner.GDSExStatement
 	var function_anchor: GDSExSourceScanner.GDSExStatement
+	var block_anchor_line: int = -1
+	var function_anchor_line: int = -1
 	var member_statement: GDSExSourceScanner.GDSExStatement
 	var is_whole_statement: bool = false
 	var is_whole_declared_value: bool = false
 	var is_whole_constant_value: bool = false
+	var is_inside_a_constant: bool = false
+	var is_inside_a_static_variable: bool = false
 
 	func is_nested() -> bool:
 		return block_anchor != function_anchor
 
 	func needs_a_constant() -> bool:
-		return site == GDSExSite.ANNOTATION or site == GDSExSite.ENUM
+		return site == GDSExSite.ANNOTATION or site == GDSExSite.ENUM or is_inside_a_constant
 
 	func is_in_a_static_function() -> bool:
-		return top_function != null and top_function.is_static
+		return is_inside_a_static_variable or (top_function != null and top_function.is_static)
 
 
 static func analyze(context: GDSExCodeContext) -> GDSExExtraction:
@@ -158,11 +183,16 @@ static func analyze_selection(index: GDSExSymbolIndex.GDSExSymbolIndexData, line
 	if resolved.returns_nothing or resolved.is_class_reference:
 		return null
 	var extraction := GDSExExtraction.new()
+	extraction.index = index
+	extraction.lines = lines
 	extraction.value = value
 	extraction.scope_info = scope_info
 	extraction.type = null if resolved.type == null or resolved.is_preloaded or resolved.type.name == GDSExLanguage.VARIANT_TYPE_NAME else resolved.type
+	if _calls_a_function_without_a_declared_result(value, scope_info):
+		extraction.type = null
 	extraction.value_text = GDSExValueFinder.source_text(value, lines)
 	extraction.proposed_name = GDSExValueNames.propose(value, lines, scope_info)
+	extraction.loads_a_script = value.call != null and value.call.name == PRELOAD_FUNCTION and extraction.value_text.contains(SCRIPT_EXTENSION)
 	extraction.dependencies = GDSExValueDependencies.find(value, scope_info)
 	_find_site(extraction, index)
 	return extraction if default_choice(extraction) != null else null
@@ -306,6 +336,124 @@ static func find_warnings(extraction: GDSExExtraction, choice: GDSExChoice) -> P
 	return warnings
 
 
+static func default_name(extraction: GDSExExtraction, choice: GDSExChoice) -> String:
+	var written := written_name(extraction, choice, extraction.proposed_name)
+	var first_without_error := ""
+	for number in range(FIRST_NAME_NUMBER, LAST_NAME_NUMBER):
+		var check := check_name(extraction, choice, written)
+		if check.level == GDSExFunctionNameCheck.GDSExNameCheck.GDSExLevel.VALID:
+			return written
+		if not check.is_error() and first_without_error.is_empty():
+			first_without_error = written
+		written = written_name(extraction, choice, GDSExValueNames.numbered(extraction.proposed_name, number))
+	return first_without_error if not first_without_error.is_empty() else written_name(extraction, choice, extraction.proposed_name)
+
+
+static func written_name(extraction: GDSExExtraction, choice: GDSExChoice, base_name: String) -> String:
+	if choice.is_constant and extraction.loads_a_script:
+		return (PRIVATE_PREFIX if choice.is_private else "") + base_name.to_pascal_case()
+	return GDSExValueNames.written_as(base_name, choice.is_constant, choice.is_private)
+
+
+static func check_name(extraction: GDSExExtraction, choice: GDSExChoice, variable_name: String) -> GDSExFunctionNameCheck.GDSExNameCheck:
+	if choice.place == GDSExPlace.BLOCK or choice.place == GDSExPlace.FUNCTION:
+		var anchor_line := extraction.block_anchor_line if choice.place == GDSExPlace.BLOCK else extraction.function_anchor_line
+		return GDSExVariableNameCheck.check_local(variable_name, extraction.scope_info, GDSExSymbolIndex.get_scope_info_for_line(extraction.index, anchor_line))
+	return GDSExVariableNameCheck.check_member(variable_name, extraction.scope_info, _class_of(extraction, choice))
+
+
+static func declaration_prefix(extraction: GDSExExtraction, choice: GDSExChoice, variable_name: String) -> String:
+	var type := extraction.type
+	return DECLARATION_TEMPLATE % [
+		ON_READY_PREFIX if choice.is_on_ready else "",
+		STATIC_PREFIX if choice.is_static else "",
+		CONSTANT_KEYWORD if choice.is_constant else VARIABLE_KEYWORD,
+		variable_name,
+		"" if type == null else TYPE_TEMPLATE % GDSExSymbolIndex.type_to_string(type),
+	]
+
+
+static func declaration_lines(extraction: GDSExExtraction, choice: GDSExChoice, variable_name: String) -> PackedStringArray:
+	var source := GDSExValueFinder.source_lines(extraction.value, extraction.lines)
+	var declared := PackedStringArray([declaration_prefix(extraction, choice, variable_name) + source[0]])
+	for line_index in range(1, source.size()):
+		declared.append(source[line_index].trim_prefix(extraction.value.statement.indent_text))
+	return declared
+
+
+static func build_plan_for(extraction: GDSExExtraction, choice: GDSExChoice, variable_name: String, indent_unit: String) -> GDSExEditPlan:
+	var plan := GDSExEditPlan.new()
+	var first := extraction.value.first_position()
+	var last := extraction.value.last_position()
+	var is_local := choice.place == GDSExPlace.BLOCK or choice.place == GDSExPlace.FUNCTION
+	if extraction.is_whole_statement and is_local:
+		plan.replace(first.x, first.y, first.y, declaration_prefix(extraction, choice, variable_name))
+		return plan
+	if first.x == last.x:
+		plan.replace(first.x, first.y, last.y, variable_name)
+	else:
+		var line_map := PackedInt32Array()
+		line_map.resize(last.x - first.x + 1)
+		line_map.fill(-1)
+		line_map[0] = first.x
+		plan.replace_lines(first.x, last.x, PackedStringArray([extraction.lines[first.x].substr(0, first.y) + variable_name + extraction.lines[last.x].substr(last.y)]), line_map)
+		plan.line_replacement.caret = Vector2i(0, first.y + variable_name.length())
+	var snippet := GDSExSnippet.new()
+	for line in declaration_lines(extraction, choice, variable_name):
+		snippet.add_line(0, line)
+	plan.insert(_declaration_point(extraction, choice, variable_name, indent_unit), snippet)
+	return plan
+
+
+static func _declaration_point(extraction: GDSExExtraction, choice: GDSExChoice, variable_name: String, indent_unit: String) -> GDSExEditPlan.GDSExInsertionPoint:
+	if choice.place == GDSExPlace.BLOCK:
+		return GDSExPlacement.before_statement(extraction.block_anchor_line, extraction.block_anchor.indent_text)
+	if choice.place == GDSExPlace.FUNCTION:
+		return GDSExPlacement.before_statement(extraction.function_anchor_line, extraction.function_anchor.indent_text)
+	var class_scope := _class_of(extraction, choice)
+	var modifiers := (ON_READY_PREFIX if choice.is_on_ready else "") + (STATIC_PREFIX if choice.is_static else "")
+	var category := GDSExMemberCategories.CONSTANTS if choice.is_constant else GDSExMemberCategories.of_variable(variable_name, modifiers)
+	var point := GDSExPlacement.variable_by_order(class_scope, category, extraction.lines, indent_unit)
+	if choice.is_constant and not extraction.is_inside_a_constant:
+		return point
+	if not choice.is_constant and not choice.is_static and not choice.is_on_ready:
+		for read_name in extraction.dependencies.member_variables:
+			var read: GDSExSymbolIndex.GDSExVariableSymbol = class_scope.vars.get(read_name)
+			if read != null and read.end_line >= point.line:
+				point = GDSExPlacement.before_statement(read.end_line + 1, point.indent_text)
+	var using_line := _line_of_the_member_that_uses_it(extraction, class_scope)
+	if using_line != -1 and using_line < point.line:
+		point = GDSExPlacement.before_statement(using_line, point.indent_text)
+	return point
+
+
+static func _line_of_the_member_that_uses_it(extraction: GDSExExtraction, class_scope: GDSExSymbolIndex.GDSExClassScope) -> int:
+	if extraction.site != GDSExSite.MEMBER or extraction.scope_info.class_scope != class_scope:
+		return -1
+	var line := extraction.value.statement.first_line
+	for member_index in range(class_scope.members.size() - 1, -1, -1):
+		var member := class_scope.members[member_index]
+		if member.start_line < line and member.end_line == line - 1 and member.kind == GDSExSymbolIndex.GDSExClassMember.GDSExKind.ANNOTATION:
+			line = member.start_line
+	return line
+
+
+static func _class_of(extraction: GDSExExtraction, choice: GDSExChoice) -> GDSExSymbolIndex.GDSExClassScope:
+	var class_scope := extraction.scope_info.class_scope
+	return GDSExSymbolIndex.find_root_class(class_scope) if choice.place == GDSExPlace.SCRIPT else class_scope
+
+
+static func _calls_a_function_without_a_declared_result(value: GDSExValueFinder.GDSExValue, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> bool:
+	if value.call == null:
+		return false
+	var member: GDSExTypeResolver.GDSExMember = null
+	if value.call.receiver.is_empty():
+		member = GDSExTypeResolver.find_class_member(scope_info.class_scope, value.call.name)
+	else:
+		member = GDSExTypeResolver.find_member(GDSExTypeResolver.resolve_expression(value.call.receiver, scope_info), value.call.name)
+	return member != null and member.function != null and member.function.return_type == null
+
+
 static func _find_site(extraction: GDSExExtraction, index: GDSExSymbolIndex.GDSExSymbolIndexData) -> void:
 	var value := extraction.value
 	var code := value.statement.code
@@ -315,6 +463,7 @@ static func _find_site(extraction: GDSExExtraction, index: GDSExSymbolIndex.GDSE
 	extraction.top_function = GDSExSymbolIndex.find_top_level_function(extraction.scope_info)
 	extraction.is_whole_statement = value.is_whole_statement()
 	extraction.member_statement = null if path.is_empty() else path[0]
+	extraction.is_inside_a_static_variable = extraction.top_function == null and modifiers != null and _static_pattern.search(modifiers.get_string()) != null
 	_read_declaration(extraction, code, modifiers_end)
 	var first_word := _first_word_pattern.search(code.substr(modifiers_end))
 	if code.begins_with(ANNOTATION_PREFIX) and (modifiers == null or value.end <= modifiers_end):
@@ -338,16 +487,45 @@ static func _find_site(extraction: GDSExExtraction, index: GDSExSymbolIndex.GDSE
 	var anchor_index := path.size() - 1
 	while anchor_index > function_index + 1 and _starts_with(path[anchor_index - 1].code, MATCH_KEYWORD):
 		anchor_index -= 1
-	extraction.block_anchor = path[anchor_index]
+	extraction.block_anchor = _start_of_the_chain(path[anchor_index - 1], path[anchor_index])
+	extraction.function_anchor = _start_of_the_chain(path[function_index], extraction.function_anchor)
+	extraction.block_anchor_line = _first_line_with_annotations(path[anchor_index - 1], extraction.block_anchor)
+	extraction.function_anchor_line = _first_line_with_annotations(path[function_index], extraction.function_anchor)
 	if extraction.block_anchor != value.statement:
 		extraction.is_whole_statement = false
 		extraction.is_whole_declared_value = false
+
+
+static func _start_of_the_chain(container: GDSExSourceScanner.GDSExStatement, anchor: GDSExSourceScanner.GDSExStatement) -> GDSExSourceScanner.GDSExStatement:
+	for block in container.blocks:
+		var anchor_index := block.statements.find(anchor)
+		while anchor_index > 0 and CHAINED_KEYWORDS.has(_first_word_of(block.statements[anchor_index].code)):
+			anchor_index -= 1
+		if anchor_index != -1:
+			return block.statements[anchor_index]
+	return anchor
+
+
+static func _first_word_of(code: String) -> String:
+	var first_word := _first_word_pattern.search(code)
+	return "" if first_word == null else first_word.get_string()
+
+
+static func _first_line_with_annotations(container: GDSExSourceScanner.GDSExStatement, anchor: GDSExSourceScanner.GDSExStatement) -> int:
+	var line := anchor.first_line
+	for block in container.blocks:
+		var anchor_index := block.statements.find(anchor)
+		while anchor_index > 0 and _annotation_line_pattern.search(block.statements[anchor_index - 1].code) != null:
+			anchor_index -= 1
+			line = block.statements[anchor_index].first_line
+	return line
 
 
 static func _read_declaration(extraction: GDSExExtraction, code: String, modifiers_end: int) -> void:
 	var assignment := GDSExVariableUsage.parse_assignment(code.substr(modifiers_end))
 	if assignment == null or not assignment.is_declaration or assignment.statement_start != 0:
 		return
+	extraction.is_inside_a_constant = assignment.keyword == CONSTANT_KEYWORD and extraction.value.start >= assignment.value_start + modifiers_end
 	if assignment.value_start + modifiers_end != extraction.value.start or extraction.value.end != code.length():
 		return
 	extraction.is_whole_declared_value = true
@@ -408,8 +586,7 @@ static func _extends_node(class_scope: GDSExSymbolIndex.GDSExClassScope) -> bool
 
 
 static func _starts_with(code: String, keyword: String) -> bool:
-	var first_word := _first_word_pattern.search(code)
-	return first_word != null and first_word.get_string() == keyword
+	return _first_word_of(code) == keyword
 
 
 static func _leaving_warning(extraction: GDSExExtraction) -> String:

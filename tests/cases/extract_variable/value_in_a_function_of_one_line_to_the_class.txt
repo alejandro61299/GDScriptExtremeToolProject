@@ -1,0 +1,21 @@
+action: extract_variable
+options: {"name": "EXTRA", "constant": true}
+=== input
+extends Node
+
+var health: int = 10
+
+
+func total() -> int: return health + <|>5
+
+=== expected
+extends Node
+
+const EXTRA: int = 5
+
+var health: int = 10
+
+
+func total() -> int: return health + EXTRA<|>
+
+=== end

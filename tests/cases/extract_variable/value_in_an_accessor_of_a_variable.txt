@@ -1,0 +1,20 @@
+action: extract_variable
+options: {"name": "factor"}
+=== input
+extends Node
+
+var health: int = 10
+var doubled: int:
+	get:
+		return health * <|>2
+
+=== expected
+extends Node
+
+var health: int = 10
+var doubled: int:
+	get:
+		var factor: int = 2
+		return health * factor<|>
+
+=== end

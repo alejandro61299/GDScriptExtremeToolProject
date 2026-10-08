@@ -1,0 +1,30 @@
+action: extract_variable
+options: {"name": "DOUBLED", "where": "class", "constant": true}
+=== input
+extends Node
+
+const FIRST: int = 1
+
+var health: int = 10
+
+const LATER: int = 2
+
+
+func run() -> void:
+	print(ma<|>xi(LATER, 2), health)
+
+=== expected
+extends Node
+
+const FIRST: int = 1
+
+var health: int = 10
+
+const LATER: int = 2
+const DOUBLED: int = maxi(LATER, 2)
+
+
+func run() -> void:
+	print(DOUBLED<|>, health)
+
+=== end

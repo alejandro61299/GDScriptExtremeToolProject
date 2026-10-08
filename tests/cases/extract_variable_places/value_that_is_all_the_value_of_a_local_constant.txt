@@ -53,7 +53,7 @@ func run(amount: int) -> void:
 
 === expected
 value: 2
-default: Class private
+default: Class constant
 Function: off - The value already has a name on this line.
-Class: ok [constant static private on_ready]
+Class: ok [=constant private]
 === end

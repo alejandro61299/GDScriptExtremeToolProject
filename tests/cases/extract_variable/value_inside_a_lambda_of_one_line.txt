@@ -1,0 +1,64 @@
+action: extract_variable
+options: {"name": "factor"}
+=== input
+extends Node
+
+signal changed
+
+const LIMIT: int = 3
+
+static var shared: int = 0
+
+@export var title: String = ""
+
+@onready var root_node: Node = get_parent()
+
+var health: int = 10
+var items: Array[int] = []
+
+var _cache: Array[int] = []
+
+
+static func helper() -> int:
+	return 1
+
+
+func get_health() -> int:
+	return health
+
+
+func run() -> Array:
+	return items.map(func(item: int) -> int: return item * hel<|>per())
+
+=== expected
+extends Node
+
+signal changed
+
+const LIMIT: int = 3
+
+static var shared: int = 0
+
+@export var title: String = ""
+
+@onready var root_node: Node = get_parent()
+
+var health: int = 10
+var items: Array[int] = []
+
+var _cache: Array[int] = []
+
+
+static func helper() -> int:
+	return 1
+
+
+func get_health() -> int:
+	return health
+
+
+func run() -> Array:
+	var factor: int = helper()
+	return items.map(func(item: int) -> int: return item * factor<|>)
+
+=== end

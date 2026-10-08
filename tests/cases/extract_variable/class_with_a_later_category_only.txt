@@ -1,0 +1,23 @@
+action: extract_variable
+options: {"name": "SPEED", "where": "class", "constant": true}
+=== input
+extends Node
+
+var health: int = 10
+
+
+func run(enemy: Node2D) -> void:
+	enemy.rotation = 12<|>0.0
+
+=== expected
+extends Node
+
+const SPEED: float = 120.0
+
+var health: int = 10
+
+
+func run(enemy: Node2D) -> void:
+	enemy.rotation = SPEED<|>
+
+=== end

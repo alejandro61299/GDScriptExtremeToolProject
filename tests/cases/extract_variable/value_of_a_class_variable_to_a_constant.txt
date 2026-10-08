@@ -1,0 +1,15 @@
+action: extract_variable
+options: {"name": "FULL_HEALTH", "constant": true}
+=== input
+extends Node
+
+var health: int = 1<|>0
+
+=== expected
+extends Node
+
+const FULL_HEALTH: int = 10
+
+var health: int = FULL_HEALTH<|>
+
+=== end

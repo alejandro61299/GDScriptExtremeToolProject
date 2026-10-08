@@ -1,0 +1,30 @@
+action: check_variable_extraction_behavior
+options: {"name": "counted"}
+=== input
+extends RefCounted
+
+var member: int = 3
+var log: Array = []
+
+
+func samples() -> Array:
+	return [[[1, 2, 3], 2], [[], 5], [[-4, 9], 0], [[7], -1]]
+
+
+func count() -> int:
+	log.append("count")
+	return member
+
+
+func run(items: Array, factor: int) -> Variant:
+	var total := 0
+	total += factor
+	total += cou<|>nt() * 2
+	member += 1
+	return total
+
+
+func state() -> Array:
+	return [member, log]
+
+=== end

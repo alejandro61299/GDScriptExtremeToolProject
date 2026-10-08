@@ -1,0 +1,27 @@
+action: extract_variable
+options: {"name": "speed", "where": "class", "private": false}
+=== input
+extends Node
+
+const LIMIT: int = 3
+
+var _cache: int = 0
+
+
+func run(enemy: Node2D) -> void:
+	enemy.rotation = 12<|>0.0
+
+=== expected
+extends Node
+
+const LIMIT: int = 3
+
+var speed: float = 120.0
+
+var _cache: int = 0
+
+
+func run(enemy: Node2D) -> void:
+	enemy.rotation = speed<|>
+
+=== end
