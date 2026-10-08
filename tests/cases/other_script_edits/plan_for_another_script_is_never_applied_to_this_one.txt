@@ -1,0 +1,14 @@
+action: apply_other_script_plan_here
+plan_script: res://tests/fixtures/other_scripts/cycle_first.gd
+=== plan
+[
+	{"line": 2, "blank_lines_before": 2, "lines": [[0, "func stray() -> void:"], [1, "pass"]]}
+]
+=== input
+extends Node
+
+
+func run() -> void:
+	pass<|>
+
+=== end

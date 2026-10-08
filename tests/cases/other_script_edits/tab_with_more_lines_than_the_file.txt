@@ -1,0 +1,64 @@
+action: run_other_script_action
+other_script: res://tests/fixtures/other_scripts/cycle_first.gd
+=== input
+extends Node
+
+
+func run() -> void:
+	pass<|>
+
+=== tab res://tests/fixtures/other_scripts/cycle_first.gd
+extends RefCounted
+
+const CycleSecond = preload("res://tests/fixtures/other_scripts/cycle_second.gd")
+
+var second: CycleSecond
+var first_name: String = "first"
+var only_in_the_tab: int = 0
+
+
+class Item:
+	var weight: float = 1.0
+
+
+func before_the_others() -> int:
+	return only_in_the_tab
+
+
+func other() -> CycleSecond:
+	return second
+
+
+func last_of_the_tab() -> void:
+	pass
+
+=== expected res://tests/fixtures/other_scripts/cycle_first.gd
+extends RefCounted
+
+const CycleSecond = preload("res://tests/fixtures/other_scripts/cycle_second.gd")
+
+var second: CycleSecond
+var first_name: String = "first"
+var only_in_the_tab: int = 0
+
+
+class Item:
+	var weight: float = 1.0
+
+
+func before_the_others() -> int:
+	return only_in_the_tab
+
+
+func other() -> CycleSecond:
+	return second
+
+
+func last_of_the_tab() -> void:
+	pass
+
+
+func added() -> void:
+	<|pass|>
+
+=== end

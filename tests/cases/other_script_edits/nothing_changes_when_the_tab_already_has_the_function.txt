@@ -1,0 +1,22 @@
+action: run_other_script_action
+other_script: res://tests/fixtures/other_scripts/cycle_first.gd
+offered: yes
+=== input
+extends Node
+
+
+func run() -> void:
+	pass<|>
+
+=== tab res://tests/fixtures/other_scripts/cycle_first.gd
+extends RefCounted
+
+
+func other() -> int:
+	return 1
+
+
+func added() -> void:
+	print("already here")
+
+=== end

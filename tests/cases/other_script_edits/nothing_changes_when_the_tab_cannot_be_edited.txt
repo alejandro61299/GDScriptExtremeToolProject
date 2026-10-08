@@ -1,0 +1,12 @@
+action: run_other_script_action
+other_script: res://tests/fixtures/other_scripts/cycle_first.gd
+offered: yes
+tab_read_only: yes
+=== input
+extends Node
+
+
+func run() -> void:
+	pass<|>
+
+=== end

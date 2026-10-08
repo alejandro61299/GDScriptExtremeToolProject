@@ -1,0 +1,31 @@
+action: run_other_script_action
+other_script: res://tests/fixtures/other_scripts/cycle_first.gd
+expect_label: Other Script Test in cycle_first.gd
+=== input
+extends Node
+
+
+func run() -> void:
+	pass<|>
+
+=== expected res://tests/fixtures/other_scripts/cycle_first.gd
+extends RefCounted
+
+const CycleSecond = preload("res://tests/fixtures/other_scripts/cycle_second.gd")
+
+var second: CycleSecond
+var first_name: String = "first"
+
+
+class Item:
+	var weight: float = 1.0
+
+
+func other() -> CycleSecond:
+	return second
+
+
+func added() -> void:
+	<|pass|>
+
+=== end

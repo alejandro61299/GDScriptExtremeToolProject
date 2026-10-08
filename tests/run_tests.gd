@@ -27,6 +27,7 @@ const GDSExScriptLibrary = preload("res://addons/gdscript_extreme_tool/analysis/
 const GDSExTypeResolver = preload("res://addons/gdscript_extreme_tool/analysis/type_resolver.gd")
 const GDSExScriptTypeNames = preload("res://addons/gdscript_extreme_tool/analysis/script_type_names.gd")
 const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
+const GDSExPlacement = preload("res://addons/gdscript_extreme_tool/editing/placement.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -47,6 +48,15 @@ const EXTRACTION_RANGE_SIZES: Array[int] = [0, 1, 2]
 const TYPES_ACTION: String = "describe_types"
 const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION, TYPES_ACTION]
 const UNSAVED_SECTION_PREFIX: String = "unsaved "
+const TAB_SECTION_PREFIX: String = "tab "
+const EXPECTED_SECTION_PREFIX: String = "expected "
+const OFFERED_HEADER: String = "offered"
+const OTHER_SCRIPT_HEADER: String = "other_script"
+const OTHER_SCRIPT_WHEN_MOVED_HEADER: String = "other_script_when_moved"
+const PLAN_SCRIPT_HEADER: String = "plan_script"
+const EXPECTED_LABEL_HEADER: String = "expect_label"
+const READ_ONLY_TAB_HEADER: String = "tab_read_only"
+const YES: String = "yes"
 const THIS_SCRIPT_LABEL: String = "<this script>"
 const UNKNOWN_TYPE_LABEL: String = "?"
 const SCRIPT_EXTENSION: String = "gd"
@@ -87,6 +97,7 @@ var _pending: PackedStringArray = []
 var _failed: PackedStringArray = []
 var _script_path: String = ""
 var _unsaved_sources: Dictionary[String, String] = {}
+var _tab_editors: Dictionary[String, CodeEdit] = {}
 
 
 class MarkedText:
@@ -152,6 +163,32 @@ class TestCase:
 	var settings: Dictionary = {}
 	var headers: Dictionary[String, String] = {}
 	var unsaved_sources: Dictionary[String, String] = {}
+	var tab_sources: Dictionary[String, String] = {}
+	var expected_scripts: Dictionary[String, String] = {}
+
+
+class OtherScriptTestAction extends "res://addons/gdscript_extreme_tool/actions/code_action.gd":
+	const FUNCTION_NAME: String = "added"
+	const MOVED_MARK: String = "moved"
+
+	var script_path: String = ""
+	var script_path_when_moved: String = ""
+
+	func get_label() -> String:
+		return "Other Script Test"
+
+	func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
+		var index := GDSExScriptLibrary.find_index(script_path)
+		if index == null or index.root.functions.has(FUNCTION_NAME):
+			return null
+		var snippet := GDSExSnippet.new()
+		snippet.add_line(0, "func %s() -> void:" % FUNCTION_NAME)
+		snippet.add_line(1, "pass")
+		snippet.select_line(1)
+		var plan := GDSExEditPlan.new()
+		plan.script_path = script_path_when_moved if index.root.vars.has(MOVED_MARK) else script_path
+		plan.reveal(plan.insert(GDSExPlacement.end_of_class(index.root, GDSExScriptLibrary.find_lines(script_path), context.indent_unit), snippet))
+		return plan
 
 
 class DialogTestAction extends "res://addons/gdscript_extreme_tool/actions/code_action.gd":
@@ -259,6 +296,9 @@ func _run_case(path: String) -> void:
 	_script_path = ""
 	_unsaved_sources = {}
 	editor.free()
+	for tab_editor: CodeEdit in _tab_editors.values():
+		tab_editor.free()
+	_tab_editors.clear()
 	if test_case.viewport_lines > 0 and problems.is_empty():
 		problems.append_array(await _check_view(test_case))
 	_override_settings(test_case.settings, false)
@@ -374,6 +414,10 @@ func _parse_case(path: String) -> TestCase:
 	for section: String in sections:
 		if section.begins_with(UNSAVED_SECTION_PREFIX):
 			test_case.unsaved_sources[section.trim_prefix(UNSAVED_SECTION_PREFIX).strip_edges()] = sections[section]
+		if section.begins_with(TAB_SECTION_PREFIX):
+			test_case.tab_sources[section.trim_prefix(TAB_SECTION_PREFIX).strip_edges()] = sections[section]
+		if section.begins_with(EXPECTED_SECTION_PREFIX):
+			test_case.expected_scripts[section.trim_prefix(EXPECTED_SECTION_PREFIX).strip_edges()] = sections[section]
 	var settings: Variant = str_to_var(headers.get("settings", "{}"))
 	if settings is Dictionary:
 		test_case.settings = settings
@@ -419,8 +463,19 @@ func _create_editor(test_case: TestCase) -> CodeEdit:
 func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 	match test_case.action:
 		"apply_plan":
-			GDSExEditApplier.apply(editor, _build_plan(test_case.plan_description))
+			var plan := _build_plan(test_case.plan_description)
+			plan.script_path = test_case.headers.get(PLAN_SCRIPT_HEADER, "")
+			GDSExEditApplier.apply(_tab_editor(test_case, plan.script_path) if plan.is_for_another_script() else editor, plan)
 			return _check_edit(test_case, editor)
+		"apply_other_script_plan_here":
+			var stray_plan := _build_plan(test_case.plan_description)
+			stray_plan.script_path = test_case.headers.get(PLAN_SCRIPT_HEADER, "")
+			GDSExCodeActionsPopup.apply_plan(stray_plan, editor)
+			return _check_edit(test_case, editor)
+		"run_other_script_action":
+			return _check_code_action(test_case, _other_script_action(test_case), editor)
+		"run_other_script_popup":
+			return _check_other_script_popup(test_case, editor)
 		SCOPES_ACTION:
 			return _check_scopes(test_case, editor)
 		EXTRACTION_RANGE_ACTION:
@@ -490,12 +545,16 @@ func _find_code_action(action_name: String) -> GDSExCodeAction:
 func _check_code_action(test_case: TestCase, action: GDSExCodeAction, editor: CodeEdit) -> PackedStringArray:
 	var problems := PackedStringArray()
 	var actions: Array[GDSExCodeAction] = [action]
-	var is_offered := not GDSExActionRegistry.find_available(actions, _context(editor)).is_empty()
-	var expects_change := test_case.expected.text != test_case.input.text
-	if is_offered and not expects_change:
+	var available := GDSExActionRegistry.find_available(actions, _context(editor))
+	var is_offered := not available.is_empty()
+	var expects_change := test_case.expected.text != test_case.input.text or _expects_change_in_tabs(test_case)
+	var expects_offer: bool = expects_change or test_case.headers.get(OFFERED_HEADER, "") == YES
+	if is_offered and not expects_offer:
 		problems.append("The action is offered in the menu but nothing should change.")
-	if not is_offered and expects_change:
+	if not is_offered and expects_offer:
 		problems.append("The action is not offered in the menu.")
+	if is_offered and test_case.headers.has(EXPECTED_LABEL_HEADER) and available[0].label != test_case.headers[EXPECTED_LABEL_HEADER]:
+		problems.append("The menu shows '%s' instead of '%s'." % [available[0].label, test_case.headers[EXPECTED_LABEL_HEADER]])
 	for line in test_case.breakpoints:
 		editor.set_line_as_breakpoint(line, true)
 	for line in test_case.bookmarks:
@@ -503,7 +562,7 @@ func _check_code_action(test_case: TestCase, action: GDSExCodeAction, editor: Co
 	editor.line_folding = not test_case.folds.is_empty()
 	for line in test_case.folds:
 		editor.fold_line(line)
-	GDSExEditApplier.apply(editor, action.build_plan(_context(editor)))
+	_apply_action(test_case, action, editor)
 	if PackedInt32Array(editor.get_folded_lines()) != test_case.expected_folds:
 		problems.append("Folded lines are %s instead of %s." % [_one_based(PackedInt32Array(editor.get_folded_lines())), _one_based(test_case.expected_folds)])
 	if editor.get_breakpointed_lines() != test_case.expected_breakpoints:
@@ -512,6 +571,88 @@ func _check_code_action(test_case: TestCase, action: GDSExCodeAction, editor: Co
 		problems.append("Bookmarks are on lines %s instead of %s." % [_one_based(editor.get_bookmarked_lines()), _one_based(test_case.expected_bookmarks)])
 	if test_case.action == FORMAT_ACTION and action.build_plan(_context(editor)) != null:
 		problems.append("Running the action again on the formatted result changes it.")
+	problems.append_array(_check_edit(test_case, editor))
+	return problems
+
+
+func _apply_action(test_case: TestCase, action: GDSExCodeAction, editor: CodeEdit) -> void:
+	var context := _context(editor)
+	var plan := action.build_plan(context)
+	if plan == null or not plan.is_for_another_script():
+		GDSExEditApplier.apply(editor, plan)
+		return
+	GDSExCodeActionsPopup.apply_in_tab(action, editor, context, plan.script_path, _tab_editor(test_case, plan.script_path))
+
+
+func _other_script_action(test_case: TestCase) -> OtherScriptTestAction:
+	var action := OtherScriptTestAction.new()
+	action.script_path = test_case.headers.get(OTHER_SCRIPT_HEADER, "")
+	action.script_path_when_moved = test_case.headers.get(OTHER_SCRIPT_WHEN_MOVED_HEADER, "")
+	return action
+
+
+func _tab_editor(test_case: TestCase, script_path: String) -> CodeEdit:
+	if _tab_editors.has(script_path):
+		return _tab_editors[script_path]
+	var tab_editor := CodeEdit.new()
+	root.add_child(tab_editor)
+	tab_editor.indent_use_spaces = test_case.uses_spaces
+	tab_editor.indent_size = test_case.indent_size
+	tab_editor.text = _tab_source(test_case, script_path)
+	tab_editor.editable = test_case.headers.get(READ_ONLY_TAB_HEADER, "") != YES
+	tab_editor.clear_undo_history()
+	_tab_editors[script_path] = tab_editor
+	return tab_editor
+
+
+func _tab_source(test_case: TestCase, script_path: String) -> String:
+	if test_case.tab_sources.has(script_path):
+		return test_case.tab_sources[script_path]
+	if test_case.unsaved_sources.has(script_path):
+		return test_case.unsaved_sources[script_path]
+	return FileAccess.get_file_as_string(script_path).replace("\r\n", "\n")
+
+
+func _expects_change_in_tabs(test_case: TestCase) -> bool:
+	for script_path: String in test_case.expected_scripts:
+		if MarkedText.parse(test_case.expected_scripts[script_path]).text != _tab_source(test_case, script_path):
+			return true
+	return false
+
+
+func _check_tabs(test_case: TestCase) -> PackedStringArray:
+	var problems := PackedStringArray()
+	for script_path: String in test_case.expected_scripts:
+		var tab_editor := _tab_editor(test_case, script_path)
+		var expected_raw := test_case.expected_scripts[script_path]
+		var actual := _render_with_marks(tab_editor) if MarkedText.parse(expected_raw).has_marks else tab_editor.text
+		if actual != expected_raw:
+			problems.append("Unexpected result in %s.\n--- expected ---\n%s\n--- actual ---\n%s" % [script_path, _visualize(expected_raw), _visualize(actual)])
+	for script_path: String in _tab_editors:
+		var tab_editor := _tab_editors[script_path]
+		var original := _tab_source(test_case, script_path)
+		if tab_editor.text == original:
+			continue
+		if not test_case.expected_scripts.has(script_path):
+			problems.append("The script %s changed but the case does not expect it.\n%s" % [script_path, _visualize(tab_editor.text)])
+		tab_editor.undo()
+		if tab_editor.text != original:
+			problems.append("A single undo does not restore the original text of %s." % script_path)
+	return problems
+
+
+func _check_other_script_popup(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var actions: Array[GDSExCodeAction] = [_other_script_action(test_case)]
+	var popup := GDSExCodeActionsPopup.new()
+	root.add_child(popup)
+	popup.setup(editor, actions)
+	popup.about_to_popup.emit()
+	var label := popup.get_item_text(0)
+	if popup.is_item_disabled(0) or label != test_case.headers.get(EXPECTED_LABEL_HEADER, ""):
+		problems.append("The popup shows '%s' instead of '%s'." % [label, test_case.headers.get(EXPECTED_LABEL_HEADER, "")])
+	popup.index_pressed.emit(0)
+	popup.free()
 	problems.append_array(_check_edit(test_case, editor))
 	return problems
 
@@ -556,6 +697,7 @@ func _check_edit(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 		editor.undo()
 		if editor.text != test_case.input.text:
 			problems.append("A single undo does not restore the original text.")
+	problems.append_array(_check_tabs(test_case))
 	return problems
 
 
@@ -1155,8 +1297,8 @@ func _check_code_actions_popup(test_case: TestCase, editor: CodeEdit) -> PackedS
 	var problems := PackedStringArray()
 	var actions := GDSExActionRegistry.create_actions()
 	var available_labels := PackedStringArray()
-	for action in GDSExActionRegistry.find_available(actions, _context(editor)):
-		available_labels.append(action.get_label())
+	for available in GDSExActionRegistry.find_available(actions, _context(editor)):
+		available_labels.append(available.label)
 	var popup := GDSExCodeActionsPopup.new()
 	root.add_child(popup)
 	popup.setup(editor, actions)

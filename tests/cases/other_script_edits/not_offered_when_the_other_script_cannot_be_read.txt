@@ -1,0 +1,10 @@
+action: run_other_script_action
+other_script: res://tests/fixtures/other_scripts/does_not_exist.gd
+=== input
+extends Node
+
+
+func run() -> void:
+	pass<|>
+
+=== end

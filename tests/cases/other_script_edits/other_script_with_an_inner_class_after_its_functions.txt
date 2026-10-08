@@ -1,0 +1,42 @@
+action: run_other_script_action
+other_script: res://tests/fixtures/other_scripts/only_in_a_tab.gd
+=== input
+extends Node
+
+
+func run() -> void:
+	pass<|>
+
+=== unsaved res://tests/fixtures/other_scripts/only_in_a_tab.gd
+extends RefCounted
+
+
+func total() -> int:
+	return 1
+
+
+class Item:
+	var weight: float = 1.0
+
+	func heavy() -> bool:
+		return weight > 1.0
+
+=== expected res://tests/fixtures/other_scripts/only_in_a_tab.gd
+extends RefCounted
+
+
+func total() -> int:
+	return 1
+
+
+func added() -> void:
+	<|pass|>
+
+
+class Item:
+	var weight: float = 1.0
+
+	func heavy() -> bool:
+		return weight > 1.0
+
+=== end

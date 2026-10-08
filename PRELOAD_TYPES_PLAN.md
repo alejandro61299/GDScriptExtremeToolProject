@@ -415,6 +415,8 @@ Coste de analizar otros scripts, medido antes de empezar para decidir la caché:
 
 ### Para después: crear funciones en otro script
 
+Tiene ya su propio plan: `FUNCTIONS_IN_OTHER_SCRIPTS_PLAN.md`.
+
 No entra en esta versión, pero este plan deja hecha la parte difícil: saber qué clase de qué archivo es el receptor de la llamada y tener ese archivo analizado, que es lo que hace falta para decidir dónde va la función. Faltaría:
 
 - Aplicar la edición en otra pestaña: abrir el script si no lo está, insertar ahí y llevar al usuario, con el deshacer en esa pestaña.

@@ -29,6 +29,29 @@ static func find_unsaved_sources() -> Dictionary[String, String]:
 	return sources
 
 
+static func open(script_path : String) -> CodeEdit:
+	if not Engine.is_editor_hint():
+		return null
+	var script := _find_open_script(script_path)
+	if script == null and ResourceLoader.exists(script_path):
+		script = load(script_path) as Script
+	if script == null:
+		return null
+	EditorInterface.edit_script(script)
+	var script_editor := EditorInterface.get_script_editor()
+	var current_tab := script_editor.get_current_editor()
+	if current_tab == null or script_editor.get_current_script() != script:
+		return null
+	return current_tab.get_base_editor() as CodeEdit
+
+
+static func _find_open_script(script_path : String) -> Script:
+	for script : Script in EditorInterface.get_script_editor().get_open_scripts():
+		if script.resource_path == script_path:
+			return script
+	return null
+
+
 static func _find_tabs() -> Dictionary[String, CodeEdit]:
 	var tabs : Dictionary[String, CodeEdit] = {}
 	if not Engine.is_editor_hint():

@@ -36,6 +36,7 @@ var replacements: Array[GDSExReplacement] = []
 var line_replacement: GDSExLineReplacement
 var revealed_insertion: GDSExInsertion
 var keeps_caret: bool = false
+var script_path: String = ""
 
 
 func insert(point: GDSExInsertionPoint, snippet: GDSExSnippet) -> GDSExInsertion:
@@ -69,6 +70,10 @@ func replace_lines(first_line: int, last_line: int, lines: PackedStringArray, li
 
 func is_empty() -> bool:
 	return insertions.is_empty() and replacements.is_empty() and line_replacement == null
+
+
+func is_for_another_script() -> bool:
+	return not script_path.is_empty()
 
 
 func leaves_current_position() -> bool:

@@ -19,10 +19,12 @@ var selection_first_line: int = -1
 var selection_last_line: int = -1
 var indent_unit: String = ""
 var script_path: String = ""
+var unsaved_sources: Dictionary[String, String] = {}
 
 
-func _init(editor: CodeEdit, edited_script_path: String = "", unsaved_sources: Dictionary[String, String] = {}) -> void:
+func _init(editor: CodeEdit, edited_script_path: String = "", sources_of_unsaved_scripts: Dictionary[String, String] = {}) -> void:
 	script_path = edited_script_path
+	unsaved_sources = sources_of_unsaved_scripts
 	lines = editor.text.split(LINE_SEPARATOR)
 	GDSExScriptLibrary.refresh(unsaved_sources)
 	index = GDSExSymbolIndexBuilder.build(lines, script_path)

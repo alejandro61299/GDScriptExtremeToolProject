@@ -37,9 +37,9 @@ func popup_at_caret() -> void:
 func _fill() -> void:
 	clear()
 	if _editor != null:
-		for action in GDSExActionRegistry.find_available(_actions, _create_context()):
-			add_item(action.get_label())
-			set_item_metadata(item_count - 1, action)
+		for available in GDSExActionRegistry.find_available(_actions, _create_context()):
+			add_item(available.label)
+			set_item_metadata(item_count - 1, available.action)
 	if item_count == 0:
 		_add_no_actions_item()
 
@@ -56,11 +56,20 @@ func _run_action(index : int) -> void:
 	var context := _create_context()
 	var dialog := action.create_dialog(context, apply_plan.bind(_editor))
 	if dialog == null:
-		apply_plan(action.build_plan(context), _editor)
+		_apply_action(action, context)
 		return
 	dialog.visibility_changed.connect(_free_when_hidden.bind(dialog))
 	_editor.get_window().add_child(dialog)
 	dialog.popup_centered()
+
+
+func _apply_action(action : GDSExCodeAction, context : GDSExCodeContext) -> void:
+	var plan := action.build_plan(context)
+	if plan == null or not plan.is_for_another_script():
+		apply_plan(plan, _editor)
+		return
+	_save_navigation_history(_editor)
+	apply_in_tab(action, _editor, context, plan.script_path, GDSExOpenScripts.open(plan.script_path))
 
 
 func _create_context() -> GDSExCodeContext:
@@ -72,12 +81,24 @@ static func forget_scripts() -> void:
 
 
 static func apply_plan(plan : GDSExEditPlan, editor : CodeEdit) -> void:
-	if plan == null or editor == null:
+	if plan == null or editor == null or plan.is_for_another_script():
 		return
 	if plan.leaves_current_position():
 		_save_navigation_history(editor)
 	GDSExEditApplier.apply(editor, plan)
 	editor.grab_focus()
+
+
+static func apply_in_tab(action : GDSExCodeAction, editor : CodeEdit, context : GDSExCodeContext, tab_script_path : String, tab_editor : CodeEdit) -> void:
+	if tab_editor == null or tab_editor == editor or not tab_editor.editable:
+		return
+	var sources := context.unsaved_sources.duplicate()
+	sources[tab_script_path] = tab_editor.text
+	var plan := action.build_plan(GDSExCodeContext.new(editor, context.script_path, sources))
+	if plan == null or plan.script_path != tab_script_path:
+		return
+	GDSExEditApplier.apply(tab_editor, plan)
+	tab_editor.grab_focus()
 
 
 static func _free_when_hidden(dialog : Window) -> void:
