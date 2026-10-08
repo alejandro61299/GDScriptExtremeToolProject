@@ -1,0 +1,61 @@
+action: generate_function
+=== input
+extends Node
+
+const Target = preload("res://tests/fixtures/other_scripts/target.gd")
+
+
+func run(part: Target.Part) -> void:
+	part.missing()<|>
+
+=== unsaved res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+	func grow() -> void:
+		size += 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+
+func total() -> int:
+	return count
+
+=== tab res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+
+func first_of_the_tab() -> int:
+	return 1
+
+
+class Part:
+	var size: int = 1
+
+=== expected res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+
+func first_of_the_tab() -> int:
+	return 1
+
+
+class Part:
+	var size: int = 1
+	
+	
+	func missing() -> void:
+		<|pass|>
+
+=== end

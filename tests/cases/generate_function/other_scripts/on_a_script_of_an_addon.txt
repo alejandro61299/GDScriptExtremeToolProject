@@ -1,0 +1,30 @@
+action: generate_function
+expect_label: Generate Function Definition in vendor_tool.gd
+=== input
+extends Node
+
+const VendorTool = preload("res://addons/vendor_addon/vendor_tool.gd")
+
+
+func run(tool: VendorTool) -> void:
+	tool.missing()<|>
+
+=== unsaved res://addons/vendor_addon/vendor_tool.gd
+extends RefCounted
+
+
+func ready() -> bool:
+	return true
+
+=== expected res://addons/vendor_addon/vendor_tool.gd
+extends RefCounted
+
+
+func ready() -> bool:
+	return true
+
+
+func missing() -> void:
+	<|pass|>
+
+=== end

@@ -7,7 +7,7 @@ Sale del apartado «Para después: crear funciones en otro script» de `PRELOAD_
 | Paso | Contenido | Estado |
 |---|---|---|
 | C1 | Un plan de edición puede ir a otra pestaña | Hecha |
-| C2 | La acción elige el otro script como destino | Pendiente |
+| C2 | La acción elige el otro script como destino | Hecha |
 | C3 | Tipos escritos para el script de destino | Pendiente |
 | C4 | Pruebas masivas, editor y documentación | Pendiente |
 
@@ -74,6 +74,8 @@ No los ha fijado el usuario; son la forma concreta que propongo y se pueden camb
 - **D10. Un plan, un script.** Un plan de edición se aplica entero a un solo script, el que se edita u otro. Ninguna acción toca dos archivos a la vez; esta no lo necesita porque la llamada no cambia.
 - **D11. Solo acciones sin diálogo.** Un plan para otro script solo puede salir de una acción que se aplica directamente. Las que pasan por un diálogo siguen escribiendo en el script que se edita.
 - **D12. Casos con dos scripts.** Un caso de la suite da el otro script con la sección `=== unsaved <ruta>` que ya existe, o con un archivo de `tests/fixtures/`, y lo que se espera de él con una sección nueva, `=== expected <ruta>`.
+- **D13. Funciones que toda clase de script tiene.** Una referencia a una clase de script es un objeto del motor con funciones propias: `Shapes.can_instantiate()`, `Shapes.get_base_script()`. Sobre una referencia a clase, esas no se ofrecen. Salió en C2: con solo el propio script casi no se veía, y al abrir la acción a las constantes con `preload` habría sido una oferta falsa frecuente. Vale también para las clases internas del propio script.
+- **D14. Clases escritas en una línea.** Sobre una clase como `class Empty: pass` no se ofrece. No hay bloque donde meter la función, y lo que se generaba no compilaba. Salió en C2 y vale también para el propio script.
 
 ## 4. Comportamiento
 
@@ -232,6 +234,28 @@ Verificación: casos en `tests/cases/generate_function/`, con variaciones:
 - Sí se ofrece: destino dentro de `res://addons/`, nombre con `_`.
 
 Comprobación nueva en el runner para estos casos: se guardan en una carpeta temporal el script de destino ya modificado y el que llama, y se compila el que llama. Así se comprueba que la llamada encaja con la función generada: nombre, `static` y número de argumentos.
+
+Hecho el 2026-10-08:
+
+- **La acción acepta una clase de otro script.** El receptor puede ser una instancia o una referencia a clase, de la clase raíz o de una interna a cualquier nivel, alcanzada por una constante, por una clase global, por herencia o a través de otro script. La función va a la clase del receptor: si es una instancia de un script que hereda de otro, a ese script y no a su base.
+- **`GDSExOpenScripts.can_edit(ruta)`** es el único sitio que decide si un script puede recibir código (detalle D7). No mira carpetas ni permisos (decisión 3 y detalle D8).
+- **`static`** cuando la llamada es sobre la clase, también si se llega a ella a través de otro script (`Through.Target.missing()`). Sobre una instancia nunca, aunque la llamada esté dentro de una función estática.
+- **Colocación** al final de la clase de destino, con su sangría: tabuladores o espacios según el archivo de destino, no según el que llama.
+- **Tipos.** En este paso solo pasan los que se escriben igual en todas partes. El resto deja el parámetro sin tipo y el valor devuelto como `Variant`; un caso lo fija y se cambia en C3.
+- **Detalles D13 y D14**, que salieron aquí.
+- **Runner.** Los casos con otro script se compilan juntos: el destino ya modificado se guarda en una carpeta temporal y el script que llama se compila contra esa copia. Así un caso falla si la función generada no encaja con la llamada. Cuando el que llama no nombra la ruta del destino (clase global, o destino alcanzado a través de otro script) se compila solo el destino. `compile_check: apart` fuerza eso mismo.
+- **La comprobación de ofertas falsas** que ya existía en la suite recorre los scripts del proyecto y ahora ve también los destinos en otros scripts. Sigue en cero: ninguna de las 681 llamadas del proyecto a otros scripts se toma por una función que falta.
+- **47 casos nuevos y 5 retirados**, 886 en total. Los cinco `unavailable_on_...` que comprobaban que la acción no se ofrecía tienen ahora su equivalente con lo que se genera. Los nuevos están en `tests/cases/generate_function/other_scripts/`:
+  - Receptor: instancia, constante, clase interna (instancia y referencia), clase a dos niveles, valor devuelto por una función del otro script, miembro de una instancia, script alcanzado a través de otro (instancia y constante), clase global (instancia y referencia), clase heredada del script base y script que hereda de otro.
+  - Destino: con funciones, solo con variables, vacío, con clases internas detrás de las funciones, clase interna sin miembros, leído del archivo, dentro de `res://addons/`, con sangría de espacios en la clase raíz y en una interna, y con otro valor del ajuste de líneas en blanco.
+  - Firma: valor devuelto sacado del uso, parámetros con tipos del motor y colecciones con tipo, parámetro con una clase global, nombre con `_`, llamada desde una función estática.
+  - Cursor: segunda de dos llamadas, y llamada usada como argumento de otra.
+  - Pestaña distinta de lo leído: con otras líneas, con la función ya escrita, sin la clase, y con una función que ahora devuelve una clase de un tercer script. En las tres últimas no cambia nada.
+  - No se ofrece: la función existe, existe solo en el texto sin guardar, la tiene el script base del otro, es del motor, la tiene toda clase de script, es `.new()`, es una variable, el receptor es del motor, no se conoce, su script no se puede leer, es `super`, o la clase está escrita en una línea (en el otro script y en el propio).
+- Se rompió el comportamiento a propósito de nueve maneras y se detectan siete. Las otras dos son la misma idea, calcular la colocación como si el destino fuese el script que llama (con su regla o con sus líneas), y no cambian ningún resultado: esos datos solo se usaban para las clases escritas en una línea, que ya no se ofrecen (detalle D14).
+- **En un editor sin ventana**, con la acción y el menú de verdad: instancia, clase, clase interna, clase global y un script dentro de `res://addons/`. En los cinco el menú nombra el archivo, la función aparece en su pestaña con la firma esperada y el cuerpo seleccionado, y el archivo no cambia. Tres funciones seguidas en el mismo script caen cada una en su sitio. Una llamada sin receptor sigue yendo al script que se edita. Cierra sin errores ni avisos.
+
+Cambio respecto al plan: no hay archivo `writable_scripts.gd`. Con la decisión 3 las reglas se quedaron en lo que `GDSExOpenScripts` ya sabe contestar.
 
 ### C3 — Tipos escritos para el script de destino
 

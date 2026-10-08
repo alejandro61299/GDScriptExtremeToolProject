@@ -1,0 +1,63 @@
+action: generate_function
+=== input
+extends Node
+
+const Target = preload("res://tests/fixtures/other_scripts/target.gd")
+
+
+func run(target: Target) -> void:
+	target.outer_missing(Target.inner_<|>missing(2))
+
+=== unsaved res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+	func grow() -> void:
+		size += 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+
+func total() -> int:
+	return count
+
+=== expected res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+	func grow() -> void:
+		size += 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+
+func total() -> int:
+	return count
+
+
+static func inner_missing(param_0: int) -> Variant:
+	<|return null|>
+
+=== end

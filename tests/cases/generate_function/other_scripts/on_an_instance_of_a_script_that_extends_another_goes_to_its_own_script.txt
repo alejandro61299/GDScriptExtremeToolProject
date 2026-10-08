@@ -1,0 +1,29 @@
+action: generate_function
+expect_label: Generate Function Definition in derived_base.gd
+=== input
+extends Node
+
+const Derived = preload("res://tests/fixtures/other_scripts/derived_base.gd")
+
+
+func run(derived: Derived) -> void:
+	derived.missing()<|>
+
+=== expected res://tests/fixtures/other_scripts/derived_base.gd
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+var derived_count: int = 2
+
+
+func derived_tool() -> Tool:
+	return make_tool()
+
+
+func derived_mode() -> Mode:
+	return base_mode
+
+
+func missing() -> void:
+	<|pass|>
+
+=== end

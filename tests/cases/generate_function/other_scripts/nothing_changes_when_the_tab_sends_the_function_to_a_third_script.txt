@@ -1,0 +1,51 @@
+action: generate_function
+compile_check: skip
+offered: yes
+=== input
+extends Node
+
+const Target = preload("res://tests/fixtures/other_scripts/target.gd")
+
+
+func run() -> void:
+	Target.make().missing()<|>
+
+=== unsaved res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+	func grow() -> void:
+		size += 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+
+func total() -> int:
+	return count
+
+=== unsaved res://tests/fixtures/other_scripts/through.gd
+extends RefCounted
+
+var label: String = ""
+
+=== tab res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+const Through = preload("res://tests/fixtures/other_scripts/through.gd")
+
+
+static func make() -> Through:
+	return Through.new()
+
+=== end

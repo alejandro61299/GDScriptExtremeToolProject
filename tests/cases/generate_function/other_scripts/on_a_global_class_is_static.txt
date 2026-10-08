@@ -1,0 +1,34 @@
+action: generate_function
+requires_global_class: GDSExTestGadget
+=== input
+extends Node
+
+
+func run() -> void:
+	GDSExTestGadget.missing("name")<|>
+
+=== unsaved res://tests/fixtures/other_scripts/global_gadget.gd
+class_name GDSExTestGadget
+extends RefCounted
+
+var weight: float = 1.0
+
+
+func heavy() -> bool:
+	return weight > 1.0
+
+=== expected res://tests/fixtures/other_scripts/global_gadget.gd
+class_name GDSExTestGadget
+extends RefCounted
+
+var weight: float = 1.0
+
+
+func heavy() -> bool:
+	return weight > 1.0
+
+
+static func missing(param_0: String) -> void:
+	<|pass|>
+
+=== end

@@ -15,7 +15,6 @@ const GDSExExtractFunctionAction = preload("res://addons/gdscript_extreme_tool/a
 const GDSExReorderClassMembersAction = preload("res://addons/gdscript_extreme_tool/actions/reorder_class_members_action.gd")
 const GDSExFormatClassMembersAction = preload("res://addons/gdscript_extreme_tool/actions/format_class_members_action.gd")
 
-
 const OTHER_SCRIPT_LABEL_TEMPLATE: String = "%s in %s"
 
 

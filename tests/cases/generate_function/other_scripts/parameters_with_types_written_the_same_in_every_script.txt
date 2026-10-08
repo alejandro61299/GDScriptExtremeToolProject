@@ -1,0 +1,63 @@
+action: generate_function
+=== input
+extends Node
+
+const Target = preload("res://tests/fixtures/other_scripts/target.gd")
+
+
+func run(target: Target, node: Node, names: Array[String], sizes: Dictionary[String, int], position: Vector2) -> void:
+	target.missing(node, names, sizes, position)<|>
+
+=== unsaved res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+	func grow() -> void:
+		size += 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+
+func total() -> int:
+	return count
+
+=== expected res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+	func grow() -> void:
+		size += 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+
+func total() -> int:
+	return count
+
+
+func missing(p_node: Node, p_names: Array[String], p_sizes: Dictionary[String, int], p_position: Vector2) -> void:
+	<|pass|>
+
+=== end

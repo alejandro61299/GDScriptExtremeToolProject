@@ -40,6 +40,7 @@ const NULL_LITERAL: String = "null"
 const CONSTRUCTOR_TEMPLATE: String = "%s.new()"
 const TYPED_ARRAY_TEMPLATE: String = "Array[%s]"
 const ENUM_DEFAULT_VALUE: String = "0"
+const SCRIPT_CLASS_NAME: String = "GDScript"
 
 static var _modifiers_pattern := RegEx.create_from_string("^(?:(?:@\\w+(?:\\([^)]*\\))?|static)\\s+)+")
 static var _declaration_pattern := RegEx.create_from_string("^(?:var|const)\\s+\\w+(.*)$")
@@ -194,6 +195,19 @@ static func engine_base_type(class_scope: GDSExSymbolIndex.GDSExClassScope) -> S
 			return base_name if base_script == null else String(base_script.get_instance_base_type())
 		current = base_class
 	return GDSExLanguage.DEFAULT_SCRIPT_BASE
+
+
+static func is_function_of_every_script(function_name: String) -> bool:
+	return ClassDB.class_has_method(SCRIPT_CLASS_NAME, function_name)
+
+
+static func is_written_the_same_everywhere(type: GDSExSymbolIndex.GDSExTypeData) -> bool:
+	if type == null or not _is_name_written_the_same_everywhere(type.name):
+		return false
+	for generic in type.generics:
+		if not is_written_the_same_everywhere(generic):
+			return false
+	return true
 
 
 static func is_identifier(text: String) -> bool:
@@ -851,7 +865,7 @@ static func _translated_type(type: GDSExSymbolIndex.GDSExTypeData, written_in: G
 
 
 static func _translated_name(type_name: String, written_in: GDSExSymbolIndex.GDSExScopeInfo, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> String:
-	if _is_written_the_same_everywhere(type_name):
+	if _is_name_written_the_same_everywhere(type_name):
 		return type_name
 	var is_another_script := written_in.index != scope_info.index
 	var enum_name := ""
@@ -897,7 +911,7 @@ static func _find_visible_class(type_name: String, scope_info: GDSExSymbolIndex.
 	return found
 
 
-static func _is_written_the_same_everywhere(type_name: String) -> bool:
+static func _is_name_written_the_same_everywhere(type_name: String) -> bool:
 	if GDSExLanguage.is_known_type(type_name.get_slice(MEMBER_ACCESS, 0)):
 		return true
 	if type_name.contains(MEMBER_ACCESS):

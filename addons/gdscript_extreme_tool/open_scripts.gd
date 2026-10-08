@@ -2,6 +2,7 @@
 extends RefCounted
 
 const SCRIPT_TAB_CLASS : String = "ScriptTextEditor"
+const EXTERNAL_EDITOR_SETTING : String = "text_editor/external/use_external_editor"
 
 
 static func find_path(editor : CodeEdit) -> String:
@@ -27,6 +28,17 @@ static func find_unsaved_sources() -> Dictionary[String, String]:
 		if editor.get_version() != editor.get_saved_version():
 			sources[script_path] = editor.text
 	return sources
+
+
+static func can_edit(script_path : String) -> bool:
+	if script_path.is_empty():
+		return false
+	if not Engine.is_editor_hint():
+		return true
+	var settings := EditorInterface.get_editor_settings()
+	if settings.has_setting(EXTERNAL_EDITOR_SETTING) and settings.get_setting(EXTERNAL_EDITOR_SETTING):
+		return false
+	return _find_open_script(script_path) != null or FileAccess.file_exists(script_path)
 
 
 static func open(script_path : String) -> CodeEdit:

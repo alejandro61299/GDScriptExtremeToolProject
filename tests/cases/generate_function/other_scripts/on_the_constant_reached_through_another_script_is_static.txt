@@ -1,0 +1,68 @@
+action: generate_function
+=== input
+extends Node
+
+const Through = preload("res://tests/fixtures/other_scripts/through.gd")
+
+
+func run() -> void:
+	Through.Target.missing()<|>
+
+=== unsaved res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+	func grow() -> void:
+		size += 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+
+func total() -> int:
+	return count
+
+=== unsaved res://tests/fixtures/other_scripts/through.gd
+extends RefCounted
+
+const Target = preload("res://tests/fixtures/other_scripts/target.gd")
+
+=== expected res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+	func grow() -> void:
+		size += 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+
+func total() -> int:
+	return count
+
+
+static func missing() -> void:
+	<|pass|>
+
+=== end

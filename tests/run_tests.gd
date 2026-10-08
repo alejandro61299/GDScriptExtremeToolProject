@@ -57,6 +57,10 @@ const PLAN_SCRIPT_HEADER: String = "plan_script"
 const EXPECTED_LABEL_HEADER: String = "expect_label"
 const READ_ONLY_TAB_HEADER: String = "tab_read_only"
 const YES: String = "yes"
+const COMPILE_CHECK_HEADER: String = "compile_check"
+const COMPILE_APART: String = "apart"
+const GLOBAL_NAME_PATTERN: String = "(?m)^class_name .*\\n"
+const COMPILE_DIRECTORY_TEMPLATE: String = "compile_%d"
 const THIS_SCRIPT_LABEL: String = "<this script>"
 const UNKNOWN_TYPE_LABEL: String = "?"
 const SCRIPT_EXTENSION: String = "gd"
@@ -98,6 +102,7 @@ var _failed: PackedStringArray = []
 var _script_path: String = ""
 var _unsaved_sources: Dictionary[String, String] = {}
 var _tab_editors: Dictionary[String, CodeEdit] = {}
+var _compiled_cases: int = 0
 
 
 class MarkedText:
@@ -435,13 +440,47 @@ func _check_expected_compiles(test_case: TestCase) -> PackedStringArray:
 	var problems := PackedStringArray()
 	if test_case.skips_compile_check:
 		return problems
-	var script := GDScript.new()
-	script.source_code = test_case.input.text if DESCRIPTION_ACTIONS.has(test_case.action) else test_case.expected.text
+	if not test_case.expected_scripts.is_empty():
+		return _check_scripts_compile_together(test_case)
 	_error_collector.take()
-	if script.reload() != OK:
+	if not _compiles(test_case.input.text if DESCRIPTION_ACTIONS.has(test_case.action) else test_case.expected.text):
 		problems.append("The script of the case is not valid GDScript.")
 		problems.append_array(_error_collector.take())
 	return problems
+
+
+func _check_scripts_compile_together(test_case: TestCase) -> PackedStringArray:
+	var problems := PackedStringArray()
+	_compiled_cases += 1
+	var directory := TEMPORARY_ROOT.path_join(COMPILE_DIRECTORY_TEMPLATE % _compiled_cases)
+	DirAccess.make_dir_recursive_absolute(directory)
+	var global_name := RegEx.create_from_string(GLOBAL_NAME_PATTERN)
+	var caller_source := test_case.expected.text
+	var copies := PackedStringArray()
+	_error_collector.take()
+	for script_path: String in test_case.expected_scripts:
+		var source := global_name.sub(MarkedText.parse(test_case.expected_scripts[script_path]).text, "")
+		var copy_path := directory.path_join(script_path.get_file())
+		_write_file(copy_path, source)
+		copies.append(copy_path)
+		caller_source = caller_source.replace(script_path, copy_path)
+		if not _compiles(source):
+			problems.append("The expected text of %s is not valid GDScript." % script_path)
+			problems.append_array(_error_collector.take())
+	var compiles_apart: bool = test_case.headers.get(COMPILE_CHECK_HEADER, "") == COMPILE_APART
+	if caller_source != test_case.expected.text and not compiles_apart and not _compiles(caller_source):
+		problems.append("The script of the case does not compile against the expected text of the other script.")
+		problems.append_array(_error_collector.take())
+	for copy_path in copies:
+		DirAccess.remove_absolute(copy_path)
+	DirAccess.remove_absolute(directory)
+	return problems
+
+
+func _compiles(source: String) -> bool:
+	var script := GDScript.new()
+	script.source_code = source
+	return script.reload() == OK
 
 
 func _create_editor(test_case: TestCase) -> CodeEdit:
@@ -862,7 +901,8 @@ func _check_no_false_targets() -> PackedStringArray:
 	var problems := PackedStringArray()
 	var generator := GDSExGenerateFunctionAction.new()
 	for path in _project_script_paths():
-		var index := GDSExSymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
+		GDSExScriptLibrary.refresh({})
+		var index := GDSExSymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"), path)
 		_collect_false_targets(path, index, index.statements, generator, problems)
 	return problems
 

@@ -1,0 +1,37 @@
+action: generate_function
+=== input
+extends Node
+
+const Target = preload("res://tests/fixtures/other_scripts/target.gd")
+
+
+func run(target: Target) -> void:
+	target.missing(1)<|>
+
+=== unsaved res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+
+class Part:
+    var size: int = 1
+
+
+func total() -> int:
+    return 1
+
+=== expected res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+
+class Part:
+    var size: int = 1
+
+
+func total() -> int:
+    return 1
+
+
+func missing(param_0: int) -> void:
+    <|pass|>
+
+=== end

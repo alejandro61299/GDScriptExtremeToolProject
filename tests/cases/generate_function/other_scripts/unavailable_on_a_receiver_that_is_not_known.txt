@@ -1,0 +1,9 @@
+action: generate_function
+=== input
+extends Node
+
+
+func run(unknown) -> void:
+	unknown.missing()<|>
+
+=== end
