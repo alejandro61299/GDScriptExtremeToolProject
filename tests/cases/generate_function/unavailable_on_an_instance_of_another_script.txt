@@ -1,0 +1,11 @@
+action: generate_function
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(shapes : Shapes) -> void:
+	shapes.missing(1)<|>
+
+=== end

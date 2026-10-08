@@ -1,0 +1,24 @@
+action: generate_function
+=== input
+extends Node
+
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
+
+
+func run(first : ChainFirst) -> void:
+	_show(first.second, first.second.third)<|>
+
+=== expected
+extends Node
+
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
+
+
+func run(first : ChainFirst) -> void:
+	_show(first.second, first.second.third)
+
+
+func _show(param_0: ChainFirst.ChainSecond, param_1) -> void:
+	<|pass|>
+
+=== end

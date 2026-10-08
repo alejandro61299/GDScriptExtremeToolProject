@@ -1,0 +1,25 @@
+action: describe_types
+compile_check: skip
+=== input
+extends Node
+
+const Missing = preload("res://tests/fixtures/other_scripts/not_there.gd")
+const Icon = preload("res://icon.svg")
+
+var Loaded = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var from_missing = Missing.LIMIT
+	var from_icon = Icon.LIMIT
+	var from_variable = Loaded.LIMIT
+	var from_load = load("res://tests/fixtures/other_scripts/shapes.gd").LIMIT
+	var missing_instance = Missing.new()
+=== expected
+Loaded = Resource
+from_missing = ?
+from_icon = ?
+from_variable = ?
+from_load = ?
+missing_instance = Missing
+=== end

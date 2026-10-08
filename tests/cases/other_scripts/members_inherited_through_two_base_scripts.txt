@@ -1,0 +1,30 @@
+action: add_explicit_type
+=== input
+extends "res://tests/fixtures/other_scripts/derived_base.gd"
+
+
+func run() -> void:
+	var count := derived_count
+	var tool := derived_tool()
+	var mode := derived_mode()
+	var power := derived_tool().power
+	var radius := base_circle.radius
+	var made := Shapes.make()
+	var own_name := base_name
+	print(count, tool, mode, power, radius, made, own_name)
+
+=== expected
+extends "res://tests/fixtures/other_scripts/derived_base.gd"
+
+
+func run() -> void:
+	var count: int = derived_count
+	var tool: Tool = derived_tool()
+	var mode: Mode = derived_mode()
+	var power: float = derived_tool().power
+	var radius: float = base_circle.radius
+	var made: Shapes.Circle = Shapes.make()
+	var own_name: String = base_name
+	print(count, tool, mode, power, radius, made, own_name)
+
+=== end

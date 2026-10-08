@@ -39,7 +39,6 @@ const RETURN_LABEL: String = "Return what the selection returns"
 const ASSIGNMENT_LABEL: String = "Return the value of the last line"
 const OUTPUT_LABEL: String = "Return the variable '%s'"
 const PLAIN_LABEL: String = "Return nothing"
-const GROUPING_OPENER: String = "("
 const PRIVATE_PREFIX: String = "_"
 const CONSTRUCTOR_NAME: String = "_init"
 const CONSTRUCTOR_MESSAGE: String = "'_init' is the constructor of the class."
@@ -449,16 +448,7 @@ static func _exposes_any(occurrences: Array[GDSExVariableUsage.GDSExOccurrence],
 			continue
 		if groups == null:
 			groups = GDSExBracketGroups.find(statement.code)
-		if not _is_inside_a_typed_group(statement.code, groups, occurrence.offset, from_offset):
-			return true
-	return false
-
-
-static func _is_inside_a_typed_group(code: String, groups: GDSExBracketGroups.GDSExGroups, offset: int, from_offset: int) -> bool:
-	for group in groups.groups:
-		if group.open_offset < from_offset or group.open_offset > offset or group.close_offset < offset:
-			continue
-		if code[group.open_offset] != GROUPING_OPENER or GDSExVariableUsage.is_call_opener(code, group.open_offset):
+		if not GDSExVariableUsage.is_inside_a_typed_group(statement.code, groups, occurrence.offset, from_offset):
 			return true
 	return false
 
@@ -512,5 +502,5 @@ static func _target_text(extraction: GDSExExtraction, lines: PackedStringArray) 
 	var value := statement.position_at(assignment.value_start)
 	var target := raw.substr(indent_length, value.y - indent_length) if value.x == statement.first_line else raw.substr(indent_length).strip_edges(false, true) + VALUE_SEPARATOR
 	if assignment.is_inferred and extraction.return_type_text.is_empty() and operator.x == statement.first_line:
-		target = target.erase(operator.y - indent_length)
+		target = target.erase(operator.y - indent_length, assignment.operator_end - GDSExSymbolIndex.ASSIGNMENT.length() - assignment.operator_start)
 	return target

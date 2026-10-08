@@ -1,0 +1,22 @@
+action: generate_class_variable
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	<|_current|> = Shapes.make()
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+var _current: Shapes.Circle
+
+
+func run() -> void:
+	<|_current|> = Shapes.make()
+
+=== end

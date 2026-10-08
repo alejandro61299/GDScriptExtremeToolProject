@@ -1,0 +1,26 @@
+action: generate_function
+=== input
+extends Node
+
+const Drawing = preload("res://tests/fixtures/other_scripts/drawing.gd")
+
+
+func run() -> void:
+	var circle : Drawing.Shapes.Circle = _find()<|>
+	print(circle)
+
+=== expected
+extends Node
+
+const Drawing = preload("res://tests/fixtures/other_scripts/drawing.gd")
+
+
+func run() -> void:
+	var circle : Drawing.Shapes.Circle = _find()
+	print(circle)
+
+
+func _find() -> Drawing.Shapes.Circle:
+	<|return Drawing.Shapes.Circle.new()|>
+
+=== end

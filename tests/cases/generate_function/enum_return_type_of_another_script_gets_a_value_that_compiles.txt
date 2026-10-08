@@ -1,0 +1,28 @@
+action: generate_function
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var kind : Shapes.Kind = _pick()<|>
+	var process : Node.ProcessMode = Node.PROCESS_MODE_INHERIT
+	print(kind, process)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var kind : Shapes.Kind = _pick()
+	var process : Node.ProcessMode = Node.PROCESS_MODE_INHERIT
+	print(kind, process)
+
+
+func _pick() -> Shapes.Kind:
+	<|return 0|>
+
+=== end

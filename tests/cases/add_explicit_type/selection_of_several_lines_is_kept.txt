@@ -1,0 +1,24 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var speed := 2.0
+
+
+func run() -> void:
+	<|var total := 0
+	var other := 1|>
+	print(total, other)
+
+=== expected
+extends Node
+
+var speed: float = 2.0
+
+
+func run() -> void:
+	<|var total: int = 0
+	var other: int = 1|>
+	print(total, other)
+
+=== end

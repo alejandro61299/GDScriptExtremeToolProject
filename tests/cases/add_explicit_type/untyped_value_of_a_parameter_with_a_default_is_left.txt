@@ -1,0 +1,22 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(amount = 5, factor := 2, limit : int = 9) -> void:
+	var from_untyped = amount * 2
+	var from_inferred = factor * 2
+	var from_typed = limit * 2
+	print(from_untyped, from_inferred, from_typed)
+
+=== expected
+extends Node
+
+
+func run(amount = 5, factor := 2, limit : int = 9) -> void:
+	var from_untyped = amount * 2
+	var from_inferred: int = factor * 2
+	var from_typed: int = limit * 2
+	print(from_untyped, from_inferred, from_typed)
+
+=== end

@@ -1,0 +1,33 @@
+action: add_explicit_type
+requires_global_class: GDSExTestGadget, GDSExTestGadgetChild
+=== input
+extends Node
+
+
+class Child extends GDSExTestGadgetChild:
+	func run() -> void:
+		var own := Size.BIG
+		print(own)
+
+
+func run() -> void:
+	var size := GDSExTestGadget.Size.BIG
+	var through := Child.Size.SMALL
+	print(size, through)
+
+=== expected
+extends Node
+
+
+class Child extends GDSExTestGadgetChild:
+	func run() -> void:
+		var own: Size = Size.BIG
+		print(own)
+
+
+func run() -> void:
+	var size: GDSExTestGadget.Size = GDSExTestGadget.Size.BIG
+	var through: GDSExTestGadget.Size = Child.Size.SMALL
+	print(size, through)
+
+=== end

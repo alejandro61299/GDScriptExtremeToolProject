@@ -87,13 +87,7 @@ static func declared_name(code: String) -> String:
 
 static func declared_type_text(code: String) -> String:
 	var declaration := _declaration_pattern.search(code)
-	if declaration == null or code.substr(declaration.get_end(), 1) != BLOCK_OPENER or code.substr(declaration.get_end() + 1, 1) == ASSIGNMENT:
-		return ""
-	var type_end := GDSExSymbolIndex.find_top_level(code, ASSIGNMENT, declaration.get_end())
-	var accessors_start := GDSExSymbolIndex.find_top_level(code, BLOCK_OPENER, declaration.get_end() + 1)
-	if type_end == -1 or (accessors_start != -1 and accessors_start < type_end):
-		type_end = accessors_start
-	return code.substr(declaration.get_end() + 1, (code.length() if type_end == -1 else type_end) - declaration.get_end() - 1).strip_edges()
+	return "" if declaration == null else GDSExSymbolIndex.parse_declaration_tail(code, declaration.get_end()).type_text
 
 
 static func is_call_opener(code: String, open_offset: int) -> bool:
@@ -104,6 +98,15 @@ static func is_call_opener(code: String, open_offset: int) -> bool:
 		return true
 	var word := _last_word_pattern.search(before)
 	return word != null and word.get_end(1) == before.length() and not GDSExLanguage.NON_CALL_KEYWORDS.has(word.get_string(1))
+
+
+static func is_inside_a_typed_group(code: String, groups: GDSExBracketGroups.GDSExGroups, offset: int, from_offset: int) -> bool:
+	for group in groups.groups:
+		if group.open_offset < from_offset or group.open_offset > offset or group.close_offset < offset:
+			continue
+		if code[group.open_offset] != CALL_OPENER or is_call_opener(code, group.open_offset):
+			return true
+	return false
 
 
 static func parse_assignment(code: String) -> GDSExAssignment:
@@ -271,17 +274,14 @@ static func _parse_declaration(code: String, start: int, declaration: RegExMatch
 	assignment.keyword = declaration.get_string(1)
 	assignment.root_name = declaration.get_string(2)
 	assignment.is_plain_target = true
-	var tail_start := start + declaration.get_end()
-	var operator_index := GDSExSymbolIndex.find_top_level(code, ASSIGNMENT, tail_start)
-	var accessors_start := GDSExSymbolIndex.find_top_level(code, BLOCK_OPENER, tail_start + 1) if code.substr(tail_start, 1) == BLOCK_OPENER and code.substr(tail_start + 1, 1) != ASSIGNMENT else -1
-	if operator_index == -1 or (accessors_start != -1 and accessors_start < operator_index):
+	var tail := GDSExSymbolIndex.parse_declaration_tail(code, start + declaration.get_end())
+	if not tail.has_value():
 		return null
-	assignment.is_inferred = code[operator_index - 1] == BLOCK_OPENER
-	assignment.operator_start = operator_index - (1 if assignment.is_inferred else 0)
-	assignment.operator_end = operator_index + 1
-	assignment.value_start = GDSExSourceScanner.skip_spaces(code, assignment.operator_end)
-	if not assignment.is_inferred and code.substr(tail_start, 1) == BLOCK_OPENER:
-		assignment.declared_type_text = code.substr(tail_start + 1, assignment.operator_start - tail_start - 1).strip_edges()
+	assignment.is_inferred = tail.is_inferred
+	assignment.operator_start = tail.operator_start
+	assignment.operator_end = tail.operator_end
+	assignment.value_start = tail.value_start
+	assignment.declared_type_text = tail.type_text
 	return assignment
 
 

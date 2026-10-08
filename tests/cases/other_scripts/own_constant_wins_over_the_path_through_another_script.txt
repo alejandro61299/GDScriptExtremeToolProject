@@ -1,0 +1,30 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+const Drawing = preload("res://tests/fixtures/other_scripts/drawing.gd")
+
+
+func run() -> void:
+	var circle := Drawing.default_circle()
+	var shapes := Drawing.create()
+	var kind := Drawing.default_kind()
+	var circles := Drawing.new().circles()
+	print(circle, shapes, kind, circles)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+const Drawing = preload("res://tests/fixtures/other_scripts/drawing.gd")
+
+
+func run() -> void:
+	var circle: Shapes.Circle = Drawing.default_circle()
+	var shapes: Shapes = Drawing.create()
+	var kind: Shapes.Kind = Drawing.default_kind()
+	var circles: Array[Shapes.Circle] = Drawing.new().circles()
+	print(circle, shapes, kind, circles)
+
+=== end

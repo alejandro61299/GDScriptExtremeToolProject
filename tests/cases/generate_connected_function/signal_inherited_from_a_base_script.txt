@@ -1,0 +1,20 @@
+action: generate_connected_function
+=== input
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func setup() -> void:
+	base_changed.connect(<|>)
+
+=== expected
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func setup() -> void:
+	base_changed.connect(_on_base_changed)
+
+
+func _on_base_changed(p_tool: Tool, p_circle: Shapes.Circle) -> void:
+	<|pass|>
+
+=== end

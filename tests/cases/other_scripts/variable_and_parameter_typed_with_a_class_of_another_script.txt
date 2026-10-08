@@ -1,0 +1,36 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+var stored : Shapes.Circle
+var shapes : Shapes
+
+
+func run(circle : Shapes.Circle, center : Shapes.Circle.Center) -> void:
+	var radius := circle.radius
+	var position := center.position
+	var stored_area := stored.area()
+	var total := shapes.total()
+	var nested_name := circle.center.name
+	print(radius, position, stored_area, total, nested_name)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+var stored : Shapes.Circle
+var shapes : Shapes
+
+
+func run(circle : Shapes.Circle, center : Shapes.Circle.Center) -> void:
+	var radius: float = circle.radius
+	var position: Vector2 = center.position
+	var stored_area: float = stored.area()
+	var total: int = shapes.total()
+	var nested_name: String = circle.center.name
+	print(radius, position, stored_area, total, nested_name)
+
+=== end

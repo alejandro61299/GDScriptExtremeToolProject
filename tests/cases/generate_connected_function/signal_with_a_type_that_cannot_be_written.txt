@@ -1,0 +1,24 @@
+action: generate_connected_function
+=== input
+extends Node
+
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
+
+
+func setup(first : ChainFirst) -> void:
+	first.second.third_changed.connect(<|>)
+
+=== expected
+extends Node
+
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
+
+
+func setup(first : ChainFirst) -> void:
+	first.second.third_changed.connect(_on_third_changed)
+
+
+func _on_third_changed(p_third, p_size: float) -> void:
+	<|pass|>
+
+=== end

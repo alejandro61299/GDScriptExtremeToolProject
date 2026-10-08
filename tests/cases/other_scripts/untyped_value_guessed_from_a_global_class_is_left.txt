@@ -1,0 +1,23 @@
+action: add_explicit_type
+requires_global_class: GDSExTestGadget, GDSExTestGadgetChild
+=== input
+extends Node
+
+
+func run(gadget : GDSExTestGadget) -> void:
+	var guessed = GDSExTestGadget.guess()
+	var loose = gadget.loose
+	var weight = gadget.weight
+	print(guessed, loose, weight)
+
+=== expected
+extends Node
+
+
+func run(gadget : GDSExTestGadget) -> void:
+	var guessed = GDSExTestGadget.guess()
+	var loose = gadget.loose
+	var weight: float = gadget.weight
+	print(guessed, loose, weight)
+
+=== end

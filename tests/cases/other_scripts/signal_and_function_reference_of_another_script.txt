@@ -1,0 +1,26 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(shapes : Shapes) -> void:
+	var changed := shapes.changed
+	var maker := Shapes.make
+	var total := shapes.total
+	print(changed, maker, total)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(shapes : Shapes) -> void:
+	var changed: Signal = shapes.changed
+	var maker: Callable = Shapes.make
+	var total: Callable = shapes.total
+	print(changed, maker, total)
+
+=== end

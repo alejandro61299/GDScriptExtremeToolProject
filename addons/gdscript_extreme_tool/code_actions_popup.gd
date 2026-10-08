@@ -6,6 +6,8 @@ const GDSExCodeAction = preload("res://addons/gdscript_extreme_tool/actions/code
 const GDSExCodeContext = preload("res://addons/gdscript_extreme_tool/actions/code_context.gd")
 const GDSExEditApplier = preload("res://addons/gdscript_extreme_tool/editing/edit_applier.gd")
 const GDSExEditPlan = preload("res://addons/gdscript_extreme_tool/editing/edit_plan.gd")
+const GDSExOpenScripts = preload("res://addons/gdscript_extreme_tool/open_scripts.gd")
+const GDSExScriptLibrary = preload("res://addons/gdscript_extreme_tool/analysis/script_library.gd")
 
 const NO_ACTIONS_LABEL : String = "No actions available here"
 
@@ -35,7 +37,7 @@ func popup_at_caret() -> void:
 func _fill() -> void:
 	clear()
 	if _editor != null:
-		for action in GDSExActionRegistry.find_available(_actions, GDSExCodeContext.new(_editor)):
+		for action in GDSExActionRegistry.find_available(_actions, _create_context()):
 			add_item(action.get_label())
 			set_item_metadata(item_count - 1, action)
 	if item_count == 0:
@@ -51,7 +53,7 @@ func _run_action(index : int) -> void:
 	var action := get_item_metadata(index) as GDSExCodeAction
 	if action == null or _editor == null:
 		return
-	var context := GDSExCodeContext.new(_editor)
+	var context := _create_context()
 	var dialog := action.create_dialog(context, apply_plan.bind(_editor))
 	if dialog == null:
 		apply_plan(action.build_plan(context), _editor)
@@ -59,6 +61,14 @@ func _run_action(index : int) -> void:
 	dialog.visibility_changed.connect(_free_when_hidden.bind(dialog))
 	_editor.get_window().add_child(dialog)
 	dialog.popup_centered()
+
+
+func _create_context() -> GDSExCodeContext:
+	return GDSExCodeContext.new(_editor, GDSExOpenScripts.find_path(_editor), GDSExOpenScripts.find_unsaved_sources())
+
+
+static func forget_scripts() -> void:
+	GDSExScriptLibrary.clear()
 
 
 static func apply_plan(plan : GDSExEditPlan, editor : CodeEdit) -> void:

@@ -1,0 +1,23 @@
+action: generate_local_variable
+=== input
+extends Node
+
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
+
+
+func run(first : ChainFirst) -> void:
+	<|third|> = first.second.third
+	print(third)
+
+=== expected
+extends Node
+
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
+
+
+func run(first : ChainFirst) -> void:
+	var third = <|null|>
+	third = first.second.third
+	print(third)
+
+=== end

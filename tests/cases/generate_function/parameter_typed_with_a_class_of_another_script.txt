@@ -1,0 +1,24 @@
+action: generate_function
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(shapes : Shapes) -> void:
+	_show(shapes.pick(), Shapes.make_all(2), shapes.first.kind)<|>
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(shapes : Shapes) -> void:
+	_show(shapes.pick(), Shapes.make_all(2), shapes.first.kind)
+
+
+func _show(param_0: Shapes.Circle, param_1: Array[Shapes.Circle], param_2: Shapes.Kind) -> void:
+	<|pass|>
+
+=== end

@@ -1,0 +1,26 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var target = Node2D.new()
+var amount = 1
+
+
+func clear() -> void:
+	target = null
+	target = Sprite2D.new()
+	amount = null
+
+=== expected
+extends Node
+
+var target: Node2D = Node2D.new()
+var amount = 1
+
+
+func clear() -> void:
+	target = null
+	target = Sprite2D.new()
+	amount = null
+
+=== end

@@ -12,6 +12,7 @@ const GETTER_NAME: String = "get"
 const RANGE_CALL: String = "range("
 const RETURN_ARROW: String = "->"
 const PATTERN_GUARD: String = " when "
+const SCRIPT_EXTENSION: String = "gd"
 
 static var _modifiers_pattern := RegEx.create_from_string("^(?:(?:@\\w+(?:\\([^)]*\\))?|static)\\s+)+")
 static var _class_name_pattern := RegEx.create_from_string("^class_name\\s+(\\w+)")
@@ -27,7 +28,7 @@ static var _return_pattern := RegEx.create_from_string("^return\\b(.*)$")
 static var _setter_pattern := RegEx.create_from_string("^set\\s*\\(\\s*(\\w+)\\s*\\)\\s*:")
 static var _getter_pattern := RegEx.create_from_string("^get\\s*(?:\\(\\s*\\))?\\s*:")
 static var _static_function_pattern := RegEx.create_from_string("\\bstatic\\s+func\\b")
-static var _script_preload_pattern := RegEx.create_from_string("=\\s*preload\\(\\s*[\"'][^\"']*\\.gd[\"']\\s*\\)")
+static var _preload_pattern := RegEx.create_from_string("=\\s*preload\\(\\s*[\"']([^\"']*)[\"']\\s*\\)")
 static var _enum_pattern := RegEx.create_from_string("^enum\\b\\s*(\\w*)\\s*\\{(.*)\\}")
 static var _annotation_pattern := RegEx.create_from_string("^@\\w+")
 static var _extends_path_pattern := RegEx.create_from_string("\\bextends\\s+[\"']([^\"']+)[\"']")
@@ -40,12 +41,14 @@ class GDSExFunctionHeader:
 	var body_offset: int = -1
 
 
-static func build(lines: PackedStringArray) -> GDSExSymbolIndex.GDSExSymbolIndexData:
+static func build(lines: PackedStringArray, script_path: String = "") -> GDSExSymbolIndex.GDSExSymbolIndexData:
 	var root := GDSExSymbolIndex.GDSExClassScope.new()
 	root.body_start_line = 0
 	root.end_line = maxi(0, lines.size() - 1)
 	var data := GDSExSymbolIndex.GDSExSymbolIndexData.new()
 	data.root = root
+	data.script_path = script_path
+	root.belong_to(data)
 	data.statements = GDSExSourceScanner.new().scan(lines)
 	_add_class_members(root, data.statements, lines)
 	return data
@@ -97,7 +100,8 @@ static func _add_class_member(class_scope: GDSExSymbolIndex.GDSExClassScope, sta
 		member.name = _enum_pattern.search(code).get_string(1)
 	elif _variable_pattern.search(code) != null:
 		var variable := _add_member_variable(class_scope, statement, code)
-		variable.is_script_alias = variable.is_const and _script_preload_pattern.search(lines[statement.first_line]) != null
+		if variable.is_const:
+			_read_script_alias(variable, class_scope, lines[statement.first_line])
 		member.kind = GDSExSymbolIndex.GDSExClassMember.GDSExKind.CONSTANT if variable.is_const else GDSExSymbolIndex.GDSExClassMember.GDSExKind.VARIABLE
 		member.name = variable.name
 	else:
@@ -139,7 +143,24 @@ static func _read_extends(class_scope: GDSExSymbolIndex.GDSExClassScope, stateme
 		return
 	var path_match := _extends_path_pattern.search(lines[statement.first_line])
 	if path_match != null:
-		class_scope.base_script_path = path_match.get_string(1)
+		var resolved_path := GDSExSymbolIndex.resolve_script_path(path_match.get_string(1), _script_path(class_scope))
+		class_scope.base_script_path = path_match.get_string(1) if resolved_path.is_empty() else resolved_path
+
+
+static func _read_script_alias(variable: GDSExSymbolIndex.GDSExVariableSymbol, class_scope: GDSExSymbolIndex.GDSExClassScope, raw_line: String) -> void:
+	var preload_match := _preload_pattern.search(raw_line)
+	if preload_match == null:
+		return
+	var written_path := preload_match.get_string(1)
+	var resolved_path := GDSExSymbolIndex.resolve_script_path(written_path, _script_path(class_scope))
+	if resolved_path.get_extension() == SCRIPT_EXTENSION:
+		variable.script_path = resolved_path
+	variable.is_script_alias = not variable.script_path.is_empty() or written_path.get_extension() == SCRIPT_EXTENSION
+
+
+static func _script_path(class_scope: GDSExSymbolIndex.GDSExClassScope) -> String:
+	var index := GDSExSymbolIndex.find_index(class_scope)
+	return "" if index == null else index.script_path
 
 
 static func _add_inner_class(parent: GDSExSymbolIndex.GDSExClassScope, statement: GDSExSourceScanner.GDSExStatement, code: String, lines: PackedStringArray) -> void:
@@ -185,7 +206,7 @@ static func _add_signal(class_scope: GDSExSymbolIndex.GDSExClassScope, code: Str
 
 static func _add_member_variable(class_scope: GDSExSymbolIndex.GDSExClassScope, statement: GDSExSourceScanner.GDSExStatement, code: String) -> GDSExSymbolIndex.GDSExVariableSymbol:
 	var accessors := _own_block(statement, false)
-	var variable := _parse_variable(code, statement, accessors != null)
+	var variable := _parse_variable(code, statement)
 	class_scope.vars[variable.name] = variable
 	if accessors != null:
 		_add_property(class_scope, statement, accessors, variable)
@@ -221,7 +242,7 @@ static func _add_body_statements(scope: GDSExSymbolIndex.GDSExScopeBase, stateme
 		var body := _own_block(statement, false)
 		var variable: GDSExSymbolIndex.GDSExVariableSymbol = null
 		if _variable_pattern.search(code) != null:
-			variable = _parse_variable(code, statement, false)
+			variable = _parse_variable(code, statement)
 			scope.locals.append(variable)
 		else:
 			_record_return(scope, code, statement.first_line)
@@ -319,6 +340,7 @@ static func _create_function_scope(header_code: String, is_lambda: bool, start_l
 	function.name = header.name
 	function.is_lambda = is_lambda
 	function.params = GDSExSymbolIndex.parse_func_parameters(header.params_text)
+	function.untyped_params = GDSExSymbolIndex.find_untyped_parameters(header.params_text)
 	if not header.return_text.is_empty():
 		function.return_type = GDSExSymbolIndex.parse_type(header.return_text)
 	function.start_line = start_line
@@ -339,16 +361,15 @@ static func _create_block_scope(kind: GDSExSymbolIndex.GDSExBlockScope.GDSExKind
 	return scope
 
 
-static func _parse_variable(code: String, statement: GDSExSourceScanner.GDSExStatement, has_accessors: bool) -> GDSExSymbolIndex.GDSExVariableSymbol:
+static func _parse_variable(code: String, statement: GDSExSourceScanner.GDSExStatement) -> GDSExSymbolIndex.GDSExVariableSymbol:
 	var variable_match := _variable_pattern.search(code)
-	var tail := variable_match.get_string(3).strip_edges()
-	if has_accessors:
-		tail = tail.trim_suffix(GDSExSourceScanner.BLOCK_OPENER)
-	var declaration := GDSExSymbolIndex.parse_declaration_tail(tail)
+	var declaration := GDSExSymbolIndex.parse_declaration_tail(statement.code, statement.code.length() - code.length() + variable_match.get_start(3))
 	var variable := GDSExSymbolIndex.GDSExVariableSymbol.new()
 	variable.name = variable_match.get_string(2)
 	variable.is_const = variable_match.get_string(1) == CONSTANT_KEYWORD
-	variable.is_untyped = not variable.is_const and not tail.begins_with(GDSExSymbolIndex.TYPE_ANNOTATION)
+	variable.is_untyped = not variable.is_const and not declaration.is_inferred and not declaration.has_type()
+	variable.declaration = declaration
+	variable.statement = statement
 	variable.type = declaration.type
 	variable.value_code = declaration.value
 	if declaration.type == null and not declaration.value.is_empty():

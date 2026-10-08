@@ -1,0 +1,24 @@
+action: add_explicit_type
+=== input
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func run() -> void:
+	var limit := Shapes.LIMIT
+	var amount := Shapes.count_of([])
+	var title := Drawing.new().title
+	var own_name := base_name
+	print(limit, amount, title, own_name)
+
+=== expected
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func run() -> void:
+	var limit: int = Shapes.LIMIT
+	var amount: int = Shapes.count_of([])
+	var title: String = Drawing.new().title
+	var own_name: String = base_name
+	print(limit, amount, title, own_name)
+
+=== end

@@ -1,0 +1,21 @@
+action: generate_connected_function
+requires_global_class: GDSExTestGadget, GDSExTestGadgetChild
+=== input
+extends Node
+
+
+func setup(gadget : GDSExTestGadget) -> void:
+	gadget.resized.connect(<|>)
+
+=== expected
+extends Node
+
+
+func setup(gadget : GDSExTestGadget) -> void:
+	gadget.resized.connect(_on_resized)
+
+
+func _on_resized(p_size: GDSExTestGadget.Size, p_part: GDSExTestGadget.Part) -> void:
+	<|pass|>
+
+=== end

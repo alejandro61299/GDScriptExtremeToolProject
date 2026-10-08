@@ -1,0 +1,32 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
+
+
+func run(first : ChainFirst) -> void:
+	var second := first.second
+	var third := first.second.third
+	var parts := first.second.parts
+	var made := first.second.make_third()
+	var size := first.second.third.third_size
+	var label := second.second_label
+	print(second, third, parts, made, size, label)
+
+=== expected
+extends Node
+
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
+
+
+func run(first : ChainFirst) -> void:
+	var second: ChainFirst.ChainSecond = first.second
+	var third := first.second.third
+	var parts := first.second.parts
+	var made := first.second.make_third()
+	var size: float = first.second.third.third_size
+	var label: String = second.second_label
+	print(second, third, parts, made, size, label)
+
+=== end

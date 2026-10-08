@@ -1,0 +1,20 @@
+action: add_explicit_type
+compile_check: skip
+script_path: res://tests/fixtures/other_scripts/consumer.gd
+=== input
+extends "base_with_aliases.gd"
+
+
+func run() -> void:
+	var copy := base_name
+	print(copy)
+
+=== expected
+extends "base_with_aliases.gd"
+
+
+func run() -> void:
+	var copy: String = base_name
+	print(copy)
+
+=== end

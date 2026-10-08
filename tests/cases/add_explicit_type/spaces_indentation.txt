@@ -1,0 +1,23 @@
+action: add_explicit_type
+indent: spaces
+=== input
+extends Node
+
+
+func run() -> void:
+    var total := 0
+    if total == 0:
+        var nested = "zero"
+        print(nested)
+
+=== expected
+extends Node
+
+
+func run() -> void:
+    var total: int = 0
+    if total == 0:
+        var nested: String = "zero"
+        print(nested)
+
+=== end

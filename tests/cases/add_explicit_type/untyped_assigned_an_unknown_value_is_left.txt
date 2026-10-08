@@ -1,0 +1,24 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var score = 0
+var lives = 3
+
+
+func add(points) -> void:
+	score += points
+	lives -= 1
+
+=== expected
+extends Node
+
+var score = 0
+var lives: int = 3
+
+
+func add(points) -> void:
+	score += points
+	lives -= 1
+
+=== end

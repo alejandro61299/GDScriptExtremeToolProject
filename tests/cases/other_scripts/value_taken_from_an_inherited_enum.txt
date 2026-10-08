@@ -1,0 +1,20 @@
+action: add_explicit_type
+=== input
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func run() -> void:
+	var mode := Mode.ON
+	var kind := Shapes.Kind.SQUARE
+	print(mode, kind)
+
+=== expected
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func run() -> void:
+	var mode: Mode = Mode.ON
+	var kind: Shapes.Kind = Shapes.Kind.SQUARE
+	print(mode, kind)
+
+=== end

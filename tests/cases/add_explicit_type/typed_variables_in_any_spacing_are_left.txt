@@ -1,0 +1,18 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var first :int=0
+var second:float = 1.0
+var third : String
+var fourth:Array[int]=[]
+var fifth :  Dictionary[String, int] = {}
+var sixth	:	bool	=	true
+
+
+func run() -> void:
+	var seventh :bool=true
+	var eighth:Node
+	print(first, second, third, fourth, fifth, sixth, seventh, eighth)
+
+=== end

@@ -1,0 +1,46 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var outer := 1
+
+
+class Inner:
+	var value := 2.5
+	var label = "inner"
+
+	func describe() -> String:
+		var text := label + str(value)
+		return text
+
+
+	class Deeper:
+		var flag = true
+
+		func toggle() -> void:
+			var next := not flag
+			flag = next
+
+=== expected
+extends Node
+
+var outer: int = 1
+
+
+class Inner:
+	var value: float = 2.5
+	var label: String = "inner"
+
+	func describe() -> String:
+		var text: String = label + str(value)
+		return text
+
+
+	class Deeper:
+		var flag: bool = true
+
+		func toggle() -> void:
+			var next: bool = not flag
+			flag = next
+
+=== end

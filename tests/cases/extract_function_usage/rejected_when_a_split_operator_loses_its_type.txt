@@ -1,0 +1,19 @@
+action: describe_extraction
+=== input
+extends Node
+
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
+
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	var snippet := ChainFirst.new()
+	var lines := snippet.second.parts
+	<|print(items)
+	var first : = snippet.second.parts|>
+	var count :	= first.size()
+	print(count, factor)
+=== expected
+rejected: UNKNOWN_TYPE
+=== end

@@ -1,0 +1,28 @@
+action: add_explicit_type
+=== input
+extends Node
+
+@onready var label = $Label
+var sprite = Sprite2D.new()
+
+
+func run() -> void:
+	label.text = "ready"
+	label.custom_function()
+	sprite.position = Vector2.ONE
+	sprite.missing_property = 1
+
+=== expected
+extends Node
+
+@onready var label: Node = $Label
+var sprite: Sprite2D = Sprite2D.new()
+
+
+func run() -> void:
+	label.text = "ready"
+	label.custom_function()
+	sprite.position = Vector2.ONE
+	sprite.missing_property = 1
+
+=== end

@@ -1,0 +1,28 @@
+action: add_explicit_type
+=== input
+extends Node2D
+
+var offset = Vector2.ZERO
+var items = [1, 2]
+var table = {}
+
+
+func run() -> void:
+	offset.x = 5.0
+	items[0] = "text"
+	table["key"] = 1
+
+=== expected
+extends Node2D
+
+var offset: Vector2 = Vector2.ZERO
+var items: Array = [1, 2]
+var table: Dictionary = {}
+
+
+func run() -> void:
+	offset.x = 5.0
+	items[0] = "text"
+	table["key"] = 1
+
+=== end

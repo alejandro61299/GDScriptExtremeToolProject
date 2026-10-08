@@ -1,0 +1,32 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var limit := Shapes.LIMIT
+	print(limit)
+
+
+func other(Shapes : Dictionary) -> void:
+	var size := Shapes.size()
+	print(size)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var limit: int = Shapes.LIMIT
+	print(limit)
+
+
+func other(Shapes : Dictionary) -> void:
+	var size: int = Shapes.size()
+	print(size)
+
+=== end

@@ -1,0 +1,44 @@
+action: add_explicit_type
+compile_check: skip
+script_path: res://tests/fixtures/other_scripts/cycle_first.gd
+=== input
+extends RefCounted
+
+const CycleSecond = preload("res://tests/fixtures/other_scripts/cycle_second.gd")
+
+var second : CycleSecond
+var first_name : String = "first"
+
+
+class Item:
+	var weight : float = 1.0
+
+
+func run() -> void:
+	var item := second.item
+	var weight := second.item.weight
+	var back := second.first
+	var back_name := second.first.first_name
+	print(item, weight, back, back_name)
+
+=== expected
+extends RefCounted
+
+const CycleSecond = preload("res://tests/fixtures/other_scripts/cycle_second.gd")
+
+var second : CycleSecond
+var first_name : String = "first"
+
+
+class Item:
+	var weight : float = 1.0
+
+
+func run() -> void:
+	var item: Item = second.item
+	var weight: float = second.item.weight
+	var back := second.first
+	var back_name: String = second.first.first_name
+	print(item, weight, back, back_name)
+
+=== end

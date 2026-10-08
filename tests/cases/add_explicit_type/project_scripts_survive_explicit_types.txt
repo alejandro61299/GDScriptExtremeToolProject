@@ -1,0 +1,5 @@
+action: check_explicit_types_of_project_scripts
+=== input
+extends Node
+
+=== end

@@ -1,0 +1,19 @@
+action: describe_extraction
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+var names : Array[String] = []
+
+
+func run(circles : Array[Shapes.Circle], factor : float) -> void:
+	<|print(factor)
+	var biggest := Shapes.make()|>
+	var area := biggest.area()
+	print(area, circles)
+=== expected
+form: ASSIGNMENT
+signature: func _new(factor: float) -> Shapes.Circle
+call: var biggest := _new(factor)
+=== end

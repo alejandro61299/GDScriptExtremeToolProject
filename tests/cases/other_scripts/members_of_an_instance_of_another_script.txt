@@ -1,0 +1,28 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var shapes := Shapes.new()
+	var count := shapes.count
+	var label := shapes.label
+	var total := shapes.total()
+	print(count, label, total)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var shapes: Shapes = Shapes.new()
+	var count: int = shapes.count
+	var label: String = shapes.label
+	var total: int = shapes.total()
+	print(count, label, total)
+
+=== end

@@ -1,0 +1,24 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var ready_count = 0
+var name_text = "a"
+
+
+func run(flag : bool) -> void:
+	if flag: ready_count = 0.5
+	if flag: name_text = "b"
+
+=== expected
+extends Node
+
+var ready_count = 0
+var name_text: String = "a"
+
+
+func run(flag : bool) -> void:
+	if flag: ready_count = 0.5
+	if flag: name_text = "b"
+
+=== end

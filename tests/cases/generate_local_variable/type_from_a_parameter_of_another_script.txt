@@ -1,0 +1,21 @@
+action: generate_local_variable
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	print(Shapes.count_of(<|circles|>))
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var circles: Array[Shapes.Circle] = <|[]|>
+	print(Shapes.count_of(circles))
+
+=== end

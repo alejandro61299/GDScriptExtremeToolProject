@@ -1,0 +1,19 @@
+action: describe_extraction
+=== input
+extends Node
+
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
+
+var names : Array[String] = []
+
+
+func run(items : Array[int], factor : float) -> void:
+	var snippet := ChainFirst.new()
+	<|print(items)
+	var lines :  = snippet.second.parts|>
+	print(lines, factor)
+=== expected
+form: ASSIGNMENT
+signature: func _new(items: Array[int], snippet: ChainFirst)
+call: var lines = _new(items, snippet)
+=== end

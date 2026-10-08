@@ -1,0 +1,11 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var target = Sprite2D.new()
+
+
+func swap() -> void:
+	target = Node2D.new()
+
+=== end

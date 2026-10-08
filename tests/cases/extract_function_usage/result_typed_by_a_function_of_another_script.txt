@@ -1,0 +1,19 @@
+action: describe_extraction
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+var names : Array[String] = []
+
+
+func run(circles : Array[Shapes.Circle], factor : float) -> void:
+	<|print(factor)
+	var amount := Shapes.count_of(circles)|>
+	var doubled := amount * 2
+	print(doubled)
+=== expected
+form: ASSIGNMENT
+signature: func _new(factor: float, circles: Array[Shapes.Circle]) -> int
+call: var amount := _new(factor, circles)
+=== end

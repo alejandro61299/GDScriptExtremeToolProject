@@ -1,0 +1,26 @@
+action: add_explicit_type
+requires_global_class: GDSExTestGadget
+compile_check: skip
+=== input
+extends Node
+
+const GDSExTestGadget = preload("res://tests/fixtures/other_scripts/shapes.gd")
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var made := GDSExTestGadget.make()
+	print(made)
+
+=== expected
+extends Node
+
+const GDSExTestGadget = preload("res://tests/fixtures/other_scripts/shapes.gd")
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var made: Shapes.Circle = GDSExTestGadget.make()
+	print(made)
+
+=== end

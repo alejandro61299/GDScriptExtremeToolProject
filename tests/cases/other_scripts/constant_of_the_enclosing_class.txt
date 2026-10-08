@@ -1,0 +1,26 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+class Tool:
+	func run() -> void:
+		var limit := Shapes.LIMIT
+		var radius := Shapes.Circle.new().radius
+		print(limit, radius)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+class Tool:
+	func run() -> void:
+		var limit: int = Shapes.LIMIT
+		var radius: float = Shapes.Circle.new().radius
+		print(limit, radius)
+
+=== end

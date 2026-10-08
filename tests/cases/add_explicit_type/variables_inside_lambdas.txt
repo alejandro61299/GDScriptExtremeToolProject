@@ -1,0 +1,32 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var callback := func(value : int) -> int:
+		var doubled := value * 2
+		var inner := func() -> float:
+			var half = second / 2.0
+			return half
+		print(inner.call())
+		return doubled
+	var result = callback.call(first)
+	print(result)
+
+=== expected
+extends Node
+
+
+func run(first : int, second : float) -> void:
+	var callback: Callable = func(value : int) -> int:
+		var doubled: int = value * 2
+		var inner: Callable = func() -> float:
+			var half: float = second / 2.0
+			return half
+		print(inner.call())
+		return doubled
+	var result = callback.call(first)
+	print(result)
+
+=== end

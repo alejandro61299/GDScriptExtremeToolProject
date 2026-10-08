@@ -1,0 +1,28 @@
+action: add_explicit_type
+=== input
+extends Node
+
+enum Mode { IDLE, RUN }
+
+var mode = Mode.IDLE
+var other = Mode.RUN
+
+
+func run() -> void:
+	mode = Mode.RUN
+	other = 1
+
+=== expected
+extends Node
+
+enum Mode { IDLE, RUN }
+
+var mode: Mode = Mode.IDLE
+var other = Mode.RUN
+
+
+func run() -> void:
+	mode = Mode.RUN
+	other = 1
+
+=== end

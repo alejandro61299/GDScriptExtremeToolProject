@@ -1,0 +1,22 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Drawing = preload("res://tests/fixtures/other_scripts/drawing.gd")
+
+
+func run() -> void:
+	var kind := Drawing.Shapes.Kind.ROUND
+	print(kind)
+
+=== expected
+extends Node
+
+const Drawing = preload("res://tests/fixtures/other_scripts/drawing.gd")
+
+
+func run() -> void:
+	var kind: Drawing.Shapes.Kind = Drawing.Shapes.Kind.ROUND
+	print(kind)
+
+=== end

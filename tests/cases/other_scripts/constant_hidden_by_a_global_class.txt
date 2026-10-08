@@ -1,0 +1,26 @@
+action: add_explicit_type
+requires_global_class: GDSExTestGadget
+compile_check: skip
+=== input
+extends Node
+
+const GDSExTestGadget = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var made := GDSExTestGadget.make()
+	var limit := GDSExTestGadget.LIMIT
+	print(made, limit)
+
+=== expected
+extends Node
+
+const GDSExTestGadget = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var made := GDSExTestGadget.make()
+	var limit: int = GDSExTestGadget.LIMIT
+	print(made, limit)
+
+=== end

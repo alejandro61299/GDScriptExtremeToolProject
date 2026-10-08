@@ -1,0 +1,86 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+class Outer:
+	enum Mode { OFF, ON }
+
+	var nested : Nested = Nested.new()
+	var mode : Mode = Mode.OFF
+	var all : Array[Nested] = []
+
+	func make() -> Nested:
+		return Nested.new()
+
+	func inside() -> void:
+		var own := nested
+		var own_mode := mode
+		print(own, own_mode)
+
+
+	class Nested:
+		var amount := 2
+
+		func parent_mode(outer : Outer) -> void:
+			var seen := outer.mode
+			print(seen)
+
+
+class Other:
+	func run(outer : Outer) -> void:
+		var nested := outer.nested
+		print(nested)
+
+
+func run(outer : Outer) -> void:
+	var nested := outer.nested
+	var made := outer.make()
+	var mode := outer.mode
+	var all := outer.all
+	var amount := outer.nested.amount
+	print(nested, made, mode, all, amount)
+
+=== expected
+extends Node
+
+
+class Outer:
+	enum Mode { OFF, ON }
+
+	var nested : Nested = Nested.new()
+	var mode : Mode = Mode.OFF
+	var all : Array[Nested] = []
+
+	func make() -> Nested:
+		return Nested.new()
+
+	func inside() -> void:
+		var own: Nested = nested
+		var own_mode: Mode = mode
+		print(own, own_mode)
+
+
+	class Nested:
+		var amount: int = 2
+
+		func parent_mode(outer : Outer) -> void:
+			var seen: Mode = outer.mode
+			print(seen)
+
+
+class Other:
+	func run(outer : Outer) -> void:
+		var nested: Outer.Nested = outer.nested
+		print(nested)
+
+
+func run(outer : Outer) -> void:
+	var nested: Outer.Nested = outer.nested
+	var made: Outer.Nested = outer.make()
+	var mode: Outer.Mode = outer.mode
+	var all: Array[Outer.Nested] = outer.all
+	var amount: int = outer.nested.amount
+	print(nested, made, mode, all, amount)
+
+=== end

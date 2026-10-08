@@ -1,0 +1,36 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(flag : bool) -> void:
+	var kind := Shapes.Kind.ROUND
+	var chosen := Shapes.Kind.ROUND if flag else Shapes.Kind.SQUARE
+	var kept = Shapes.Kind.SQUARE
+	var mixed = Shapes.Kind.SQUARE
+	var names := Shapes.Kind.keys()
+	var count := Shapes.Kind.size()
+	kept = Shapes.Kind.ROUND
+	mixed = 1
+	print(kind, chosen, kept, mixed, names, count)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(flag : bool) -> void:
+	var kind: Shapes.Kind = Shapes.Kind.ROUND
+	var chosen: Shapes.Kind = Shapes.Kind.ROUND if flag else Shapes.Kind.SQUARE
+	var kept: Shapes.Kind = Shapes.Kind.SQUARE
+	var mixed = Shapes.Kind.SQUARE
+	var names: Array = Shapes.Kind.keys()
+	var count: int = Shapes.Kind.size()
+	kept = Shapes.Kind.ROUND
+	mixed = 1
+	print(kind, chosen, kept, mixed, names, count)
+
+=== end

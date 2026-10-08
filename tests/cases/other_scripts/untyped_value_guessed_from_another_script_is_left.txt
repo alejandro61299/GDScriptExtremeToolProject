@@ -1,0 +1,28 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var guessed = Shapes.guess()
+	var loose = Shapes.new().loose
+	var total = Shapes.new().total()
+	var limit = Shapes.LIMIT
+	print(guessed, loose, total, limit)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var guessed = Shapes.guess()
+	var loose = Shapes.new().loose
+	var total: int = Shapes.new().total()
+	var limit: int = Shapes.LIMIT
+	print(guessed, loose, total, limit)
+
+=== end

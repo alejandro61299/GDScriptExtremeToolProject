@@ -1,0 +1,36 @@
+action: describe_scopes
+compile_check: skip
+script_path: res://tests/fixtures/other_scripts/consumer.gd
+=== input
+extends "base_with_aliases.gd"
+
+const Absolute = preload("res://tests/fixtures/other_scripts/shapes.gd")
+const Relative = preload("shapes.gd")
+const Inferred := preload("drawing.gd")
+const Parent = preload("../other_scripts/cycle_first.gd")
+const Missing = preload("not_there.gd")
+const Icon = preload("res://icon.svg")
+const LIMIT = 3
+var loaded = preload("shapes.gd")
+
+
+class Inner:
+	extends "res://tests/fixtures/other_scripts/shapes.gd"
+
+	const Nested = preload("drawing.gd")
+
+	var value := Nested.new()
+=== expected
+class <root> extends res://tests/fixtures/other_scripts/base_with_aliases.gd 1-18
+  const Absolute 3 script res://tests/fixtures/other_scripts/shapes.gd
+  const Relative 4 script res://tests/fixtures/other_scripts/shapes.gd
+  const Inferred 5 script res://tests/fixtures/other_scripts/drawing.gd
+  const Parent 6 script res://tests/fixtures/other_scripts/cycle_first.gd
+  const Missing 7 script res://tests/fixtures/other_scripts/not_there.gd
+  const Icon 8
+  const LIMIT: int 9
+  var loaded 10
+  class Inner extends res://tests/fixtures/other_scripts/shapes.gd 13-18 body 14
+    const Nested 16 script res://tests/fixtures/other_scripts/drawing.gd
+    var value 18
+=== end

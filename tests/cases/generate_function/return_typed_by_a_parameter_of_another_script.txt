@@ -1,0 +1,24 @@
+action: generate_function
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	print(Shapes.count_of(_collect()<|>))
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	print(Shapes.count_of(_collect()))
+
+
+func _collect() -> Array[Shapes.Circle]:
+	<|return []|>
+
+=== end

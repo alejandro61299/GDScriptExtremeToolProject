@@ -1,0 +1,36 @@
+action: add_explicit_type
+=== input
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func run() -> void:
+	var circle := base_circle
+	var radius := base_circle.radius
+	var made := base_made()
+	var kind := base_kind()
+	var tool := make_tool()
+	var tools := base_tools()
+	var power := base_tool.power
+	var mode := base_mode
+	var own_name := base_name
+	var fresh := Tool.new()
+	print(circle, radius, made, kind, tool, tools, power, mode, own_name, fresh)
+
+=== expected
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func run() -> void:
+	var circle: Shapes.Circle = base_circle
+	var radius: float = base_circle.radius
+	var made: Shapes.Circle = base_made()
+	var kind: Shapes.Kind = base_kind()
+	var tool: Tool = make_tool()
+	var tools: Array[Tool] = base_tools()
+	var power: float = base_tool.power
+	var mode: Mode = base_mode
+	var own_name: String = base_name
+	var fresh: Tool = Tool.new()
+	print(circle, radius, made, kind, tool, tools, power, mode, own_name, fresh)
+
+=== end

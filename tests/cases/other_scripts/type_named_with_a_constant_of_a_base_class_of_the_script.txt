@@ -1,0 +1,28 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+class Base:
+	const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+class Derived extends Base:
+	func run() -> void:
+		var made := Shapes.make()
+		print(made)
+
+=== expected
+extends Node
+
+
+class Base:
+	const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+class Derived extends Base:
+	func run() -> void:
+		var made: Shapes.Circle = Shapes.make()
+		print(made)
+
+=== end

@@ -1,0 +1,30 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(circle : Shapes.Circle) -> void:
+	var made := Shapes.make()
+	var center := circle.center
+	var grown := circle.grown(2.0)
+	var first := Shapes.new().first
+	var picked := Shapes.new().pick()
+	print(made, center, grown, first, picked)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(circle : Shapes.Circle) -> void:
+	var made: Shapes.Circle = Shapes.make()
+	var center: Shapes.Circle.Center = circle.center
+	var grown: Shapes.Circle = circle.grown(2.0)
+	var first: Shapes.Circle = Shapes.new().first
+	var picked: Shapes.Circle = Shapes.new().pick()
+	print(made, center, grown, first, picked)
+
+=== end

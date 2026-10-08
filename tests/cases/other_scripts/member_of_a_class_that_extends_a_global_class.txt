@@ -1,0 +1,25 @@
+action: add_explicit_type
+requires_global_class: GDSExTestGadget, GDSExTestGadgetChild
+=== input
+extends Node
+
+
+func run(child : GDSExTestGadgetChild) -> void:
+	var text := child.extra
+	var weight := child.weight
+	var part := child.child_part()
+	var created := GDSExTestGadgetChild.create()
+	print(text, weight, part, created)
+
+=== expected
+extends Node
+
+
+func run(child : GDSExTestGadgetChild) -> void:
+	var text: String = child.extra
+	var weight: float = child.weight
+	var part: GDSExTestGadget.Part = child.child_part()
+	var created: GDSExTestGadget = GDSExTestGadgetChild.create()
+	print(text, weight, part, created)
+
+=== end

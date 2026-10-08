@@ -1,0 +1,24 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(circles : Array[Shapes.Circle]) -> void:
+	var amount := Shapes.count_of(circles)
+	var limit := Shapes.LIMIT
+	print(amount, limit)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(circles : Array[Shapes.Circle]) -> void:
+	var amount: int = Shapes.count_of(circles)
+	var limit: int = Shapes.LIMIT
+	print(amount, limit)
+
+=== end

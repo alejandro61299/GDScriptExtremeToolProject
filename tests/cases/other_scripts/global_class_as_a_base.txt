@@ -1,0 +1,33 @@
+action: add_explicit_type
+requires_global_class: GDSExTestGadget, GDSExTestGadgetChild
+=== input
+extends GDSExTestGadgetChild
+
+
+func run() -> void:
+	var own_weight := weight
+	var own_part := part
+	var made := make_part()
+	var child := child_part()
+	var own_size := size
+	var text := extra
+	var round := circle()
+	var many := parts()
+	print(own_weight, own_part, made, child, own_size, text, round, many)
+
+=== expected
+extends GDSExTestGadgetChild
+
+
+func run() -> void:
+	var own_weight: float = weight
+	var own_part: Part = part
+	var made: Part = make_part()
+	var child: Part = child_part()
+	var own_size: Size = size
+	var text: String = extra
+	var round: Shapes.Circle = circle()
+	var many: Array[Part] = parts()
+	print(own_weight, own_part, made, child, own_size, text, round, many)
+
+=== end

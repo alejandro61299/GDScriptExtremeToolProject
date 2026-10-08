@@ -1,0 +1,23 @@
+action: generate_local_variable
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	<|circle|> = Shapes.make()
+	print(circle)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var circle: Shapes.Circle = <|null|>
+	circle = Shapes.make()
+	print(circle)
+
+=== end

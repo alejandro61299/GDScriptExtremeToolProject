@@ -1,0 +1,24 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(circle : Shapes.Circle) -> void:
+	var kind := circle.kind
+	var found := Shapes.kind_of(circle)
+	print(kind, found)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(circle : Shapes.Circle) -> void:
+	var kind: Shapes.Kind = circle.kind
+	var found: Shapes.Kind = Shapes.kind_of(circle)
+	print(kind, found)
+
+=== end

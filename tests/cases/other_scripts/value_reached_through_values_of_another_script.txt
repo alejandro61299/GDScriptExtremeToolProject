@@ -1,0 +1,28 @@
+action: add_explicit_type
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var radius := Shapes.make().radius
+	var center_name := Shapes.make().center.name
+	var grown_area := Shapes.make().grown(1.0).area()
+	var first_radius := Shapes.new().pick().radius
+	print(radius, center_name, grown_area, first_radius)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run() -> void:
+	var radius: float = Shapes.make().radius
+	var center_name: String = Shapes.make().center.name
+	var grown_area: float = Shapes.make().grown(1.0).area()
+	var first_radius: float = Shapes.new().pick().radius
+	print(radius, center_name, grown_area, first_radius)
+
+=== end

@@ -1,0 +1,23 @@
+action: run_custom_init_dialog
+options: {"name": "setup", "variables": ["_tool", "_mode", "_circle"]}
+=== input
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+var _tool := make_tool()
+var _mode : Mode<|>
+var _circle := base_made()
+
+=== expected
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+var _tool := make_tool()
+var _mode : Mode
+var _circle := base_made()
+
+
+func setup(p_tool: Tool, p_mode: Mode, p_circle: Shapes.Circle) -> void:
+	_tool = p_tool
+	_mode = p_mode
+	_circle = p_circle<|>
+
+=== end

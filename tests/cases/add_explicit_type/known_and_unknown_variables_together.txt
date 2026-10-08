@@ -1,0 +1,32 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var known := 1
+var typed : float = 2.0
+var empty
+var nothing = null
+var loaded = load("res://icon.svg")
+
+
+func run(anything) -> void:
+	var copy = anything
+	var size := 3
+	print(copy, size)
+
+=== expected
+extends Node
+
+var known: int = 1
+var typed : float = 2.0
+var empty
+var nothing = null
+var loaded: Resource = load("res://icon.svg")
+
+
+func run(anything) -> void:
+	var copy = anything
+	var size: int = 3
+	print(copy, size)
+
+=== end

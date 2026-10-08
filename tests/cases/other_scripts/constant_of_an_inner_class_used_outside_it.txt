@@ -1,0 +1,36 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+class Holder:
+	const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+	static func make() -> Shapes.Circle:
+		return Shapes.make()
+
+
+func run() -> void:
+	var made := Holder.make()
+	var limit := Holder.Shapes.LIMIT
+	var direct := Holder.Shapes.make()
+	print(made, limit, direct)
+
+=== expected
+extends Node
+
+
+class Holder:
+	const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+	static func make() -> Shapes.Circle:
+		return Shapes.make()
+
+
+func run() -> void:
+	var made: Holder.Shapes.Circle = Holder.make()
+	var limit: int = Holder.Shapes.LIMIT
+	var direct: Holder.Shapes.Circle = Holder.Shapes.make()
+	print(made, limit, direct)
+
+=== end

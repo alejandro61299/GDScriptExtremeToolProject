@@ -1,0 +1,20 @@
+action: generate_function
+=== input
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func run() -> void:
+	_show(Shapes.Kind.ROUND, Mode.ON, base_mode)<|>
+
+=== expected
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func run() -> void:
+	_show(Shapes.Kind.ROUND, Mode.ON, base_mode)
+
+
+func _show(param_0: Shapes.Kind, param_1: Mode, p_base_mode: Mode) -> void:
+	<|pass|>
+
+=== end

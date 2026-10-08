@@ -1,0 +1,42 @@
+action: describe_scopes
+=== input
+extends Node
+
+var first : = 1
+var second:=2.0
+var third :	= "text"
+var fourth = true
+var fifth : int
+var sixth
+var seventh := 3: set = _set_seventh
+var eighth = 4 : get = _get_eighth
+var ninth :Array[int]=[]
+
+
+func run(a : = 1, b:=2.0, c = "x", d : bool = true, e = null) -> void:
+	var local :  = [1]
+	print(a, b, c, d, e, local)
+
+
+func _set_seventh(value : int) -> void:
+	seventh = value
+
+
+func _get_eighth() -> int:
+	return eighth
+=== expected
+class <root> 1-24
+  var first: int 3
+  var second: float 4
+  var third: String 5
+  var fourth: bool 6
+  var fifth: int 7
+  var sixth 8
+  var seventh: int 9
+  var eighth: int 10
+  var ninth: Array[int] 11
+  function run(a: int, b: float, c: String, d: bool, e: Object) -> void 14-16 body 15
+    var local: Array 15
+  function _set_seventh(value: int) -> void 19-20 body 20
+  function _get_eighth() -> int 23-24 body 24
+=== end

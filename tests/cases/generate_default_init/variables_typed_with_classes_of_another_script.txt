@@ -1,0 +1,29 @@
+action: generate_default_init
+=== input
+extends RefCounted
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+var _circle : Shapes.Circle
+var _kind := Shapes.Kind.ROUND
+var _made := Shapes.make()
+var _many := Shapes.make_all(2)<|>
+
+=== expected
+extends RefCounted
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+var _circle : Shapes.Circle
+var _kind := Shapes.Kind.ROUND
+var _made := Shapes.make()
+var _many := Shapes.make_all(2)
+
+
+func _init(p_circle: Shapes.Circle, p_kind: Shapes.Kind, p_made: Shapes.Circle, p_many: Array[Shapes.Circle]) -> void:
+	_circle = p_circle
+	_kind = p_kind
+	_made = p_made
+	_many = p_many<|>
+
+=== end

@@ -1,0 +1,28 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var state = 0
+var level = 1
+
+
+func run() -> void:
+	var change := func() -> void:
+		state = "changed"
+		level = 2
+	change.call()
+
+=== expected
+extends Node
+
+var state = 0
+var level: int = 1
+
+
+func run() -> void:
+	var change: Callable = func() -> void:
+		state = "changed"
+		level = 2
+	change.call()
+
+=== end

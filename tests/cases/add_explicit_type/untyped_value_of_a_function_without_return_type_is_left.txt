@@ -1,0 +1,38 @@
+action: add_explicit_type
+=== input
+extends Node
+
+
+func run() -> void:
+	var five = _five()
+	var six = self._five() + 1
+	var seven = _seven()
+	print(five, six, seven)
+
+
+func _five():
+	return 5
+
+
+func _seven() -> int:
+	return 7
+
+=== expected
+extends Node
+
+
+func run() -> void:
+	var five = _five()
+	var six = self._five() + 1
+	var seven: int = _seven()
+	print(five, six, seven)
+
+
+func _five():
+	return 5
+
+
+func _seven() -> int:
+	return 7
+
+=== end

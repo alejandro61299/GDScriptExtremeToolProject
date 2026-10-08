@@ -1,0 +1,31 @@
+action: extract_function
+options: {"name": "_lines_of"}
+=== input
+extends Node
+
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
+
+
+func run(items : Array[int]) -> void:
+	var snippet := ChainFirst.new()
+	<|print(items)
+	var lines : = snippet.second.parts|>
+	print(lines)
+
+=== expected
+extends Node
+
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
+
+
+func run(items : Array[int]) -> void:
+	var snippet := ChainFirst.new()
+	var lines = _lines_of(items, snippet)<|>
+	print(lines)
+
+
+func _lines_of(items: Array[int], snippet: ChainFirst):
+	print(items)
+	return snippet.second.parts
+
+=== end

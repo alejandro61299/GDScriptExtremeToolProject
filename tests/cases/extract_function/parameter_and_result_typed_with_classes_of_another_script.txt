@@ -1,0 +1,32 @@
+action: extract_function
+options: {"name": "_grow"}
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(shapes : Shapes) -> void:
+	var circle := shapes.pick()
+	<|var grown := circle.grown(2.0)
+	print(grown.radius)|>
+	print(grown)
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(shapes : Shapes) -> void:
+	var circle := shapes.pick()
+	var grown := _grow(circle)<|>
+	print(grown)
+
+
+func _grow(circle: Shapes.Circle) -> Shapes.Circle:
+	var grown := circle.grown(2.0)
+	print(grown.radius)
+	return grown
+
+=== end

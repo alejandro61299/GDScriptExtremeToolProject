@@ -1,0 +1,28 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var dynamic = 5
+var copy = dynamic
+var sum = dynamic + 1
+var shown = str(dynamic)
+var list = [dynamic]
+
+
+func run() -> void:
+	dynamic = "text"
+
+=== expected
+extends Node
+
+var dynamic = 5
+var copy = dynamic
+var sum = dynamic + 1
+var shown: String = str(dynamic)
+var list: Array = [dynamic]
+
+
+func run() -> void:
+	dynamic = "text"
+
+=== end

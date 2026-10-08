@@ -1,0 +1,38 @@
+action: generate_connected_function
+=== input
+extends Node
+
+
+class Foo:
+	enum State { IDLE, BUSY }
+
+	signal changed(state : State, part : Part)
+
+	class Part:
+		var size := 1
+
+
+func setup(foo : Foo) -> void:
+	foo.changed.connect(<|>)
+
+=== expected
+extends Node
+
+
+class Foo:
+	enum State { IDLE, BUSY }
+
+	signal changed(state : State, part : Part)
+
+	class Part:
+		var size := 1
+
+
+func setup(foo : Foo) -> void:
+	foo.changed.connect(_on_changed)
+
+
+func _on_changed(p_state: Foo.State, p_part: Foo.Part) -> void:
+	<|pass|>
+
+=== end

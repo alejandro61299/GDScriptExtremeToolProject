@@ -2,18 +2,18 @@ action: describe_extraction
 === input
 extends Node
 
-const GDSExSnippet = preload("res://addons/gdscript_extreme_tool/editing/snippet.gd")
+const ChainFirst = preload("res://tests/fixtures/other_scripts/chain_first.gd")
 
 var names : Array[String] = []
 
 
 func run(items : Array[int], factor : float) -> void:
-	var snippet := GDSExSnippet.new()
-	<|var lines := snippet.lines
+	var snippet := ChainFirst.new()
+	<|var lines := snippet.second.parts
 	print(lines)|>
 	print(lines, items, factor)
 === expected
 form: OUTPUT
-signature: func _new(snippet: GDSExSnippet)
+signature: func _new(snippet: ChainFirst)
 call: var lines = _new(snippet)
 === end

@@ -1,0 +1,23 @@
+action: run_first_popup_action
+popup_action: Add Explicit Types
+=== input
+extends Node
+
+var speed := 2.0<|>
+
+
+func run() -> void:
+	var total : = 0
+	print(total)
+
+=== expected
+extends Node
+
+var speed: float = 2.0<|>
+
+
+func run() -> void:
+	var total: int = 0
+	print(total)
+
+=== end

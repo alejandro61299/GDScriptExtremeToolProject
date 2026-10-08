@@ -1,0 +1,40 @@
+action: generate_function
+compile_check: skip
+script_path: res://tests/fixtures/other_scripts/cycle_first.gd
+=== input
+extends RefCounted
+
+const CycleSecond = preload("res://tests/fixtures/other_scripts/cycle_second.gd")
+
+var second : CycleSecond
+var first_name : String = "first"
+
+
+class Item:
+	var weight : float = 1.0
+
+
+func run() -> void:
+	second.first.rename("other")<|>
+
+=== expected
+extends RefCounted
+
+const CycleSecond = preload("res://tests/fixtures/other_scripts/cycle_second.gd")
+
+var second : CycleSecond
+var first_name : String = "first"
+
+
+class Item:
+	var weight : float = 1.0
+
+
+func run() -> void:
+	second.first.rename("other")
+
+
+func rename(param_0: String) -> void:
+	<|pass|>
+
+=== end

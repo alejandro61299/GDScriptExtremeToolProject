@@ -1,0 +1,25 @@
+action: generate_class_variable
+=== input
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+var _kind : Shapes.Kind = Shapes.Kind.ROUND
+
+
+func run() -> void:
+	print(Shapes.count_of(<|_circles|>))
+
+=== expected
+extends Node
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+var _kind : Shapes.Kind = Shapes.Kind.ROUND
+var _circles: Array[Shapes.Circle]
+
+
+func run() -> void:
+	print(Shapes.count_of(<|_circles|>))
+
+=== end

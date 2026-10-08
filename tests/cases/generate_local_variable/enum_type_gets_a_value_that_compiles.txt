@@ -1,0 +1,27 @@
+action: generate_local_variable
+=== input
+extends Node
+
+enum Mode { OFF, ON }
+
+var mode : Mode = Mode.OFF
+
+
+func run(key : Key, process : Node.ProcessMode) -> void:
+	<|copy|> = mode
+	print(copy, key, process)
+
+=== expected
+extends Node
+
+enum Mode { OFF, ON }
+
+var mode : Mode = Mode.OFF
+
+
+func run(key : Key, process : Node.ProcessMode) -> void:
+	var copy: Mode = <|0|>
+	copy = mode
+	print(copy, key, process)
+
+=== end

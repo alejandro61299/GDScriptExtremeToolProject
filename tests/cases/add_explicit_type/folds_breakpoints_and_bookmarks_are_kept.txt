@@ -1,0 +1,38 @@
+action: add_explicit_type
+folds: 6
+expect_folds: 6
+breakpoints: 7
+expect_breakpoints: 7
+bookmarks: 12
+expect_bookmarks: 12
+=== input
+extends Node
+
+var speed := 2.0<|>
+
+
+func run(first : int) -> void:
+	var total := first
+	print(total)
+
+
+func stop() -> void:
+	var message := "done"
+	print(message)
+
+=== expected
+extends Node
+
+var speed: float = 2.0<|>
+
+
+func run(first : int) -> void:
+	var total: int = first
+	print(total)
+
+
+func stop() -> void:
+	var message: String = "done"
+	print(message)
+
+=== end

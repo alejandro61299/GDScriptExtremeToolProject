@@ -1,0 +1,19 @@
+action: generate_local_variable
+=== input
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func run() -> void:
+	<|mode|> = base_mode
+	print(mode)
+
+=== expected
+extends "res://tests/fixtures/other_scripts/base_with_aliases.gd"
+
+
+func run() -> void:
+	var mode: Mode = <|0|>
+	mode = base_mode
+	print(mode)
+
+=== end

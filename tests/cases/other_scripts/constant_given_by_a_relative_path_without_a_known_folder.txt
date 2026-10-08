@@ -1,0 +1,13 @@
+action: add_explicit_type
+compile_check: skip
+=== input
+extends Node
+
+const Shapes = preload("shapes.gd")
+
+
+func run() -> void:
+	var limit := Shapes.LIMIT
+	print(limit)
+
+=== end
