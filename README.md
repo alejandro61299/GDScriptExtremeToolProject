@@ -2,7 +2,7 @@
 
 <img src="icon.svg" width="128" alt="GDScript Extreme Tool icon">
 
-A Godot editor plugin that adds code actions to the script editor's context menu: it generates functions, variables, signal callbacks and init functions from the code under the caret, reorders the members of a class and formats it.
+A Godot editor plugin that adds code actions to the script editor's context menu: it generates functions, variables, signal callbacks and init functions from the code under the caret, writes the types of the variables, extracts functions, reorders the members of a class and formats it.
 
 ## Actions
 
@@ -116,8 +116,8 @@ godot --headless --path . --script res://tools/generate_builtin_types.gd -- exte
 To build a release archive, set the version in `addons/gdscript_extreme_tool/plugin.cfg`, add its notes to `CHANGELOG.md`, commit, tag and archive the tag. `.gitattributes` marks everything except the addon as `export-ignore`, so the archive contains only `addons/gdscript_extreme_tool`:
 
 ```
-git tag v0.2.0
-git archive --format=zip --output=gdscript_extreme_tool-0.2.0.zip v0.2.0
+git tag v0.3.0
+git archive --format=zip --output=gdscript_extreme_tool-0.3.0.zip v0.3.0
 ```
 
 ## License
