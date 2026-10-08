@@ -1,0 +1,32 @@
+action: run_extract_variable_dialog
+options: {"where": "function", "name": "count"}
+=== input
+extends Node
+
+var health: int = 10
+
+
+func get_health() -> int:
+	return health
+
+
+func run(enemy: Node2D) -> void:
+	for index in 3:
+		enemy.rotation = get_hea<|>lth() * index
+
+=== expected
+extends Node
+
+var health: int = 10
+
+
+func get_health() -> int:
+	return health
+
+
+func run(enemy: Node2D) -> void:
+	var count: int = get_health()
+	for index in 3:
+		enemy.rotation = count<|> * index
+
+=== end

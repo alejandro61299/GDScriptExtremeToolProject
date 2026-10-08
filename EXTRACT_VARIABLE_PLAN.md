@@ -9,7 +9,7 @@ No se parece a "Generate Local Variable" ni a "Generate Class Variable". Aquella
 | V1 | El valor bajo el cursor, su tipo y el nombre que se propone | Hecha |
 | V2 | De qué depende el valor, adónde puede ir y con qué opciones | Hecha |
 | V3 | La edición: declaración, sustitución y comprobación del nombre | Hecha |
-| V4 | El diálogo y la acción en el menú | Pendiente |
+| V4 | El diálogo y la acción en el menú | Hecha |
 | V5 | Pruebas masivas, rendimiento y documentación | Pendiente |
 
 Cada paso termina con la suite en verde y una pasada de `--headless --editor --quit` sin errores ni avisos, y se cierra con un commit en la rama `generate-outside`.
@@ -412,6 +412,28 @@ Detalles decididos al implementar:
 - La acción, con la etiqueta "Extract Variable...", y su alta en el menú.
 
 Verificación: casos que abren el diálogo desde el menú, cambian nombre y opciones y confirman, como los de los otros dos diálogos. Comprueban que la fila "Where" enseña solo los sitios que son distintos, que un botón apagado lleva su motivo, que al elegir "Script" se marca "Constant", que el nombre se rehace al cambiar de opción y deja de rehacerse cuando el usuario escribe, que "On ready" se marca solo, que con un error no se puede confirmar, y que la vista previa coincide con lo que luego se aplica. Pasada en un editor sin ventana.
+
+Hecho el 2026-10-08:
+
+- **`extract_variable_dialog.gd`** (`GDSExExtractVariableDialog`). Nombre, fila "Where", fila "Options", vista previa "Result" y franja de avisos. Hereda de `function_name_dialog.gd` como los otros dos.
+- **`actions/extract_variable_action.gd`**, con la etiqueta "Extract Variable...", dada de alta en el menú detrás de "Extract Function...".
+- **La vista previa enseña el script entero ya cambiado**, con la declaración y la línea del valor marcadas y centrado en la declaración. Sale de aplicar la misma edición que luego se aplica al script, así que no puede enseñar otra cosa.
+- **Los avisos se juntan en la franja de abajo**, uno por línea: primero el del nombre, si lo hay, y luego los del sitio. Un error del nombre los tapa a todos y apaga "Extract".
+- **El estilo de los botones de dos posiciones** estaba en el diálogo del init; pasa a `function_name_dialog.gd` para que lo usen los dos.
+- **Runner:** `run_extract_variable_dialog` abre el diálogo desde el menú, pulsa lo que diga la cabecera `options:` y confirma o cancela; además compara el script resultante con lo que enseñaba la vista previa. `check_extract_variable_dialog` recorre el diálogo paso a paso.
+- **8 casos nuevos** en `tests/cases/menu/`, 1.239 en total. Uno de ellos hace 49 comprobaciones sobre el diálogo: qué sitios se enseñan en cada situación, qué opciones se pueden pulsar y el motivo de las que no, cómo cambia el nombre propuesto, las opciones que se excluyen entre sí, las obligadas, los avisos, los errores y que confirmar aplica lo que se veía.
+- Se rompió el comportamiento a propósito de veintidós maneras. Tres no las detectaba ningún caso: para dos se añadieron comprobaciones y la tercera era una línea que sobraba. Ahora se detectan las veintiuna que quedan.
+- **En un editor sin ventana**, con el menú de verdad: la acción aparece, el diálogo se abre con los colores del editor, y con un número, una llamada dentro de un bucle y un nodo la extracción queda en el script como la enseñaba el diálogo. Un deshacer la quita y el archivo no cambia. Cierra sin errores ni avisos.
+
+Detalles decididos al implementar:
+
+- **El nombre propuesto sigue a las opciones hasta que el usuario escribe.** Al marcar "Constant" pasa a mayúsculas, al elegir "Class" gana el `_`. En cuanto se teclea algo, ya no se toca.
+- **La privacidad elegida se recuerda.** Si el usuario quita "Private", cambiar luego de opción no la vuelve a poner.
+- **Pulsar una opción quita las que no pueden ir con ella**: "Static" quita "Constant" y "On ready", y "On ready" quita las otras dos.
+- **Un sitio apagado no se puede elegir ni por error:** la función que cambia de sitio lo comprueba, además del botón.
+- **`@onready` va en su categoría**, que en el orden de "Reorder Class Members" está antes de las variables públicas.
+
+Encontrado por la comprobación masiva del plan anterior: la primera versión del diálogo pasaba enteros a funciones que piden un valor de un enum. Compila, pero no es el estilo del proyecto; los botones se guardan ya por el enum.
 
 ### V5 — Pruebas masivas, rendimiento y documentación
 

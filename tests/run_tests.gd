@@ -31,6 +31,8 @@ const GDSExPlacement = preload("res://addons/gdscript_extreme_tool/editing/place
 const GDSExCallSiteParser = preload("res://addons/gdscript_extreme_tool/analysis/call_site_parser.gd")
 const GDSExExtractVariable = preload("res://addons/gdscript_extreme_tool/actions/extract_variable.gd")
 const GDSExValueFinder = preload("res://addons/gdscript_extreme_tool/analysis/value_finder.gd")
+const GDSExExtractVariableDialog = preload("res://addons/gdscript_extreme_tool/extract_variable_dialog.gd")
+const GDSExExtractVariableAction = preload("res://addons/gdscript_extreme_tool/actions/extract_variable_action.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -56,6 +58,7 @@ const VARIABLE_NAME_ACTION: String = "describe_variable_name"
 const VARIABLE_WARNINGS_ACTION: String = "describe_variable_warnings"
 const OPTIONS_HEADER: String = "options"
 const NO_WARNINGS_LABEL: String = "no warnings"
+const VARIABLE_DIALOG_SAMPLE: String = "extends Node\n\nconst LIMIT: int = 3\n\nvar health: int = 10\n\n\nclass Item:\n\tvar size: int = 1\n\n\tfunc heavy(extra: int) -> bool:\n\t\tfor index in 3:\n\t\t\tif size > 5 + index:\n\t\t\t\treturn true\n\t\treturn size > extra\n\n\nfunc get_health() -> int:\n\treturn health\n\n\nfunc run(enemy: Node2D) -> void:\n\tfor index in 3:\n\t\tenemy.rotation = 120.0 * index\n\t\tprint(get_health(), str(index))\n\tprint($Sprite)\n"
 const NO_VALUE_LABEL: String = "no value"
 const WHERE_HEADER: String = "where"
 const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION, TYPES_ACTION, VALUE_ACTION, PLACES_ACTION, OPTIONS_ACTION, VARIABLE_NAME_ACTION, VARIABLE_WARNINGS_ACTION]
@@ -605,6 +608,10 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_code_action(test_case, _variable_action(test_case), editor)
 		"check_variable_extraction_behavior":
 			return _check_variable_extraction_behavior(test_case, editor)
+		"run_extract_variable_dialog":
+			return _check_extract_variable_dialog_run(test_case, editor)
+		"check_extract_variable_dialog":
+			return _check_extract_variable_dialog()
 		"check_project_scripts":
 			return _check_project_scripts()
 		"check_no_false_targets":
@@ -936,6 +943,200 @@ func _check_variable_extraction_behavior(test_case: TestCase, editor: CodeEdit) 
 		if expected != actual:
 			problems.append("run%s gives %s after extracting instead of %s.
 %s" % [arguments, actual, expected, _visualize(editor.text)])
+	return problems
+
+
+func _check_extract_variable_dialog_run(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var popup := GDSExCodeActionsPopup.new()
+	root.add_child(popup)
+	popup.setup(editor, GDSExActionRegistry.create_actions())
+	popup.about_to_popup.emit()
+	for index in popup.item_count:
+		if popup.get_item_text(index) == GDSExExtractVariableAction.LABEL:
+			popup.index_pressed.emit(index)
+	popup.free()
+	var dialog: GDSExExtractVariableDialog = null
+	for child in editor.get_window().get_children():
+		if child is GDSExExtractVariableDialog:
+			dialog = child
+	if dialog == null or not dialog.visible:
+		return PackedStringArray(["The menu did not open the extract variable dialog."])
+	if editor.text != test_case.input.text:
+		problems.append("The script changed before the dialog was confirmed.")
+	var options: Dictionary = str_to_var(test_case.headers.get(OPTIONS_HEADER, "{}"))
+	if options.has(VariableTestAction.WHERE_OPTION):
+		var place: GDSExExtractVariable.GDSExPlace = GDSExExtractVariable.PLACES[GDSExExtractVariable.PLACE_LABELS.find(String(options[VariableTestAction.WHERE_OPTION]).capitalize())]
+		_press_dialog_button(problems, dialog.where_buttons[place], true)
+	for option in GDSExExtractVariable.OPTIONS:
+		if options.has(_option_word(option)):
+			_press_dialog_button(problems, dialog.option_buttons[option], options[_option_word(option)])
+	if options.has(VariableTestAction.NAME_OPTION):
+		_type_dialog_name(dialog, options[VariableTestAction.NAME_OPTION])
+	var previewed := dialog.result_preview.text
+	if test_case.headers.get("dialog", "accept") == "cancel":
+		dialog.get_cancel_button().pressed.emit()
+		dialog.hide()
+	else:
+		dialog.get_ok_button().pressed.emit()
+		if editor.text != previewed:
+			problems.append("The script is not what the dialog showed.\n--- shown ---\n%s\n--- script ---\n%s" % [_visualize(previewed), _visualize(editor.text)])
+	if dialog.visible or not dialog.is_queued_for_deletion():
+		problems.append("The dialog is not closed and freed after it is answered.")
+	problems.append_array(_check_edit(test_case, editor))
+	return problems
+
+
+func _press_dialog_button(problems: PackedStringArray, button: Button, is_pressed: bool) -> void:
+	if button.button_pressed == is_pressed:
+		return
+	if button.disabled or not button.visible:
+		problems.append("The button '%s' cannot be used: %s" % [button.text, button.tooltip_text])
+		return
+	button.button_pressed = is_pressed
+
+
+func _open_variable_dialog(editor: CodeEdit, line: int, text: String, plans: Array[GDSExEditPlan]) -> GDSExExtractVariableDialog:
+	editor.deselect()
+	editor.set_caret_line(line)
+	editor.set_caret_column(editor.get_line(line).find(text) + 1)
+	var dialog := GDSExExtractVariableDialog.new()
+	dialog.setup(_context(editor), func(plan: GDSExEditPlan) -> void: plans.append(plan))
+	root.add_child(dialog)
+	dialog.popup_centered()
+	return dialog
+
+
+func _dialog_buttons(buttons: Dictionary) -> String:
+	var described := PackedStringArray()
+	for key: int in buttons:
+		var button: Button = buttons[key]
+		if button.visible:
+			described.append(("[%s]" if button.button_pressed else "%s") % button.text + ("-" if button.disabled else ""))
+	return " ".join(described)
+
+
+func _marked_lines(preview: CodeEdit) -> PackedStringArray:
+	var marked := PackedStringArray()
+	for line in preview.get_line_count():
+		if preview.get_line_background_color(line).a > 0.0:
+			marked.append(preview.get_line(line).strip_edges())
+	return marked
+
+
+func _check_extract_variable_dialog() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var editor := CodeEdit.new()
+	root.add_child(editor)
+	editor.text = VARIABLE_DIALOG_SAMPLE
+	var plans: Array[GDSExEditPlan] = []
+	var place := GDSExExtractVariable.GDSExPlace
+	var option := GDSExExtractVariable.GDSExOption
+	var valid_color: Color = GDSExFunctionNameDialog.LEVEL_FALLBACK_COLORS[0]
+	var warning_color: Color = GDSExFunctionNameDialog.LEVEL_FALLBACK_COLORS[1]
+
+	var dialog := _open_variable_dialog(editor, 23, "120.0", plans)
+	_expect(problems, "places for a number in a loop", _dialog_buttons(dialog.where_buttons), "[Block] Function Class")
+	_expect(problems, "options in the block", _dialog_buttons(dialog.option_buttons), "Constant Static- Private- On ready-")
+	_expect(problems, "reason of an option that does not fit the place", dialog.option_buttons[option.STATIC].tooltip_text, "Only a variable of the class can be static.")
+	_expect(problems, "initial name", dialog.name_edit.text, "value")
+	_expect(problems, "initial message", dialog.validation_label.text, "• Variable name is valid.")
+	_expect(problems, "initial changed lines", _marked_lines(dialog.result_preview), PackedStringArray(["var value: float = 120.0", "enemy.rotation = value * index"]))
+	_expect(problems, "preview is read only", dialog.result_preview.editable, false)
+	_expect(problems, "extract enabled at start", dialog.get_ok_button().disabled, false)
+	dialog.where_buttons[place.FUNCTION].button_pressed = true
+	_expect(problems, "one place at a time", _dialog_buttons(dialog.where_buttons), "Block [Function] Class")
+	_expect(problems, "declaration before the loop", dialog.result_preview.text.contains("\tvar value: float = 120.0\n\tfor index in 3:\n\t\tenemy.rotation = value * index"), true)
+	dialog.where_buttons[place.CLASS].button_pressed = true
+	_expect(problems, "options in the class", _dialog_buttons(dialog.option_buttons), "Constant Static [Private] On ready")
+	_expect(problems, "name of a private variable", dialog.name_edit.text, "_value")
+	_expect(problems, "declaration among the variables", dialog.result_preview.text.contains("var health: int = 10\n\nvar _value: float = 120.0\n"), true)
+	dialog.option_buttons[option.CONSTANT].button_pressed = true
+	_expect(problems, "a constant is public and written in capitals", [_dialog_buttons(dialog.option_buttons), dialog.name_edit.text], ["[Constant] Static Private On ready", "VALUE"])
+	_expect(problems, "declaration among the constants", dialog.result_preview.text.contains("const LIMIT: int = 3\nconst VALUE: float = 120.0\n"), true)
+	dialog.option_buttons[option.STATIC].button_pressed = true
+	_expect(problems, "static takes the place of constant", [_dialog_buttons(dialog.option_buttons), dialog.name_edit.text], ["Constant [Static] [Private] On ready", "_value"])
+	dialog.option_buttons[option.PRIVATE].button_pressed = false
+	_expect(problems, "public static variable", [dialog.name_edit.text, dialog.result_preview.text.contains("static var value: float = 120.0\n")], ["value", true])
+	dialog.option_buttons[option.ON_READY].button_pressed = true
+	_expect(problems, "on ready takes the place of static", _dialog_buttons(dialog.option_buttons), "Constant Static Private [On ready]")
+	dialog.option_buttons[option.STATIC].button_pressed = true
+	_expect(problems, "static takes the place of on ready", _dialog_buttons(dialog.option_buttons), "Constant [Static] Private On ready")
+	dialog.option_buttons[option.CONSTANT].button_pressed = true
+	_expect(problems, "the chosen privacy is kept", [_dialog_buttons(dialog.option_buttons), dialog.name_edit.text], ["[Constant] Static Private On ready", "VALUE"])
+	dialog.option_buttons[option.ON_READY].button_pressed = true
+	_expect(problems, "on ready takes the place of constant", _dialog_buttons(dialog.option_buttons), "Constant Static Private [On ready]")
+	dialog.option_buttons[option.CONSTANT].button_pressed = true
+	_type_dialog_name(dialog, "TURN")
+	dialog.option_buttons[option.PRIVATE].button_pressed = true
+	_expect(problems, "a typed name is not replaced", dialog.name_edit.text, "TURN")
+	_type_dialog_name(dialog, "LIMIT")
+	_expect(problems, "message for a taken name", dialog.validation_label.text, "• The class already has a member named 'LIMIT'.")
+	_expect(problems, "extract disabled on error", [dialog.get_ok_button().disabled, dialog.name_edit.has_theme_color_override("font_color")], [true, true])
+	dialog.name_edit.text_submitted.emit("LIMIT")
+	dialog.confirmed.emit()
+	_expect(problems, "accept does nothing on error", plans.size(), 0)
+	_type_dialog_name(dialog, "")
+	_expect(problems, "message for an empty name", dialog.validation_label.text, "• Enter a variable name.")
+	_type_dialog_name(dialog, "TURN")
+	_expect(problems, "valid again", [dialog.validation_label.get_theme_color("font_color"), dialog.get_ok_button().disabled], [valid_color, false])
+	var shown := dialog.result_preview.text
+	dialog.name_edit.text_submitted.emit("TURN")
+	_expect(problems, "accept on the name extracts", [plans.size(), dialog.visible], [1, false])
+	if plans.size() == 1:
+		GDSExEditApplier.apply(editor, plans[0])
+		_expect(problems, "the script is what the dialog showed", editor.text, shown)
+		_expect(problems, "extracted constant", editor.text.contains("const LIMIT: int = 3\nconst TURN: float = 120.0\n") and editor.text.contains("enemy.rotation = TURN * index"), true)
+	dialog.free()
+
+	editor.text = VARIABLE_DIALOG_SAMPLE
+	dialog = _open_variable_dialog(editor, 24, "get_health", plans)
+	_expect(problems, "nothing to warn in the block", [dialog.name_edit.text, dialog.validation_label.text], ["health_2", "• Variable name is valid."])
+	dialog.where_buttons[place.FUNCTION].button_pressed = true
+	_expect(problems, "warning when leaving the loop", [dialog.validation_label.text, dialog.validation_label.get_theme_color("font_color"), dialog.get_ok_button().disabled], ["• The value will be computed once, before the loop.", warning_color, false])
+	_type_dialog_name(dialog, "health")
+	_expect(problems, "two warnings together", dialog.validation_label.text, "• 'health' will hide the member of the class with that name.\n• The value will be computed once, before the loop.")
+	_type_dialog_name(dialog, "enemy")
+	_expect(problems, "an error hides the warnings", [dialog.validation_label.text, dialog.get_ok_button().disabled], ["• This function already has a variable named 'enemy'.", true])
+	_type_dialog_name(dialog, "counted")
+	dialog.where_buttons[place.CLASS].button_pressed = true
+	_expect(problems, "options for a function of the object", _dialog_buttons(dialog.option_buttons), "Constant- Static- [Private] On ready")
+	_expect(problems, "reason of constant", dialog.option_buttons[option.CONSTANT].tooltip_text, "A constant cannot hold the result of 'get_health()'.")
+	_expect(problems, "reason of static", dialog.option_buttons[option.STATIC].tooltip_text, "A static variable cannot read 'get_health', which belongs to the object.")
+	_expect(problems, "warning of a class variable", dialog.validation_label.text, "• The value will be computed once, when the object is created.")
+	dialog.option_buttons[option.ON_READY].button_pressed = true
+	_expect(problems, "warning of a variable that waits for ready", [dialog.validation_label.text, dialog.result_preview.text.contains("@onready var counted: int = get_health()")], ["• The value will be computed once, when the node is ready.", true])
+	dialog.free()
+
+	dialog = _open_variable_dialog(editor, 24, "str(", plans)
+	_expect(problems, "places for a value that reads the loop", _dialog_buttons(dialog.where_buttons), "[Block] Function- Class-")
+	_expect(problems, "reason of function", dialog.where_buttons[place.FUNCTION].tooltip_text, "The value reads 'index', which only exists inside the loop.")
+	_expect(problems, "reason of class", dialog.where_buttons[place.CLASS].tooltip_text, "The value reads 'index', which only exists inside this function.")
+	dialog.where_buttons[place.CLASS].button_pressed = true
+	_expect(problems, "a place that is off cannot be chosen", dialog.get_choice().place, place.BLOCK)
+	dialog.free()
+
+	dialog = _open_variable_dialog(editor, 25, "$Sprite", plans)
+	_expect(problems, "places for a node", _dialog_buttons(dialog.where_buttons), "[Function] Class")
+	dialog.where_buttons[place.CLASS].button_pressed = true
+	_expect(problems, "on ready marks itself", _dialog_buttons(dialog.option_buttons), "Constant- Static- [Private] [On ready]-")
+	_expect(problems, "reason of on ready", dialog.option_buttons[option.ON_READY].tooltip_text, "The value needs the scene tree, which is not there until the node is ready.")
+	_expect(problems, "declaration that waits for ready", dialog.result_preview.text.contains("@onready var _sprite: Node = $Sprite\n"), true)
+	dialog.free()
+
+	dialog = _open_variable_dialog(editor, 12, "5", plans)
+	_expect(problems, "four places inside an inner class", _dialog_buttons(dialog.where_buttons), "[Block] Function Class Script")
+	dialog.where_buttons[place.SCRIPT].button_pressed = true
+	_expect(problems, "script marks constant", [_dialog_buttons(dialog.option_buttons), dialog.name_edit.text], ["[Constant]- Static- Private On ready-", "VALUE"])
+	_expect(problems, "reason of the constant of the script", dialog.option_buttons[option.CONSTANT].tooltip_text, "A class inside the script can only read the constants of the script.")
+	_expect(problems, "declaration among the constants of the script", dialog.result_preview.text.contains("const LIMIT: int = 3\nconst VALUE: int = 5\n"), true)
+	_expect(problems, "changed lines of the script", _marked_lines(dialog.result_preview), PackedStringArray(["const VALUE: int = 5", "if size > VALUE + index:"]))
+	dialog.where_buttons[place.BLOCK].button_pressed = true
+	_expect(problems, "back to the block", [_dialog_buttons(dialog.option_buttons), dialog.name_edit.text], ["[Constant] Static- Private- On ready-", "VALUE"])
+	dialog.get_cancel_button().pressed.emit()
+	_expect(problems, "cancel extracts nothing", plans.size(), 1)
+	dialog.free()
+	editor.free()
 	return problems
 
 

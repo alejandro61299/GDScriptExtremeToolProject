@@ -19,6 +19,17 @@ const FONT_SIZE : StringName = &"font_size"
 const SOURCE_FONT_SIZE : StringName = &"source_size"
 const ACCENT_COLOR : StringName = &"accent_color"
 const ACCENT_FALLBACK_COLOR : Color = Color("569eff")
+const NORMAL_STYLE : StringName = &"normal"
+const SELECTED_STYLES : Array[StringName] = [&"pressed", &"hover_pressed"]
+const SELECTED_FONT_COLORS : Array[StringName] = [&"font_pressed_color", &"font_hover_pressed_color"]
+const UNAVAILABLE_STYLE : StringName = &"disabled"
+const UNAVAILABLE_FONT_COLOR : StringName = &"font_disabled_color"
+const BRIGHT_FONT_COLOR : StringName = &"font_hover_color"
+const BRIGHT_FONT_FALLBACK_COLOR : Color = Color.WHITE
+const UNAVAILABLE_FALLBACK_COLOR : Color = Color(1.0, 1.0, 1.0, 0.3)
+const SELECTED_FILTER_OPACITIES : Array[float] = [0.35, 0.5]
+const UNAVAILABLE_FILTER_OPACITY : float = 0.0
+const FILTER_BORDER_WIDTH : int = 1
 
 var name_edit : LineEdit
 var validation_label : Label
@@ -69,6 +80,31 @@ func _style_code_preview(preview : CodeEdit) -> void:
 		preview.add_theme_font_size_override(FONT_SIZE, get_theme_font_size(SOURCE_FONT_SIZE, EDITOR_FONTS_THEME_TYPE))
 	if ClassDB.can_instantiate(HIGHLIGHTER_CLASS):
 		preview.syntax_highlighter = ClassDB.instantiate(HIGHLIGHTER_CLASS) as SyntaxHighlighter
+
+
+func _style_filter_button(filter_button : Button) -> void:
+	var accent_color := _editor_color(ACCENT_COLOR, ACCENT_FALLBACK_COLOR)
+	var unavailable_color := _editor_color(UNAVAILABLE_FONT_COLOR, UNAVAILABLE_FALLBACK_COLOR)
+	for index in SELECTED_STYLES.size():
+		filter_button.add_theme_stylebox_override(SELECTED_STYLES[index], _build_filter_style(filter_button, accent_color, SELECTED_FILTER_OPACITIES[index]))
+		filter_button.add_theme_color_override(SELECTED_FONT_COLORS[index], _editor_color(BRIGHT_FONT_COLOR, BRIGHT_FONT_FALLBACK_COLOR))
+	filter_button.add_theme_stylebox_override(UNAVAILABLE_STYLE, _build_filter_style(filter_button, unavailable_color, UNAVAILABLE_FILTER_OPACITY))
+	filter_button.add_theme_color_override(UNAVAILABLE_FONT_COLOR, unavailable_color)
+
+
+func _build_filter_style(filter_button : Button, border_color : Color, fill_opacity : float) -> StyleBoxFlat:
+	var normal_style := filter_button.get_theme_stylebox(NORMAL_STYLE)
+	var style := StyleBoxFlat.new()
+	if normal_style is StyleBoxFlat:
+		style = normal_style.duplicate() as StyleBoxFlat
+	elif normal_style != null:
+		for side : Side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+			style.set_content_margin(side, normal_style.get_content_margin(side))
+	style.bg_color = Color(border_color, fill_opacity)
+	style.draw_center = fill_opacity > 0.0
+	style.border_color = border_color
+	style.set_border_width_all(FILTER_BORDER_WIDTH)
+	return style
 
 
 func _editor_color(color_name : StringName, fallback_color : Color) -> Color:

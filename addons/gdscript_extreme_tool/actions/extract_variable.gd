@@ -280,7 +280,8 @@ static func default_choice(extraction: GDSExExtraction) -> GDSExChoice:
 
 static func choice_for_place(extraction: GDSExExtraction, place: GDSExPlace, previous: GDSExChoice) -> GDSExChoice:
 	var choice := previous.copy()
-	choice.place = place
+	if place_state(extraction, place).is_usable():
+		choice.place = place
 	return normalized(extraction, choice)
 
 
@@ -289,10 +290,7 @@ static func choice_with_option(extraction: GDSExExtraction, previous: GDSExChoic
 	choice.put(option, is_pressed)
 	if option == GDSExOption.PRIVATE:
 		choice.has_chosen_privacy = true
-	if is_pressed and option == GDSExOption.CONSTANT:
-		choice.is_static = false
-		choice.is_on_ready = false
-	elif is_pressed and option == GDSExOption.STATIC:
+	if is_pressed and option == GDSExOption.STATIC:
 		choice.is_constant = false
 		choice.is_on_ready = false
 	elif is_pressed and option == GDSExOption.ON_READY:
@@ -334,6 +332,28 @@ static func find_warnings(extraction: GDSExExtraction, choice: GDSExChoice) -> P
 		GDSExPlace.CLASS:
 			warnings.append(READY_WARNING if choice.is_on_ready else SCRIPT_WARNING if choice.is_static else OBJECT_WARNING)
 	return warnings
+
+
+static func build_default_plan(context: GDSExCodeContext) -> GDSExEditPlan:
+	var extraction := analyze(context)
+	if extraction == null:
+		return null
+	var choice := default_choice(extraction)
+	return build_plan_for(extraction, choice, default_name(extraction, choice), context.indent_unit)
+
+
+static func find_declared_line(result_lines: PackedStringArray, declaration: String, used_line: int) -> int:
+	var wanted := declaration.strip_edges()
+	var nearest := used_line
+	var nearest_distance := -1
+	for line in result_lines.size():
+		if not result_lines[line].strip_edges().begins_with(wanted):
+			continue
+		var distance := absi(line - used_line)
+		if nearest_distance == -1 or distance < nearest_distance:
+			nearest = line
+			nearest_distance = distance
+	return nearest
 
 
 static func default_name(extraction: GDSExExtraction, choice: GDSExChoice) -> String:
