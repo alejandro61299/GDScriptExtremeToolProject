@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 — unreleased
+## 0.4.0 — 2026-10-08
 
 ### Added
 
@@ -14,7 +14,7 @@
 - Generate Function Definition is no longer offered on a class written on one line, `class Empty: pass`, where the function it wrote did not compile.
 - Generate Function Definition is no longer offered for the functions that every script class has, such as `Inner.can_instantiate()`.
 - A number written in binary, such as `0b101`, is taken for an `int`. Add Explicit Types left `var mask := 0b101` without a type.
-- In a script that extends `CharacterBody2D`, `Area2D`, `Control` or any other physics body or control, `Input` was taken for a property of the node, because the inspector has a group of properties with that title. `var direction := Input.get_axis("ui_left", "ui_right")` was not offered Add Explicit Type. The same happened with `Theme` in a `Control` and with `Time` in a particles node.
+- In a script that extends `CharacterBody2D`, `Area2D`, `Control` or any other physics body or control, `Input` was taken for a property of the node, because the inspector has a group of properties with that title. `var direction := Input.get_axis("ui_left", "ui_right")` was not offered Add Explicit Types. The same happened with `Theme` in a `Control` and with `Time` in a particles node.
 - Generate Function Definition on a call written in the `get` or `set` of a static variable now writes a `static func`. The function it wrote before could not be called from there.
 
 ## 0.3.0 — 2026-10-08
