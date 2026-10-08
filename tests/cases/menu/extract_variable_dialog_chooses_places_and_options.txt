@@ -1,0 +1,5 @@
+action: check_extract_variable_dialog
+=== input
+extends Node
+
+=== end

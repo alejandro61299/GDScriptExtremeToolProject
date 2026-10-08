@@ -1,0 +1,24 @@
+action: describe_variable_name
+options: {"name": "label", "where": "class"}
+=== input
+extends Node
+
+
+class Base:
+	func describe() -> String:
+		return "ba<|>se"
+
+
+class Child extends Base:
+	var label: String = "child"
+
+	func shout() -> String:
+		return label.to_upper()
+
+
+class Other:
+	var size: int = 1
+
+=== expected
+label: error - The class Child, which extends this one, already has a member named 'label'.
+=== end

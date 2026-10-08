@@ -1,0 +1,11 @@
+action: run_other_script_popup
+other_script: res://tests/fixtures/other_scripts/cycle_first.gd
+expect_label: Other Script Test in cycle_first.gd
+=== input
+extends Node
+
+
+func run() -> void:
+	pass<|>
+
+=== end

@@ -1,0 +1,10 @@
+action: generate_function
+=== input
+extends Node
+
+
+@warning_ignore("unused_parameter")<|>
+func run(amount: int) -> void:
+	pass
+
+=== end

@@ -1,0 +1,23 @@
+action: extract_variable
+options: {"name": "DEFAULT_STEPS", "constant": true}
+=== input
+extends Node
+
+var health: int = 10
+
+
+func move(steps: int = <|>4) -> int:
+	return steps
+
+=== expected
+extends Node
+
+const DEFAULT_STEPS: int = 4
+
+var health: int = 10
+
+
+func move(steps: int = DEFAULT_STEPS<|>) -> int:
+	return steps
+
+=== end

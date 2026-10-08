@@ -1,0 +1,18 @@
+action: add_explicit_type
+=== input
+extends Control
+
+
+func run() -> void:
+	var pressed := Input.is_action_pressed("ui_accept")<|>
+	print(pressed)
+
+=== expected
+extends Control
+
+
+func run() -> void:
+	var pressed: bool = Input.is_action_pressed("ui_accept")<|>
+	print(pressed)
+
+=== end

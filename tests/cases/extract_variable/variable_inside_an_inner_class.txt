@@ -1,0 +1,25 @@
+action: extract_variable
+options: {"name": "_limit", "where": "class"}
+=== input
+extends Node
+
+
+class Item:
+	var size: int = 1
+
+	func heavy() -> bool:
+		return size > Vec<|>tor2(5, 0).x
+
+=== expected
+extends Node
+
+
+class Item:
+	var size: int = 1
+	
+	var _limit: Vector2 = Vector2(5, 0)
+
+	func heavy() -> bool:
+		return size > _limit<|>.x
+
+=== end

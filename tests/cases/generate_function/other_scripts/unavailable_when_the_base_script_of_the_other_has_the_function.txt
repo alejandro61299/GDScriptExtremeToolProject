@@ -1,0 +1,11 @@
+action: generate_function
+=== input
+extends Node
+
+const Derived = preload("res://tests/fixtures/other_scripts/derived_base.gd")
+
+
+func run(derived: Derived) -> void:
+	print(derived.base_guess())<|>
+
+=== end

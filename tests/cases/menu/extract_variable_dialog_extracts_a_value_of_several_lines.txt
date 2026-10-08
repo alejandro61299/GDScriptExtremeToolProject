@@ -1,0 +1,28 @@
+action: run_extract_variable_dialog
+options: {"name": "biggest"}
+=== input
+extends Node
+
+var health: int = 10
+
+
+func run(limit: int) -> void:
+	print(ma<|>xi(
+		health,
+		limit,
+	), limit)
+
+=== expected
+extends Node
+
+var health: int = 10
+
+
+func run(limit: int) -> void:
+	var biggest: int = maxi(
+		health,
+		limit,
+	)
+	print(biggest<|>, limit)
+
+=== end

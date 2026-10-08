@@ -1,0 +1,28 @@
+action: run_extract_variable_dialog
+options: {"where": "class", "constant": true, "name": "TURN"}
+=== input
+extends Node
+
+const LIMIT: int = 3
+
+var health: int = 10
+
+
+func run(enemy: Node2D) -> void:
+	for index in 3:
+		enemy.rotation = 12<|>0.0 * index
+
+=== expected
+extends Node
+
+const LIMIT: int = 3
+const TURN: float = 120.0
+
+var health: int = 10
+
+
+func run(enemy: Node2D) -> void:
+	for index in 3:
+		enemy.rotation = TURN<|> * index
+
+=== end

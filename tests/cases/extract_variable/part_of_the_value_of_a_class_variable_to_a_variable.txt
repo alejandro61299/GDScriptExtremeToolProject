@@ -1,0 +1,18 @@
+action: extract_variable
+options: {"name": "_base"}
+=== input
+extends Node
+
+var first: int = 1
+var health: int = 1<|>0 * 2
+var _cache: int = 0
+
+=== expected
+extends Node
+
+var first: int = 1
+var _base: int = 10
+var health: int = _base<|> * 2
+var _cache: int = 0
+
+=== end

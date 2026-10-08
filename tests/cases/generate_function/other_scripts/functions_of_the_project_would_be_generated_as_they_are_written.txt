@@ -1,0 +1,5 @@
+action: check_functions_generated_for_project_scripts
+=== input
+extends Node
+
+=== end

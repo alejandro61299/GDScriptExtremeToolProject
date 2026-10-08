@@ -1,0 +1,27 @@
+action: extract_variable
+options: {"name": "_speed", "where": "class"}
+=== input
+extends Node
+
+
+func first() -> int:
+	return 1
+
+
+func run(enemy: Node2D) -> void:
+	enemy.rotation = 12<|>0.0
+
+=== expected
+extends Node
+
+var _speed: float = 120.0
+
+
+func first() -> int:
+	return 1
+
+
+func run(enemy: Node2D) -> void:
+	enemy.rotation = _speed<|>
+
+=== end

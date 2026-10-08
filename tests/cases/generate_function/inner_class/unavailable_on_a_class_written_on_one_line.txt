@@ -1,0 +1,13 @@
+action: generate_function
+compile_check: skip
+=== input
+extends RefCounted
+
+
+class Empty: pass
+
+
+func run(empty: Empty) -> void:
+	empty.missing()<|>
+
+=== end

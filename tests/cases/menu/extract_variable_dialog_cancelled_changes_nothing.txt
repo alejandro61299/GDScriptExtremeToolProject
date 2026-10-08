@@ -1,0 +1,13 @@
+action: run_extract_variable_dialog
+dialog: cancel
+options: {"where": "class", "name": "_turn"}
+=== input
+extends Node
+
+var health: int = 10
+
+
+func run(enemy: Node2D) -> void:
+	enemy.rotation = 12<|>0.0
+
+=== end

@@ -1,0 +1,66 @@
+action: generate_function
+=== input
+extends Node
+
+const Target = preload("res://tests/fixtures/other_scripts/target.gd")
+
+
+class Item:
+	var weight: float = 1.0
+
+
+func run(target: Target, item: Item, items: Array[Item]) -> void:
+	var back: Item = target.missing(self, item, items)<|>
+	print(back)
+
+=== unsaved res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+enum Kind { ROUND, SQUARE }
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+class Tool:
+	var power: float = 2.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+=== expected res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+enum Kind { ROUND, SQUARE }
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+class Tool:
+	var power: float = 2.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+
+func missing(param_0: Node, p_item, p_items) -> Variant:
+	<|return null|>
+
+=== end

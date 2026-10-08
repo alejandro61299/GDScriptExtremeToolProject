@@ -27,6 +27,13 @@ const GDSExScriptLibrary = preload("res://addons/gdscript_extreme_tool/analysis/
 const GDSExTypeResolver = preload("res://addons/gdscript_extreme_tool/analysis/type_resolver.gd")
 const GDSExScriptTypeNames = preload("res://addons/gdscript_extreme_tool/analysis/script_type_names.gd")
 const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
+const GDSExPlacement = preload("res://addons/gdscript_extreme_tool/editing/placement.gd")
+const GDSExIndentation = preload("res://addons/gdscript_extreme_tool/editing/indentation.gd")
+const GDSExCallSiteParser = preload("res://addons/gdscript_extreme_tool/analysis/call_site_parser.gd")
+const GDSExExtractVariable = preload("res://addons/gdscript_extreme_tool/actions/extract_variable.gd")
+const GDSExValueFinder = preload("res://addons/gdscript_extreme_tool/analysis/value_finder.gd")
+const GDSExExtractVariableDialog = preload("res://addons/gdscript_extreme_tool/extract_variable_dialog.gd")
+const GDSExExtractVariableAction = preload("res://addons/gdscript_extreme_tool/actions/extract_variable_action.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -45,8 +52,47 @@ const EXTRACTION_NAME: String = "_new"
 const EXTRACTION_SAMPLE_STEP: int = 60
 const EXTRACTION_RANGE_SIZES: Array[int] = [0, 1, 2]
 const TYPES_ACTION: String = "describe_types"
-const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION, TYPES_ACTION]
+const VALUE_ACTION: String = "describe_value"
+const PLACES_ACTION: String = "describe_variable_places"
+const OPTIONS_ACTION: String = "describe_variable_options"
+const VARIABLE_NAME_ACTION: String = "describe_variable_name"
+const VARIABLE_WARNINGS_ACTION: String = "describe_variable_warnings"
+const OPTIONS_HEADER: String = "options"
+const NO_WARNINGS_LABEL: String = "no warnings"
+const VARIABLE_SAMPLE_STEP: int = 150
+const VARIABLE_VALUES_MINIMUM: int = 20
+const VARIABLE_PROBLEMS_LIMIT: int = 40
+const PART_HEADER: String = "part"
+const SCRIPTS_ROOT_HEADER: String = "scripts_root"
+const PARTS_HEADER: String = "parts"
+const LINES_HEADER: String = "lines"
+const STATIC_GUARD: String = "static var gdsex_guard: int = [][0]"
+const STATIC_GUARD_MARK: String = "gdsex_static_value_ran"
+const STATIC_GUARD_PROBE: String = "extends RefCounted\n\nstatic var probe: int = mark()\n\nstatic func mark() -> int:\n\tEngine.set_meta(\"%s\", true)\n\treturn 1\n"
+const GLOBAL_NAME_LINE_PATTERN: String = "(?m)^class_name .*$"
+const VARIABLE_DIALOG_SAMPLE: String = "extends Node\n\nconst LIMIT: int = 3\n\nvar health: int = 10\n\n\nclass Item:\n\tvar size: int = 1\n\n\tfunc heavy(extra: int) -> bool:\n\t\tfor index in 3:\n\t\t\tif size > 5 + index:\n\t\t\t\treturn true\n\t\treturn size > extra\n\n\nfunc get_health() -> int:\n\treturn health\n\n\nfunc run(enemy: Node2D) -> void:\n\tfor index in 3:\n\t\tenemy.rotation = 120.0 * index\n\t\tprint(get_health(), str(index))\n\tprint($Sprite)\n"
+const NO_VALUE_LABEL: String = "no value"
+const WHERE_HEADER: String = "where"
+const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION, TYPES_ACTION, VALUE_ACTION, PLACES_ACTION, OPTIONS_ACTION, VARIABLE_NAME_ACTION, VARIABLE_WARNINGS_ACTION]
 const UNSAVED_SECTION_PREFIX: String = "unsaved "
+const TAB_SECTION_PREFIX: String = "tab "
+const EXPECTED_SECTION_PREFIX: String = "expected "
+const OFFERED_HEADER: String = "offered"
+const OTHER_SCRIPT_HEADER: String = "other_script"
+const OTHER_SCRIPT_WHEN_MOVED_HEADER: String = "other_script_when_moved"
+const PLAN_SCRIPT_HEADER: String = "plan_script"
+const EXPECTED_LABEL_HEADER: String = "expect_label"
+const READ_ONLY_TAB_HEADER: String = "tab_read_only"
+const YES: String = "yes"
+const COMPILE_CHECK_HEADER: String = "compile_check"
+const COMPILE_APART: String = "apart"
+const GLOBAL_NAME_PATTERN: String = "(?m)^class_name .*\\n"
+const COMPILE_DIRECTORY_TEMPLATE: String = "compile_%d"
+const MISSING_SUFFIX: String = "_gdsex_missing"
+const GENERATED_FUNCTIONS_MINIMUM: int = 100
+const GENERATED_SAMPLE_STEP: int = 25
+const GENERATED_INNER_SAMPLE_DIVISOR: int = 5
+const SAMPLE_STEP_HEADER: String = "sample_step"
 const THIS_SCRIPT_LABEL: String = "<this script>"
 const UNKNOWN_TYPE_LABEL: String = "?"
 const SCRIPT_EXTENSION: String = "gd"
@@ -87,6 +133,8 @@ var _pending: PackedStringArray = []
 var _failed: PackedStringArray = []
 var _script_path: String = ""
 var _unsaved_sources: Dictionary[String, String] = {}
+var _tab_editors: Dictionary[String, CodeEdit] = {}
+var _compiled_cases: int = 0
 
 
 class MarkedText:
@@ -152,6 +200,99 @@ class TestCase:
 	var settings: Dictionary = {}
 	var headers: Dictionary[String, String] = {}
 	var unsaved_sources: Dictionary[String, String] = {}
+	var tab_sources: Dictionary[String, String] = {}
+	var expected_scripts: Dictionary[String, String] = {}
+
+
+class GenerationTally:
+	var generator: GDSExGenerateFunctionAction = GDSExGenerateFunctionAction.new()
+	var sample_step: int = 1
+	var calls: int = 0
+	var calls_on_inner_classes: int = 0
+	var parameters: int = 0
+	var compiled: int = 0
+	var problems: PackedStringArray = []
+
+
+class VariableTestAction extends "res://addons/gdscript_extreme_tool/actions/code_action.gd":
+	const NAME_OPTION: String = "name"
+	const WHERE_OPTION: String = "where"
+
+	var options: Dictionary = {}
+
+	func get_label() -> String:
+		return "Extract Variable Test"
+
+	func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
+		var extraction := GDSExExtractVariable.analyze(context)
+		var choice := choose(extraction)
+		if choice == null:
+			return null
+		var variable_name := name_for(extraction, choice)
+		if GDSExExtractVariable.check_name(extraction, choice, variable_name).is_error():
+			return null
+		return GDSExExtractVariable.build_plan_for(extraction, choice, variable_name, context.indent_unit)
+
+	func name_for(extraction: GDSExExtractVariable.GDSExExtraction, choice: GDSExExtractVariable.GDSExChoice) -> String:
+		return options.get(NAME_OPTION, GDSExExtractVariable.default_name(extraction, choice))
+
+	func choose(extraction: GDSExExtractVariable.GDSExExtraction) -> GDSExExtractVariable.GDSExChoice:
+		if extraction == null:
+			return null
+		var choice := GDSExExtractVariable.default_choice(extraction)
+		if options.has(WHERE_OPTION):
+			var place: GDSExExtractVariable.GDSExPlace = GDSExExtractVariable.PLACES[GDSExExtractVariable.PLACE_LABELS.find(String(options[WHERE_OPTION]).capitalize())]
+			if not GDSExExtractVariable.place_state(extraction, place).is_usable():
+				return null
+			choice = GDSExExtractVariable.choice_for_place(extraction, place, choice)
+		for option in GDSExExtractVariable.OPTIONS:
+			var key := String(GDSExExtractVariable.OPTION_LABELS[option]).to_lower().replace(" ", "_")
+			if not options.has(key) or options[key] == choice.has(option):
+				continue
+			if not GDSExExtractVariable.option_state(extraction, choice, option).is_enabled():
+				return null
+			choice = GDSExExtractVariable.choice_with_option(extraction, choice, option, options[key])
+		return choice
+
+
+class VariableTally:
+	var sample_step: int = 1
+	var part: int = 0
+	var parts: int = 1
+	var values: int = 0
+	var extractions: int = 0
+	var accepted: int = 0
+	var refused: int = 0
+	var scripts: int = 0
+	var skipped_scripts: int = 0
+	var problems: PackedStringArray = []
+	var only_lines: PackedInt32Array = []
+	var editor: CodeEdit
+	var global_name: RegEx
+
+
+class OtherScriptTestAction extends "res://addons/gdscript_extreme_tool/actions/code_action.gd":
+	const FUNCTION_NAME: String = "added"
+	const MOVED_MARK: String = "moved"
+
+	var script_path: String = ""
+	var script_path_when_moved: String = ""
+
+	func get_label() -> String:
+		return "Other Script Test"
+
+	func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
+		var index := GDSExScriptLibrary.find_index(script_path)
+		if index == null or index.root.functions.has(FUNCTION_NAME):
+			return null
+		var snippet := GDSExSnippet.new()
+		snippet.add_line(0, "func %s() -> void:" % FUNCTION_NAME)
+		snippet.add_line(1, "pass")
+		snippet.select_line(1)
+		var plan := GDSExEditPlan.new()
+		plan.script_path = script_path_when_moved if index.root.vars.has(MOVED_MARK) else script_path
+		plan.reveal(plan.insert(GDSExPlacement.end_of_class(index.root, GDSExScriptLibrary.find_lines(script_path), context.indent_unit), snippet))
+		return plan
 
 
 class DialogTestAction extends "res://addons/gdscript_extreme_tool/actions/code_action.gd":
@@ -259,6 +400,9 @@ func _run_case(path: String) -> void:
 	_script_path = ""
 	_unsaved_sources = {}
 	editor.free()
+	for tab_editor: CodeEdit in _tab_editors.values():
+		tab_editor.free()
+	_tab_editors.clear()
 	if test_case.viewport_lines > 0 and problems.is_empty():
 		problems.append_array(await _check_view(test_case))
 	_override_settings(test_case.settings, false)
@@ -374,6 +518,10 @@ func _parse_case(path: String) -> TestCase:
 	for section: String in sections:
 		if section.begins_with(UNSAVED_SECTION_PREFIX):
 			test_case.unsaved_sources[section.trim_prefix(UNSAVED_SECTION_PREFIX).strip_edges()] = sections[section]
+		if section.begins_with(TAB_SECTION_PREFIX):
+			test_case.tab_sources[section.trim_prefix(TAB_SECTION_PREFIX).strip_edges()] = sections[section]
+		if section.begins_with(EXPECTED_SECTION_PREFIX):
+			test_case.expected_scripts[section.trim_prefix(EXPECTED_SECTION_PREFIX).strip_edges()] = sections[section]
 	var settings: Variant = str_to_var(headers.get("settings", "{}"))
 	if settings is Dictionary:
 		test_case.settings = settings
@@ -391,13 +539,47 @@ func _check_expected_compiles(test_case: TestCase) -> PackedStringArray:
 	var problems := PackedStringArray()
 	if test_case.skips_compile_check:
 		return problems
-	var script := GDScript.new()
-	script.source_code = test_case.input.text if DESCRIPTION_ACTIONS.has(test_case.action) else test_case.expected.text
+	if not test_case.expected_scripts.is_empty():
+		return _check_scripts_compile_together(test_case)
 	_error_collector.take()
-	if script.reload() != OK:
+	if not _compiles(test_case.input.text if DESCRIPTION_ACTIONS.has(test_case.action) else test_case.expected.text):
 		problems.append("The script of the case is not valid GDScript.")
 		problems.append_array(_error_collector.take())
 	return problems
+
+
+func _check_scripts_compile_together(test_case: TestCase) -> PackedStringArray:
+	var problems := PackedStringArray()
+	_compiled_cases += 1
+	var directory := TEMPORARY_ROOT.path_join(COMPILE_DIRECTORY_TEMPLATE % _compiled_cases)
+	DirAccess.make_dir_recursive_absolute(directory)
+	var global_name := RegEx.create_from_string(GLOBAL_NAME_PATTERN)
+	var caller_source := test_case.expected.text
+	var copies := PackedStringArray()
+	_error_collector.take()
+	for script_path: String in test_case.expected_scripts:
+		var source := global_name.sub(MarkedText.parse(test_case.expected_scripts[script_path]).text, "")
+		var copy_path := directory.path_join(script_path.get_file())
+		_write_file(copy_path, source)
+		copies.append(copy_path)
+		caller_source = caller_source.replace(script_path, copy_path)
+		if not _compiles(source):
+			problems.append("The expected text of %s is not valid GDScript." % script_path)
+			problems.append_array(_error_collector.take())
+	var compiles_apart: bool = test_case.headers.get(COMPILE_CHECK_HEADER, "") == COMPILE_APART
+	if caller_source != test_case.expected.text and not compiles_apart and not _compiles(caller_source):
+		problems.append("The script of the case does not compile against the expected text of the other script.")
+		problems.append_array(_error_collector.take())
+	for copy_path in copies:
+		DirAccess.remove_absolute(copy_path)
+	DirAccess.remove_absolute(directory)
+	return problems
+
+
+func _compiles(source: String) -> bool:
+	var script := GDScript.new()
+	script.source_code = source
+	return script.reload() == OK
 
 
 func _create_editor(test_case: TestCase) -> CodeEdit:
@@ -419,8 +601,19 @@ func _create_editor(test_case: TestCase) -> CodeEdit:
 func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 	match test_case.action:
 		"apply_plan":
-			GDSExEditApplier.apply(editor, _build_plan(test_case.plan_description))
+			var plan := _build_plan(test_case.plan_description)
+			plan.script_path = test_case.headers.get(PLAN_SCRIPT_HEADER, "")
+			GDSExEditApplier.apply(_tab_editor(test_case, plan.script_path) if plan.is_for_another_script() else editor, plan)
 			return _check_edit(test_case, editor)
+		"apply_other_script_plan_here":
+			var stray_plan := _build_plan(test_case.plan_description)
+			stray_plan.script_path = test_case.headers.get(PLAN_SCRIPT_HEADER, "")
+			GDSExCodeActionsPopup.apply_plan(stray_plan, editor)
+			return _check_edit(test_case, editor)
+		"run_other_script_action":
+			return _check_code_action(test_case, _other_script_action(test_case), editor)
+		"run_other_script_popup":
+			return _check_other_script_popup(test_case, editor)
 		SCOPES_ACTION:
 			return _check_scopes(test_case, editor)
 		EXTRACTION_RANGE_ACTION:
@@ -429,6 +622,28 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_description(test_case, _describe_extraction(editor))
 		TYPES_ACTION:
 			return _check_description(test_case, _describe_types(editor))
+		VALUE_ACTION:
+			return _check_description(test_case, _describe_value(editor))
+		PLACES_ACTION:
+			return _check_description(test_case, _describe_variable_places(editor))
+		OPTIONS_ACTION:
+			return _check_description(test_case, _describe_variable_options(editor, test_case.headers.get(WHERE_HEADER, "")))
+		VARIABLE_NAME_ACTION:
+			return _check_description(test_case, _describe_variable_name(test_case, editor))
+		VARIABLE_WARNINGS_ACTION:
+			return _check_description(test_case, _describe_variable_warnings(test_case, editor))
+		"extract_variable":
+			return _check_code_action(test_case, _variable_action(test_case), editor)
+		"check_variable_extraction_behavior":
+			return _check_variable_extraction_behavior(test_case, editor)
+		"run_extract_variable_dialog":
+			return _check_extract_variable_dialog_run(test_case, editor)
+		"check_variable_extraction_of_project_scripts":
+			return _check_variable_extraction_of_scripts(_project_script_paths(), test_case)
+		"check_variable_extraction_of_scripts_in":
+			return _check_variable_extraction_of_scripts(_collect_paths(test_case.headers.get(SCRIPTS_ROOT_HEADER, ""), SCRIPT_EXTENSION), test_case)
+		"check_extract_variable_dialog":
+			return _check_extract_variable_dialog()
 		"check_project_scripts":
 			return _check_project_scripts()
 		"check_no_false_targets":
@@ -473,6 +688,8 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_script_library()
 		"check_written_types_of_project_scripts":
 			return _check_written_types_of_project_scripts()
+		"check_functions_generated_for_project_scripts":
+			return _check_functions_generated_for_project_scripts(int(test_case.headers.get(SAMPLE_STEP_HEADER, str(GENERATED_SAMPLE_STEP))))
 	var action := _find_code_action(test_case.action)
 	if action == null:
 		return PackedStringArray(["Unknown action '%s'." % test_case.action])
@@ -490,12 +707,16 @@ func _find_code_action(action_name: String) -> GDSExCodeAction:
 func _check_code_action(test_case: TestCase, action: GDSExCodeAction, editor: CodeEdit) -> PackedStringArray:
 	var problems := PackedStringArray()
 	var actions: Array[GDSExCodeAction] = [action]
-	var is_offered := not GDSExActionRegistry.find_available(actions, _context(editor)).is_empty()
-	var expects_change := test_case.expected.text != test_case.input.text
-	if is_offered and not expects_change:
+	var available := GDSExActionRegistry.find_available(actions, _context(editor))
+	var is_offered := not available.is_empty()
+	var expects_change := test_case.expected.text != test_case.input.text or _expects_change_in_tabs(test_case)
+	var expects_offer: bool = expects_change or test_case.headers.get(OFFERED_HEADER, "") == YES
+	if is_offered and not expects_offer:
 		problems.append("The action is offered in the menu but nothing should change.")
-	if not is_offered and expects_change:
+	if not is_offered and expects_offer:
 		problems.append("The action is not offered in the menu.")
+	if is_offered and test_case.headers.has(EXPECTED_LABEL_HEADER) and available[0].label != test_case.headers[EXPECTED_LABEL_HEADER]:
+		problems.append("The menu shows '%s' instead of '%s'." % [available[0].label, test_case.headers[EXPECTED_LABEL_HEADER]])
 	for line in test_case.breakpoints:
 		editor.set_line_as_breakpoint(line, true)
 	for line in test_case.bookmarks:
@@ -503,7 +724,7 @@ func _check_code_action(test_case: TestCase, action: GDSExCodeAction, editor: Co
 	editor.line_folding = not test_case.folds.is_empty()
 	for line in test_case.folds:
 		editor.fold_line(line)
-	GDSExEditApplier.apply(editor, action.build_plan(_context(editor)))
+	_apply_action(test_case, action, editor)
 	if PackedInt32Array(editor.get_folded_lines()) != test_case.expected_folds:
 		problems.append("Folded lines are %s instead of %s." % [_one_based(PackedInt32Array(editor.get_folded_lines())), _one_based(test_case.expected_folds)])
 	if editor.get_breakpointed_lines() != test_case.expected_breakpoints:
@@ -512,6 +733,88 @@ func _check_code_action(test_case: TestCase, action: GDSExCodeAction, editor: Co
 		problems.append("Bookmarks are on lines %s instead of %s." % [_one_based(editor.get_bookmarked_lines()), _one_based(test_case.expected_bookmarks)])
 	if test_case.action == FORMAT_ACTION and action.build_plan(_context(editor)) != null:
 		problems.append("Running the action again on the formatted result changes it.")
+	problems.append_array(_check_edit(test_case, editor))
+	return problems
+
+
+func _apply_action(test_case: TestCase, action: GDSExCodeAction, editor: CodeEdit) -> void:
+	var context := _context(editor)
+	var plan := action.build_plan(context)
+	if plan == null or not plan.is_for_another_script():
+		GDSExEditApplier.apply(editor, plan)
+		return
+	GDSExCodeActionsPopup.apply_in_tab(action, editor, context, plan.script_path, _tab_editor(test_case, plan.script_path))
+
+
+func _other_script_action(test_case: TestCase) -> OtherScriptTestAction:
+	var action := OtherScriptTestAction.new()
+	action.script_path = test_case.headers.get(OTHER_SCRIPT_HEADER, "")
+	action.script_path_when_moved = test_case.headers.get(OTHER_SCRIPT_WHEN_MOVED_HEADER, "")
+	return action
+
+
+func _tab_editor(test_case: TestCase, script_path: String) -> CodeEdit:
+	if _tab_editors.has(script_path):
+		return _tab_editors[script_path]
+	var tab_editor := CodeEdit.new()
+	root.add_child(tab_editor)
+	tab_editor.indent_use_spaces = test_case.uses_spaces
+	tab_editor.indent_size = test_case.indent_size
+	tab_editor.text = _tab_source(test_case, script_path)
+	tab_editor.editable = test_case.headers.get(READ_ONLY_TAB_HEADER, "") != YES
+	tab_editor.clear_undo_history()
+	_tab_editors[script_path] = tab_editor
+	return tab_editor
+
+
+func _tab_source(test_case: TestCase, script_path: String) -> String:
+	if test_case.tab_sources.has(script_path):
+		return test_case.tab_sources[script_path]
+	if test_case.unsaved_sources.has(script_path):
+		return test_case.unsaved_sources[script_path]
+	return FileAccess.get_file_as_string(script_path).replace("\r\n", "\n")
+
+
+func _expects_change_in_tabs(test_case: TestCase) -> bool:
+	for script_path: String in test_case.expected_scripts:
+		if MarkedText.parse(test_case.expected_scripts[script_path]).text != _tab_source(test_case, script_path):
+			return true
+	return false
+
+
+func _check_tabs(test_case: TestCase) -> PackedStringArray:
+	var problems := PackedStringArray()
+	for script_path: String in test_case.expected_scripts:
+		var tab_editor := _tab_editor(test_case, script_path)
+		var expected_raw := test_case.expected_scripts[script_path]
+		var actual := _render_with_marks(tab_editor) if MarkedText.parse(expected_raw).has_marks else tab_editor.text
+		if actual != expected_raw:
+			problems.append("Unexpected result in %s.\n--- expected ---\n%s\n--- actual ---\n%s" % [script_path, _visualize(expected_raw), _visualize(actual)])
+	for script_path: String in _tab_editors:
+		var tab_editor := _tab_editors[script_path]
+		var original := _tab_source(test_case, script_path)
+		if tab_editor.text == original:
+			continue
+		if not test_case.expected_scripts.has(script_path):
+			problems.append("The script %s changed but the case does not expect it.\n%s" % [script_path, _visualize(tab_editor.text)])
+		tab_editor.undo()
+		if tab_editor.text != original:
+			problems.append("A single undo does not restore the original text of %s." % script_path)
+	return problems
+
+
+func _check_other_script_popup(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var actions: Array[GDSExCodeAction] = [_other_script_action(test_case)]
+	var popup := GDSExCodeActionsPopup.new()
+	root.add_child(popup)
+	popup.setup(editor, actions)
+	popup.about_to_popup.emit()
+	var label := popup.get_item_text(0)
+	if popup.is_item_disabled(0) or label != test_case.headers.get(EXPECTED_LABEL_HEADER, ""):
+		problems.append("The popup shows '%s' instead of '%s'." % [label, test_case.headers.get(EXPECTED_LABEL_HEADER, "")])
+	popup.index_pressed.emit(0)
+	popup.free()
 	problems.append_array(_check_edit(test_case, editor))
 	return problems
 
@@ -556,6 +859,7 @@ func _check_edit(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 		editor.undo()
 		if editor.text != test_case.input.text:
 			problems.append("A single undo does not restore the original text.")
+	problems.append_array(_check_tabs(test_case))
 	return problems
 
 
@@ -604,6 +908,512 @@ func _describe_extraction(editor: CodeEdit) -> String:
 	for alternative in alternatives.slice(1):
 		description.append("or %s: %s -> %s" % [GDSExExtractFunction.GDSExForm.find_key(alternative.form), GDSExExtractFunction.signature(alternative, EXTRACTION_NAME), " | ".join(GDSExExtractFunction.call_lines(alternative, EXTRACTION_NAME, context.lines))])
 	return "\n".join(description)
+
+
+func _describe_value(editor: CodeEdit) -> String:
+	var extraction := GDSExExtractVariable.analyze(_context(editor))
+	if extraction == null:
+		return NO_VALUE_LABEL
+	var kind: String = GDSExValueFinder.GDSExValue.GDSExKind.find_key(extraction.value.kind)
+	return "\n".join(PackedStringArray([
+		"value: %s" % extraction.value_text,
+		"kind: %s" % kind.to_lower(),
+		"type: %s" % (UNKNOWN_TYPE_LABEL if extraction.type == null else GDSExSymbolIndex.type_to_string(extraction.type)),
+		"name: %s" % extraction.proposed_name,
+	]))
+
+
+func _variable_action(test_case: TestCase) -> VariableTestAction:
+	var action := VariableTestAction.new()
+	var options: Variant = str_to_var(test_case.headers.get(OPTIONS_HEADER, "{}"))
+	if options is Dictionary:
+		action.options = options
+	return action
+
+
+func _describe_variable_name(test_case: TestCase, editor: CodeEdit) -> String:
+	var action := _variable_action(test_case)
+	var extraction := GDSExExtractVariable.analyze(_context(editor))
+	var choice := action.choose(extraction)
+	if choice == null:
+		return NO_VALUE_LABEL
+	var variable_name := action.name_for(extraction, choice)
+	var check := GDSExExtractVariable.check_name(extraction, choice, variable_name)
+	return "%s: %s - %s" % [variable_name, NAME_CHECK_LEVELS[check.level], check.message]
+
+
+func _describe_variable_warnings(test_case: TestCase, editor: CodeEdit) -> String:
+	var extraction := GDSExExtractVariable.analyze(_context(editor))
+	var choice := _variable_action(test_case).choose(extraction)
+	if choice == null:
+		return NO_VALUE_LABEL
+	var warnings := GDSExExtractVariable.find_warnings(extraction, choice)
+	return NO_WARNINGS_LABEL if warnings.is_empty() else "
+".join(warnings)
+
+
+func _check_variable_extraction_behavior(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	var original := GDScript.new()
+	original.source_code = editor.text
+	if original.reload() != OK:
+		return PackedStringArray(["The script of the case does not compile."])
+	var plan := _variable_action(test_case).build_plan(_context(editor))
+	if plan == null:
+		return PackedStringArray(["The value cannot be extracted that way."])
+	GDSExEditApplier.apply(editor, plan)
+	var extracted := GDScript.new()
+	extracted.source_code = editor.text
+	if extracted.reload() != OK:
+		return PackedStringArray(["The script does not compile after extracting.
+%s" % _visualize(editor.text)])
+	var problems := PackedStringArray()
+	var before: Object = original.new()
+	var after: Object = extracted.new()
+	for arguments: Array in before.call("samples"):
+		var expected := _run_sample(before, arguments)
+		var actual := _run_sample(after, arguments)
+		if expected != actual:
+			problems.append("run%s gives %s after extracting instead of %s.
+%s" % [arguments, actual, expected, _visualize(editor.text)])
+	return problems
+
+
+func _check_extract_variable_dialog_run(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var popup := GDSExCodeActionsPopup.new()
+	root.add_child(popup)
+	popup.setup(editor, GDSExActionRegistry.create_actions())
+	popup.about_to_popup.emit()
+	for index in popup.item_count:
+		if popup.get_item_text(index) == GDSExExtractVariableAction.LABEL:
+			popup.index_pressed.emit(index)
+	popup.free()
+	var dialog: GDSExExtractVariableDialog = null
+	for child in editor.get_window().get_children():
+		if child is GDSExExtractVariableDialog:
+			dialog = child
+	if dialog == null or not dialog.visible:
+		return PackedStringArray(["The menu did not open the extract variable dialog."])
+	if editor.text != test_case.input.text:
+		problems.append("The script changed before the dialog was confirmed.")
+	var options: Dictionary = str_to_var(test_case.headers.get(OPTIONS_HEADER, "{}"))
+	if options.has(VariableTestAction.WHERE_OPTION):
+		var place: GDSExExtractVariable.GDSExPlace = GDSExExtractVariable.PLACES[GDSExExtractVariable.PLACE_LABELS.find(String(options[VariableTestAction.WHERE_OPTION]).capitalize())]
+		_press_dialog_button(problems, dialog.where_buttons[place], true)
+	for option in GDSExExtractVariable.OPTIONS:
+		if options.has(_option_word(option)):
+			_press_dialog_button(problems, dialog.option_buttons[option], options[_option_word(option)])
+	if options.has(VariableTestAction.NAME_OPTION):
+		_type_dialog_name(dialog, options[VariableTestAction.NAME_OPTION])
+	var previewed := dialog.result_preview.text
+	if test_case.headers.get("dialog", "accept") == "cancel":
+		dialog.get_cancel_button().pressed.emit()
+		dialog.hide()
+	else:
+		dialog.get_ok_button().pressed.emit()
+		if editor.text != previewed:
+			problems.append("The script is not what the dialog showed.\n--- shown ---\n%s\n--- script ---\n%s" % [_visualize(previewed), _visualize(editor.text)])
+	if dialog.visible or not dialog.is_queued_for_deletion():
+		problems.append("The dialog is not closed and freed after it is answered.")
+	problems.append_array(_check_edit(test_case, editor))
+	return problems
+
+
+func _press_dialog_button(problems: PackedStringArray, button: Button, is_pressed: bool) -> void:
+	if button.button_pressed == is_pressed:
+		return
+	if button.disabled or not button.visible:
+		problems.append("The button '%s' cannot be used: %s" % [button.text, button.tooltip_text])
+		return
+	button.button_pressed = is_pressed
+
+
+func _open_variable_dialog(editor: CodeEdit, line: int, text: String, plans: Array[GDSExEditPlan]) -> GDSExExtractVariableDialog:
+	editor.deselect()
+	editor.set_caret_line(line)
+	editor.set_caret_column(editor.get_line(line).find(text) + 1)
+	var dialog := GDSExExtractVariableDialog.new()
+	dialog.setup(_context(editor), func(plan: GDSExEditPlan) -> void: plans.append(plan))
+	root.add_child(dialog)
+	dialog.popup_centered()
+	return dialog
+
+
+func _dialog_buttons(buttons: Dictionary) -> String:
+	var described := PackedStringArray()
+	for key: int in buttons:
+		var button: Button = buttons[key]
+		if button.visible:
+			described.append(("[%s]" if button.button_pressed else "%s") % button.text + ("-" if button.disabled else ""))
+	return " ".join(described)
+
+
+func _marked_lines(preview: CodeEdit) -> PackedStringArray:
+	var marked := PackedStringArray()
+	for line in preview.get_line_count():
+		if preview.get_line_background_color(line).a > 0.0:
+			marked.append(preview.get_line(line).strip_edges())
+	return marked
+
+
+func _check_extract_variable_dialog() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var editor := CodeEdit.new()
+	root.add_child(editor)
+	editor.text = VARIABLE_DIALOG_SAMPLE
+	var plans: Array[GDSExEditPlan] = []
+	var place := GDSExExtractVariable.GDSExPlace
+	var option := GDSExExtractVariable.GDSExOption
+	var valid_color: Color = GDSExFunctionNameDialog.LEVEL_FALLBACK_COLORS[0]
+	var warning_color: Color = GDSExFunctionNameDialog.LEVEL_FALLBACK_COLORS[1]
+
+	var dialog := _open_variable_dialog(editor, 23, "120.0", plans)
+	_expect(problems, "places for a number in a loop", _dialog_buttons(dialog.where_buttons), "[Block] Function Class")
+	_expect(problems, "options in the block", _dialog_buttons(dialog.option_buttons), "Constant Static- Private- On ready-")
+	_expect(problems, "reason of an option that does not fit the place", dialog.option_buttons[option.STATIC].tooltip_text, "Only a variable of the class can be static.")
+	_expect(problems, "initial name", dialog.name_edit.text, "value")
+	_expect(problems, "initial message", dialog.validation_label.text, "• Variable name is valid.")
+	_expect(problems, "initial changed lines", _marked_lines(dialog.result_preview), PackedStringArray(["var value: float = 120.0", "enemy.rotation = value * index"]))
+	_expect(problems, "preview is read only", dialog.result_preview.editable, false)
+	_expect(problems, "extract enabled at start", dialog.get_ok_button().disabled, false)
+	dialog.where_buttons[place.FUNCTION].button_pressed = true
+	_expect(problems, "one place at a time", _dialog_buttons(dialog.where_buttons), "Block [Function] Class")
+	_expect(problems, "declaration before the loop", dialog.result_preview.text.contains("\tvar value: float = 120.0\n\tfor index in 3:\n\t\tenemy.rotation = value * index"), true)
+	dialog.where_buttons[place.CLASS].button_pressed = true
+	_expect(problems, "options in the class", _dialog_buttons(dialog.option_buttons), "Constant Static [Private] On ready")
+	_expect(problems, "name of a private variable", dialog.name_edit.text, "_value")
+	_expect(problems, "declaration among the variables", dialog.result_preview.text.contains("var health: int = 10\n\nvar _value: float = 120.0\n"), true)
+	dialog.option_buttons[option.CONSTANT].button_pressed = true
+	_expect(problems, "a constant is public and written in capitals", [_dialog_buttons(dialog.option_buttons), dialog.name_edit.text], ["[Constant] Static Private On ready", "VALUE"])
+	_expect(problems, "declaration among the constants", dialog.result_preview.text.contains("const LIMIT: int = 3\nconst VALUE: float = 120.0\n"), true)
+	dialog.option_buttons[option.STATIC].button_pressed = true
+	_expect(problems, "static takes the place of constant", [_dialog_buttons(dialog.option_buttons), dialog.name_edit.text], ["Constant [Static] [Private] On ready", "_value"])
+	dialog.option_buttons[option.PRIVATE].button_pressed = false
+	_expect(problems, "public static variable", [dialog.name_edit.text, dialog.result_preview.text.contains("static var value: float = 120.0\n")], ["value", true])
+	dialog.option_buttons[option.ON_READY].button_pressed = true
+	_expect(problems, "on ready takes the place of static", _dialog_buttons(dialog.option_buttons), "Constant Static Private [On ready]")
+	dialog.option_buttons[option.STATIC].button_pressed = true
+	_expect(problems, "static takes the place of on ready", _dialog_buttons(dialog.option_buttons), "Constant [Static] Private On ready")
+	dialog.option_buttons[option.CONSTANT].button_pressed = true
+	_expect(problems, "the chosen privacy is kept", [_dialog_buttons(dialog.option_buttons), dialog.name_edit.text], ["[Constant] Static Private On ready", "VALUE"])
+	dialog.option_buttons[option.ON_READY].button_pressed = true
+	_expect(problems, "on ready takes the place of constant", _dialog_buttons(dialog.option_buttons), "Constant Static Private [On ready]")
+	dialog.option_buttons[option.CONSTANT].button_pressed = true
+	_type_dialog_name(dialog, "TURN")
+	dialog.option_buttons[option.PRIVATE].button_pressed = true
+	_expect(problems, "a typed name is not replaced", dialog.name_edit.text, "TURN")
+	_type_dialog_name(dialog, "LIMIT")
+	_expect(problems, "message for a taken name", dialog.validation_label.text, "• The class already has a member named 'LIMIT'.")
+	_expect(problems, "extract disabled on error", [dialog.get_ok_button().disabled, dialog.name_edit.has_theme_color_override("font_color")], [true, true])
+	dialog.name_edit.text_submitted.emit("LIMIT")
+	dialog.confirmed.emit()
+	_expect(problems, "accept does nothing on error", plans.size(), 0)
+	_type_dialog_name(dialog, "")
+	_expect(problems, "message for an empty name", dialog.validation_label.text, "• Enter a variable name.")
+	_type_dialog_name(dialog, "TURN")
+	_expect(problems, "valid again", [dialog.validation_label.get_theme_color("font_color"), dialog.get_ok_button().disabled], [valid_color, false])
+	var shown := dialog.result_preview.text
+	dialog.name_edit.text_submitted.emit("TURN")
+	_expect(problems, "accept on the name extracts", [plans.size(), dialog.visible], [1, false])
+	if plans.size() == 1:
+		GDSExEditApplier.apply(editor, plans[0])
+		_expect(problems, "the script is what the dialog showed", editor.text, shown)
+		_expect(problems, "extracted constant", editor.text.contains("const LIMIT: int = 3\nconst TURN: float = 120.0\n") and editor.text.contains("enemy.rotation = TURN * index"), true)
+	dialog.free()
+
+	editor.text = VARIABLE_DIALOG_SAMPLE
+	dialog = _open_variable_dialog(editor, 24, "get_health", plans)
+	_expect(problems, "nothing to warn in the block", [dialog.name_edit.text, dialog.validation_label.text], ["health_2", "• Variable name is valid."])
+	dialog.where_buttons[place.FUNCTION].button_pressed = true
+	_expect(problems, "warning when leaving the loop", [dialog.validation_label.text, dialog.validation_label.get_theme_color("font_color"), dialog.get_ok_button().disabled], ["• The value will be computed once, before the loop.", warning_color, false])
+	_type_dialog_name(dialog, "health")
+	_expect(problems, "two warnings together", dialog.validation_label.text, "• 'health' will hide the member of the class with that name.\n• The value will be computed once, before the loop.")
+	_type_dialog_name(dialog, "enemy")
+	_expect(problems, "an error hides the warnings", [dialog.validation_label.text, dialog.get_ok_button().disabled], ["• This function already has a variable named 'enemy'.", true])
+	_type_dialog_name(dialog, "counted")
+	dialog.where_buttons[place.CLASS].button_pressed = true
+	_expect(problems, "options for a function of the object", _dialog_buttons(dialog.option_buttons), "Constant- Static- [Private] On ready")
+	_expect(problems, "reason of constant", dialog.option_buttons[option.CONSTANT].tooltip_text, "A constant cannot hold the result of 'get_health()'.")
+	_expect(problems, "reason of static", dialog.option_buttons[option.STATIC].tooltip_text, "A static variable cannot read 'get_health', which belongs to the object.")
+	_expect(problems, "warning of a class variable", dialog.validation_label.text, "• The value will be computed once, when the object is created.")
+	dialog.option_buttons[option.ON_READY].button_pressed = true
+	_expect(problems, "warning of a variable that waits for ready", [dialog.validation_label.text, dialog.result_preview.text.contains("@onready var counted: int = get_health()")], ["• The value will be computed once, when the node is ready.", true])
+	dialog.free()
+
+	dialog = _open_variable_dialog(editor, 24, "str(", plans)
+	_expect(problems, "places for a value that reads the loop", _dialog_buttons(dialog.where_buttons), "[Block] Function- Class-")
+	_expect(problems, "reason of function", dialog.where_buttons[place.FUNCTION].tooltip_text, "The value reads 'index', which only exists inside the loop.")
+	_expect(problems, "reason of class", dialog.where_buttons[place.CLASS].tooltip_text, "The value reads 'index', which only exists inside this function.")
+	dialog.where_buttons[place.CLASS].button_pressed = true
+	_expect(problems, "a place that is off cannot be chosen", dialog.get_choice().place, place.BLOCK)
+	dialog.free()
+
+	dialog = _open_variable_dialog(editor, 25, "$Sprite", plans)
+	_expect(problems, "places for a node", _dialog_buttons(dialog.where_buttons), "[Function] Class")
+	dialog.where_buttons[place.CLASS].button_pressed = true
+	_expect(problems, "on ready marks itself", _dialog_buttons(dialog.option_buttons), "Constant- Static- [Private] [On ready]-")
+	_expect(problems, "reason of on ready", dialog.option_buttons[option.ON_READY].tooltip_text, "The value needs the scene tree, which is not there until the node is ready.")
+	_expect(problems, "declaration that waits for ready", dialog.result_preview.text.contains("@onready var _sprite: Node = $Sprite\n"), true)
+	dialog.free()
+
+	dialog = _open_variable_dialog(editor, 12, "5", plans)
+	_expect(problems, "four places inside an inner class", _dialog_buttons(dialog.where_buttons), "[Block] Function Class Script")
+	dialog.where_buttons[place.SCRIPT].button_pressed = true
+	_expect(problems, "script marks constant", [_dialog_buttons(dialog.option_buttons), dialog.name_edit.text], ["[Constant]- Static- Private On ready-", "VALUE"])
+	_expect(problems, "reason of the constant of the script", dialog.option_buttons[option.CONSTANT].tooltip_text, "A class inside the script can only read the constants of the script.")
+	_expect(problems, "declaration among the constants of the script", dialog.result_preview.text.contains("const LIMIT: int = 3\nconst VALUE: int = 5\n"), true)
+	_expect(problems, "changed lines of the script", _marked_lines(dialog.result_preview), PackedStringArray(["const VALUE: int = 5", "if size > VALUE + index:"]))
+	dialog.where_buttons[place.BLOCK].button_pressed = true
+	_expect(problems, "back to the block", [_dialog_buttons(dialog.option_buttons), dialog.name_edit.text], ["[Constant] Static- Private- On ready-", "VALUE"])
+	dialog.get_cancel_button().pressed.emit()
+	_expect(problems, "cancel extracts nothing", plans.size(), 1)
+	dialog.free()
+	editor.free()
+	return problems
+
+
+func _check_variable_extraction_of_scripts(paths: PackedStringArray, test_case: TestCase) -> PackedStringArray:
+	var tally := VariableTally.new()
+	tally.sample_step = int(test_case.headers.get(SAMPLE_STEP_HEADER, str(VARIABLE_SAMPLE_STEP)))
+	tally.part = int(test_case.headers.get(PART_HEADER, "0"))
+	tally.parts = int(test_case.headers.get(PARTS_HEADER, "1"))
+	for line in String(test_case.headers.get(LINES_HEADER, "")).split(",", false):
+		tally.only_lines.append(int(line) - 1)
+	tally.global_name = RegEx.create_from_string(GLOBAL_NAME_LINE_PATTERN)
+	if not _static_guard_works():
+		return PackedStringArray(["The guard does not stop the values of static variables from running: nothing was tried."])
+	tally.editor = CodeEdit.new()
+	root.add_child(tally.editor)
+	for path in paths:
+		GDSExScriptLibrary.refresh({})
+		var source := FileAccess.get_file_as_string(path)
+		if not _compiles(tally.global_name.sub(source, "")):
+			tally.skipped_scripts += 1
+			continue
+		tally.scripts += 1
+		var lines := source.split("\n")
+		var index := GDSExSymbolIndexBuilder.build(lines, path)
+		_check_variable_extraction_in(path, source, index, lines, index.statements, tally)
+	_error_collector.take()
+	tally.editor.free()
+	if tally.only_lines.is_empty() and tally.extractions < VARIABLE_VALUES_MINIMUM:
+		tally.problems.append("Only %d of %d values were tried: the check is not looking at the scripts." % [tally.extractions, tally.values])
+	if _shows_pending_details:
+		print("         %d scripts (%d more do not compile on their own), %d values, %d tried, %d ways that compile, %d ways rightly refused" % [tally.scripts, tally.skipped_scripts, tally.values, tally.extractions, tally.accepted, tally.refused])
+	return tally.problems
+
+
+func _check_variable_extraction_in(path: String, source: String, index: GDSExSymbolIndex.GDSExSymbolIndexData, lines: PackedStringArray, statements: Array[GDSExSourceScanner.GDSExStatement], tally: VariableTally) -> void:
+	for statement in statements:
+		for value in GDSExValueFinder.find_all(statement):
+			tally.values += 1
+			if tally.values % tally.sample_step != 0 or (tally.values / tally.sample_step) % tally.parts != tally.part:
+				continue
+			if not tally.only_lines.is_empty() and not tally.only_lines.has(value.first_position().x):
+				continue
+			var extraction := GDSExExtractVariable.analyze_selection(index, lines, statement, value.start, value.end)
+			if extraction != null and tally.problems.size() < VARIABLE_PROBLEMS_LIMIT:
+				tally.extractions += 1
+				_check_ways_to_extract(path, source, extraction, tally)
+		for block in statement.blocks:
+			_check_variable_extraction_in(path, source, index, lines, block.statements, tally)
+
+
+func _check_ways_to_extract(path: String, source: String, extraction: GDSExExtractVariable.GDSExExtraction, tally: VariableTally) -> void:
+	var where := "%s:%d: %s" % [path, extraction.value.first_position().x + 1, extraction.value.code.substr(0, 50)]
+	var dependencies := extraction.dependencies
+	for place in GDSExExtractVariable.PLACES:
+		var state := GDSExExtractVariable.place_state(extraction, place)
+		if not state.is_shown:
+			continue
+		var place_label: String = GDSExExtractVariable.PLACE_LABELS[place]
+		if not state.is_usable():
+			var refused := GDSExExtractVariable.GDSExChoice.new()
+			refused.place = place
+			refused.is_constant = place == GDSExExtractVariable.GDSExPlace.SCRIPT or extraction.needs_a_constant()
+			if _is_refused_because_it_would_not_compile(extraction, state.reason):
+				_expect_extraction(path, source, extraction, refused, false, "%s | %s is off (%s)" % [where, place_label, state.reason], tally)
+			continue
+		var choice := GDSExExtractVariable.choice_for_place(extraction, place, GDSExExtractVariable.GDSExChoice.new())
+		_expect_extraction(path, source, extraction, choice, true, "%s | %s %s" % [where, place_label, _choice_label(choice)], tally)
+		for option in GDSExExtractVariable.OPTIONS:
+			var option_state := GDSExExtractVariable.option_state(extraction, choice, option)
+			if option_state.is_enabled():
+				var chosen := GDSExExtractVariable.choice_with_option(extraction, choice, option, not choice.has(option))
+				_expect_extraction(path, source, extraction, chosen, true, "%s | %s %s" % [where, place_label, _choice_label(chosen)], tally)
+				continue
+			var forced := _forced_choice(extraction, choice, option, option_state)
+			if forced != null:
+				_expect_extraction(path, source, extraction, forced, false, "%s | %s as %s is refused (%s)" % [where, place_label, _choice_label(forced), option_state.reason], tally)
+
+
+func _forced_choice(extraction: GDSExExtractVariable.GDSExExtraction, choice: GDSExExtractVariable.GDSExChoice, option: GDSExExtractVariable.GDSExOption, state: GDSExExtractVariable.GDSExState) -> GDSExExtractVariable.GDSExChoice:
+	var forced := GDSExExtractVariable.GDSExChoice.new()
+	var dependencies := extraction.dependencies
+	forced.place = choice.place
+	forced.is_private = choice.is_private
+	match option:
+		GDSExExtractVariable.GDSExOption.CONSTANT:
+			forced.is_constant = not state.is_forced
+			return forced
+		GDSExExtractVariable.GDSExOption.STATIC:
+			if choice.place != GDSExExtractVariable.GDSExPlace.CLASS or extraction.needs_a_constant():
+				return null
+			if not state.is_forced and dependencies.member_name.is_empty() and not _is_only_a_node(extraction):
+				return null
+			if dependencies.member_name == GDSExLanguage.SELF_KEYWORD:
+				return null
+			forced.is_static = not state.is_forced
+			return forced
+		GDSExExtractVariable.GDSExOption.ON_READY:
+			if choice.place != GDSExExtractVariable.GDSExPlace.CLASS or extraction.needs_a_constant():
+				return null
+			if state.is_forced and not _is_only_a_node(extraction):
+				return null
+			forced.is_on_ready = not state.is_forced
+			return forced
+	return null
+
+
+func _is_only_a_node(extraction: GDSExExtractVariable.GDSExExtraction) -> bool:
+	var value := extraction.value
+	if value.kind == GDSExValueFinder.GDSExValue.GDSExKind.NODE:
+		return true
+	return value.call != null and value.call.name == "get_node" and value.call.receiver.is_empty()
+
+
+func _is_refused_because_it_would_not_compile(extraction: GDSExExtractVariable.GDSExExtraction, reason: String) -> bool:
+	if reason == GDSExExtractVariable.WHOLE_LINE_MESSAGE or reason == GDSExExtractVariable.ALREADY_A_VARIABLE_MESSAGE or reason == GDSExExtractVariable.AWAIT_MESSAGE:
+		return false
+	return not extraction.is_whole_statement
+
+
+func _expect_extraction(path: String, source: String, extraction: GDSExExtractVariable.GDSExExtraction, choice: GDSExExtractVariable.GDSExChoice, compiles: bool, label: String, tally: VariableTally) -> void:
+	var name_choice := choice.copy()
+	var variable_name := "gdsex_extracted_value"
+	if compiles:
+		variable_name = GDSExExtractVariable.default_name(extraction, choice)
+	elif choice.is_constant:
+		variable_name = variable_name.to_upper()
+	tally.editor.text = source
+	GDSExEditApplier.apply(tally.editor, GDSExExtractVariable.build_plan_for(extraction, name_choice, variable_name, GDSExIndentation.detect_unit(extraction.lines, "\t")))
+	_error_collector.take()
+	var changed := tally.editor.text
+	if name_choice.is_static:
+		changed = _guarded_against_running(changed, variable_name)
+		if changed.is_empty():
+			tally.problems.append("%s: the static variable was not found, so nothing was compiled." % label)
+			return
+	var compiled := _compiles(tally.global_name.sub(changed, ""))
+	var errors := _without_the_guard(_error_collector.take())
+	if compiled == compiles:
+		if compiles:
+			tally.accepted += 1
+		else:
+			tally.refused += 1
+		return
+	if compiles:
+		tally.problems.append("%s does not compile (%s):\n%s" % [label, " / ".join(errors), _changed_lines(source, tally.editor.text)])
+	else:
+		tally.problems.append("%s but it would compile." % label)
+
+
+func _guarded_against_running(text: String, variable_name: String) -> String:
+	var lines := text.split("\n")
+	var declaration := "static var %s" % variable_name
+	for line_index in lines.size():
+		var stripped := lines[line_index].strip_edges(true, false)
+		var following := stripped.substr(declaration.length(), 1)
+		if not stripped.begins_with(declaration) or (not following.is_empty() and GDSExSourceScanner.is_identifier_character(following)):
+			continue
+		lines.insert(line_index, lines[line_index].left(lines[line_index].length() - stripped.length()) + STATIC_GUARD)
+		return "\n".join(lines)
+	return ""
+
+
+func _without_the_guard(errors: PackedStringArray) -> PackedStringArray:
+	var kept := PackedStringArray()
+	for error in errors:
+		if not error.begins_with("Out of bounds get index"):
+			kept.append(error)
+	return kept
+
+
+func _static_guard_works() -> bool:
+	var probe := STATIC_GUARD_PROBE % STATIC_GUARD_MARK
+	Engine.remove_meta(STATIC_GUARD_MARK)
+	if not _compiles(probe) or not Engine.has_meta(STATIC_GUARD_MARK):
+		return false
+	Engine.remove_meta(STATIC_GUARD_MARK)
+	var is_compiled := _compiles(_guarded_against_running(probe, "probe"))
+	_error_collector.take()
+	return is_compiled and not Engine.has_meta(STATIC_GUARD_MARK)
+
+
+func _changed_lines(before: String, after: String) -> String:
+	var before_lines := before.split("\n")
+	var changed := PackedStringArray()
+	for line in after.split("\n"):
+		if not before_lines.has(line):
+			changed.append("  " + line.strip_edges())
+	return "\n".join(changed)
+
+
+func _describe_variable_places(editor: CodeEdit) -> String:
+	var extraction := GDSExExtractVariable.analyze(_context(editor))
+	if extraction == null:
+		return NO_VALUE_LABEL
+	var described := PackedStringArray(["value: %s" % extraction.value_text, "default: %s" % _choice_label(GDSExExtractVariable.default_choice(extraction))])
+	for place in GDSExExtractVariable.PLACES:
+		var state := GDSExExtractVariable.place_state(extraction, place)
+		if not state.is_shown:
+			continue
+		var label: String = GDSExExtractVariable.PLACE_LABELS[place]
+		if not state.reason.is_empty():
+			described.append("%s: off - %s" % [label, state.reason])
+			continue
+		var choice := GDSExExtractVariable.choice_for_place(extraction, place, GDSExExtractVariable.GDSExChoice.new())
+		var options := PackedStringArray()
+		for option in GDSExExtractVariable.OPTIONS:
+			var option_state := GDSExExtractVariable.option_state(extraction, choice, option)
+			if option_state.is_forced or option_state.reason.is_empty():
+				options.append(("=" if option_state.is_forced else "") + _option_word(option))
+		var line := "%s: ok [%s]" % [label, " ".join(options)]
+		for warning in GDSExExtractVariable.find_warnings(extraction, choice):
+			line += " ! " + warning
+		described.append(line)
+	return "\n".join(described)
+
+
+func _describe_variable_options(editor: CodeEdit, place_name: String) -> String:
+	var extraction := GDSExExtractVariable.analyze(_context(editor))
+	if extraction == null:
+		return NO_VALUE_LABEL
+	var place: GDSExExtractVariable.GDSExPlace = GDSExExtractVariable.PLACES[maxi(0, GDSExExtractVariable.PLACE_LABELS.find(place_name.capitalize()))]
+	var choice := GDSExExtractVariable.choice_for_place(extraction, place, GDSExExtractVariable.GDSExChoice.new())
+	var described := PackedStringArray()
+	for option in GDSExExtractVariable.OPTIONS:
+		var state := GDSExExtractVariable.option_state(extraction, choice, option)
+		var label: String = GDSExExtractVariable.OPTION_LABELS[option]
+		if state.is_forced:
+			described.append("%s: on - %s" % [label, state.reason])
+		elif state.reason.is_empty():
+			described.append("%s: ok" % label)
+		else:
+			described.append("%s: off - %s" % [label, state.reason])
+	return "\n".join(described)
+
+
+func _choice_label(choice: GDSExExtractVariable.GDSExChoice) -> String:
+	var words := PackedStringArray([GDSExExtractVariable.PLACE_LABELS[choice.place]])
+	for option in GDSExExtractVariable.OPTIONS:
+		if choice.has(option):
+			words.append(_option_word(option))
+	return " ".join(words)
+
+
+func _option_word(option: GDSExExtractVariable.GDSExOption) -> String:
+	return String(GDSExExtractVariable.OPTION_LABELS[option]).to_lower().replace(" ", "_")
 
 
 func _describe_types(editor: CodeEdit) -> String:
@@ -720,7 +1530,8 @@ func _check_no_false_targets() -> PackedStringArray:
 	var problems := PackedStringArray()
 	var generator := GDSExGenerateFunctionAction.new()
 	for path in _project_script_paths():
-		var index := GDSExSymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"))
+		GDSExScriptLibrary.refresh({})
+		var index := GDSExSymbolIndexBuilder.build(FileAccess.get_file_as_string(path).split("\n"), path)
 		_collect_false_targets(path, index, index.statements, generator, problems)
 	return problems
 
@@ -1155,8 +1966,8 @@ func _check_code_actions_popup(test_case: TestCase, editor: CodeEdit) -> PackedS
 	var problems := PackedStringArray()
 	var actions := GDSExActionRegistry.create_actions()
 	var available_labels := PackedStringArray()
-	for action in GDSExActionRegistry.find_available(actions, _context(editor)):
-		available_labels.append(action.get_label())
+	for available in GDSExActionRegistry.find_available(actions, _context(editor)):
+		available_labels.append(available.label)
 	var popup := GDSExCodeActionsPopup.new()
 	root.add_child(popup)
 	popup.setup(editor, actions)
@@ -1344,6 +2155,105 @@ func _compare_with_written_type(path: String, index: GDSExSymbolIndex.GDSExSymbo
 	if not _is_at_least(resolved.type, written, scope_info):
 		problems.append("%s:%d: the code says %s but the plugin takes the value for a %s." % [path, line + 1, GDSExSymbolIndex.type_to_string(written), GDSExSymbolIndex.type_to_string(resolved.type)])
 	return 0
+
+
+func _check_functions_generated_for_project_scripts(sample_step: int) -> PackedStringArray:
+	var tally := GenerationTally.new()
+	tally.sample_step = sample_step
+	for path in _project_script_paths():
+		GDSExScriptLibrary.refresh({})
+		var source := FileAccess.get_file_as_string(path)
+		var index := GDSExSymbolIndexBuilder.build(source.split("\n"), path)
+		_compare_generated_functions(path, source, index, index.statements, tally)
+	if tally.parameters < GENERATED_FUNCTIONS_MINIMUM or tally.compiled == 0:
+		tally.problems.append("Only %d parameters of %d calls to other scripts were compared and %d scripts compiled: the check is not looking at the project." % [tally.parameters, tally.calls, tally.compiled])
+	if _shows_pending_details:
+		print("         %d calls to other scripts, %d parameters compared, %d scripts compiled with the generated function" % [tally.calls, tally.parameters, tally.compiled])
+	return tally.problems
+
+
+func _compare_generated_functions(path: String, source: String, index: GDSExSymbolIndex.GDSExSymbolIndexData, statements: Array[GDSExSourceScanner.GDSExStatement], tally: GenerationTally) -> void:
+	for statement in statements:
+		var scope_info := GDSExSymbolIndex.get_scope_info_for_line(index, statement.first_line)
+		for call in GDSExCallSiteParser.parse(statement.code):
+			_compare_generated_function(path, source, statement, call, scope_info, tally)
+		for block in statement.blocks:
+			_compare_generated_functions(path, source, index, block.statements, tally)
+
+
+func _compare_generated_function(path: String, source: String, statement: GDSExSourceScanner.GDSExStatement, call: GDSExCallSiteParser.GDSExCallSite, scope_info: GDSExSymbolIndex.GDSExScopeInfo, tally: GenerationTally) -> void:
+	if call.receiver.is_empty() or call.name == GDSExLanguage.CONSTRUCTOR_NAME or call.receiver == GDSExLanguage.SUPER_KEYWORD:
+		return
+	var receiver := GDSExTypeResolver.resolve_expression(call.receiver, scope_info)
+	if receiver.class_scope == null or GDSExSymbolIndex.is_declared_in(receiver.class_scope, scope_info.index):
+		return
+	var member := GDSExTypeResolver.find_class_member(receiver.class_scope, call.name)
+	if member == null or member.function == null or member.owner_scope != receiver.class_scope:
+		return
+	var missing_name := call.name + MISSING_SUFFIX
+	var code := statement.code.substr(0, call.name_offset) + missing_name + statement.code.substr(call.name_end())
+	var where := "%s:%d: %s.%s" % [path, statement.first_line + 1, call.receiver, call.name]
+	var target: GDSExGenerateFunctionAction.GDSExTarget = null
+	for candidate in tally.generator.find_targets(code, scope_info):
+		if candidate.name == missing_name:
+			target = candidate
+	if target == null or not target.is_in_another_script():
+		tally.problems.append("%s would not be generated in its script if it were missing." % where)
+		return
+	tally.calls += 1
+	var signature := tally.generator.build_signature(target, code, scope_info)
+	if signature.is_static and not member.function.is_static:
+		tally.problems.append("%s is not static but would be generated as static." % where)
+	if receiver.is_class_reference and member.function.is_static and not signature.is_static:
+		tally.problems.append("%s is called on its class but would not be generated as static." % where)
+	var target_info := GDSExSymbolIndex.get_scope_info_for_scope(GDSExSymbolIndex.find_index(target.target_class), target.target_class, target.target_class.start_line)
+	for param_index in mini(signature.param_types.size(), member.param_types.size()):
+		var generated := signature.param_types[param_index]
+		var declared := member.param_types[param_index]
+		if generated == null or declared == null or generated.name == GDSExLanguage.VARIANT_TYPE_NAME or declared.name == GDSExLanguage.VARIANT_TYPE_NAME:
+			continue
+		tally.parameters += 1
+		if GDSExSymbolIndex.type_to_string(generated) != GDSExSymbolIndex.type_to_string(declared) and not _is_at_least(generated, declared, target_info):
+			tally.problems.append("%s: parameter %d is declared %s and would be generated as %s." % [where, param_index + 1, GDSExSymbolIndex.type_to_string(declared), GDSExSymbolIndex.type_to_string(generated)])
+	var is_sampled := tally.calls % tally.sample_step == 0
+	if receiver.class_scope.parent != null:
+		tally.calls_on_inner_classes += 1
+		is_sampled = is_sampled or tally.calls_on_inner_classes % maxi(1, tally.sample_step / GENERATED_INNER_SAMPLE_DIVISOR) == 0
+	if is_sampled:
+		_check_generated_function_compiles(path, source, statement, call, missing_name, GDSExScriptTypeNames.class_path(receiver.class_scope), where, tally)
+
+
+func _check_generated_function_compiles(path: String, source: String, statement: GDSExSourceScanner.GDSExStatement, call: GDSExCallSiteParser.GDSExCallSite, missing_name: String, class_path: String, where: String, tally: GenerationTally) -> void:
+	var position := statement.position_at(call.name_offset)
+	if position.x == -1:
+		return
+	var lines := source.split("\n")
+	lines[position.x] = lines[position.x].substr(0, position.y) + missing_name + lines[position.x].substr(position.y + call.name.length())
+	var editor := CodeEdit.new()
+	root.add_child(editor)
+	editor.text = "\n".join(lines)
+	editor.set_caret_line(position.x)
+	editor.set_caret_column(position.y + 1)
+	var context := GDSExCodeContext.new(editor, path)
+	var plan := tally.generator.build_plan(context)
+	var tab_editor := CodeEdit.new()
+	root.add_child(tab_editor)
+	if plan == null or not plan.is_for_another_script():
+		tally.problems.append("%s: the action is not offered for another script when the call is renamed in the editor." % where)
+	else:
+		tab_editor.text = FileAccess.get_file_as_string(plan.script_path)
+		GDSExCodeActionsPopup.apply_in_tab(tally.generator, editor, context, plan.script_path, tab_editor)
+		_error_collector.take()
+		tally.compiled += 1
+		var written_class := GDSExSymbolIndexBuilder.build(tab_editor.text.split("\n"), plan.script_path).root
+		for inner_name in class_path.split(".", false):
+			written_class = written_class.inner_classes.get(inner_name) if written_class != null else null
+		if written_class == null or not written_class.functions.has(missing_name):
+			tally.problems.append("%s: the function was not written in the class of its receiver in %s." % [where, plan.script_path])
+		elif not _compiles(RegEx.create_from_string(GLOBAL_NAME_PATTERN).sub(tab_editor.text, "")):
+			tally.problems.append("%s: %s does not compile with the generated function.\n%s" % [where, plan.script_path, "\n".join(_error_collector.take())])
+	editor.free()
+	tab_editor.free()
 
 
 func _names_a_script_class(type: GDSExSymbolIndex.GDSExTypeData) -> bool:

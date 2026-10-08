@@ -1,0 +1,40 @@
+action: generate_function
+expect_label: Generate Function Definition in target_base.gd
+=== input
+extends "res://tests/fixtures/other_scripts/target_base.gd"
+
+
+func run() -> void:
+	base_tool.missing(1)<|>
+
+=== unsaved res://tests/fixtures/other_scripts/target_base.gd
+extends RefCounted
+
+var base_tool: Tool
+
+
+class Tool:
+	var power: float = 2.0
+
+
+func base_total() -> int:
+	return 1
+
+=== expected res://tests/fixtures/other_scripts/target_base.gd
+extends RefCounted
+
+var base_tool: Tool
+
+
+class Tool:
+	var power: float = 2.0
+	
+	
+	func missing(param_0: int) -> void:
+		<|pass|>
+
+
+func base_total() -> int:
+	return 1
+
+=== end

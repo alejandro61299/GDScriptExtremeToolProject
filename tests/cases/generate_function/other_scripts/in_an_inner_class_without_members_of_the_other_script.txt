@@ -1,0 +1,52 @@
+action: generate_function
+=== input
+extends Node
+
+const Target = preload("res://tests/fixtures/other_scripts/target.gd")
+
+
+func run(empty: Target.Empty) -> void:
+	empty.missing()<|>
+
+=== unsaved res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+
+func total() -> int:
+    return 1
+
+
+func more() -> int:
+    return 2
+
+
+func even_more() -> int:
+    return 3
+
+
+class Empty:
+    extends RefCounted
+
+=== expected res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+
+func total() -> int:
+    return 1
+
+
+func more() -> int:
+    return 2
+
+
+func even_more() -> int:
+    return 3
+
+
+class Empty:
+    extends RefCounted
+    
+    func missing() -> void:
+        <|pass|>
+
+=== end

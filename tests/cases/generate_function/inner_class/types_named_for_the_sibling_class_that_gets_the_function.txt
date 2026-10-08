@@ -1,0 +1,42 @@
+action: generate_function
+=== input
+extends Node
+
+
+class Holder:
+	enum Mode { OFF, ON }
+
+	class Nested:
+		var size: int = 1
+
+	func run(nested: Nested, mode: Mode, other: Other) -> void:
+		var back: Nested = other.missing(nested, mode)<|>
+		print(back)
+
+
+class Other:
+	var count: int = 0
+
+=== expected
+extends Node
+
+
+class Holder:
+	enum Mode { OFF, ON }
+
+	class Nested:
+		var size: int = 1
+
+	func run(nested: Nested, mode: Mode, other: Other) -> void:
+		var back: Nested = other.missing(nested, mode)
+		print(back)
+
+
+class Other:
+	var count: int = 0
+	
+	
+	func missing(p_nested: Holder.Nested, p_mode: Holder.Mode) -> Holder.Nested:
+		<|return Holder.Nested.new()|>
+
+=== end

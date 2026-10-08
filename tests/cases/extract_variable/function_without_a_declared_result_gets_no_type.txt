@@ -1,0 +1,72 @@
+action: extract_variable
+options: {"name": "guess"}
+=== input
+extends Node
+
+signal changed
+
+const LIMIT: int = 3
+
+static var shared: int = 0
+
+@export var title: String = ""
+
+@onready var root_node: Node = get_parent()
+
+var health: int = 10
+var items: Array[int] = []
+
+var _cache: Array[int] = []
+
+
+static func helper() -> int:
+	return 1
+
+
+func get_health() -> int:
+	return health
+
+
+func loose():
+	return 1
+
+
+func run(enemy: Node2D) -> void:
+	print(lo<|>ose(), enemy)
+
+=== expected
+extends Node
+
+signal changed
+
+const LIMIT: int = 3
+
+static var shared: int = 0
+
+@export var title: String = ""
+
+@onready var root_node: Node = get_parent()
+
+var health: int = 10
+var items: Array[int] = []
+
+var _cache: Array[int] = []
+
+
+static func helper() -> int:
+	return 1
+
+
+func get_health() -> int:
+	return health
+
+
+func loose():
+	return 1
+
+
+func run(enemy: Node2D) -> void:
+	var guess = loose()
+	print(guess<|>, enemy)
+
+=== end

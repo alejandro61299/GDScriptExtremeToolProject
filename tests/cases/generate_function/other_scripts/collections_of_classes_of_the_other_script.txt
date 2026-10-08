@@ -1,0 +1,62 @@
+action: generate_function
+=== input
+extends Node
+
+const Target = preload("res://tests/fixtures/other_scripts/target.gd")
+
+
+func run(target: Target, parts: Array[Target.Part], by_name: Dictionary[String, Target.Part]) -> void:
+	var all: Array[Target.Part] = target.missing(parts, by_name)<|>
+	print(all)
+
+=== unsaved res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+enum Kind { ROUND, SQUARE }
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+class Tool:
+	var power: float = 2.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+=== expected res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+enum Kind { ROUND, SQUARE }
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+class Tool:
+	var power: float = 2.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+
+func missing(p_parts: Array[Part], p_by_name: Dictionary[String, Part]) -> Array[Part]:
+	<|return []|>
+
+=== end

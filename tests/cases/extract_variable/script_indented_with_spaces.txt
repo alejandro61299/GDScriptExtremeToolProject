@@ -1,0 +1,21 @@
+action: extract_variable
+options: {"name": "speed", "where": "function"}
+indent: spaces
+=== input
+extends Node
+
+
+func run(enemy: Node2D) -> void:
+    for index in 3:
+        enemy.rotation = 12<|>0.0 * index
+
+=== expected
+extends Node
+
+
+func run(enemy: Node2D) -> void:
+    var speed: float = 120.0
+    for index in 3:
+        enemy.rotation = speed<|> * index
+
+=== end

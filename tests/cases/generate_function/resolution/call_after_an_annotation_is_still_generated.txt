@@ -1,0 +1,16 @@
+action: generate_function
+=== input
+extends Node
+
+@onready var thing: Node = _make_thing()<|>
+
+=== expected
+extends Node
+
+@onready var thing: Node = _make_thing()
+
+
+func _make_thing() -> Node:
+	<|return Node.new()|>
+
+=== end

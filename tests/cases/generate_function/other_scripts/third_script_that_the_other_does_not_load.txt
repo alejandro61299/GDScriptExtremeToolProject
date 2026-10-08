@@ -1,0 +1,63 @@
+action: generate_function
+=== input
+extends Node
+
+const Target = preload("res://tests/fixtures/other_scripts/target.gd")
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(target: Target, circle: Shapes.Circle, kind: Shapes.Kind) -> void:
+	var found: Shapes.Circle = target.missing(circle, kind, [circle])<|>
+	print(found)
+
+=== unsaved res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+enum Kind { ROUND, SQUARE }
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+class Tool:
+	var power: float = 2.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+=== expected res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+enum Kind { ROUND, SQUARE }
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+class Tool:
+	var power: float = 2.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+
+func missing(p_circle, p_kind, param_2: Array) -> Variant:
+	<|return null|>
+
+=== end

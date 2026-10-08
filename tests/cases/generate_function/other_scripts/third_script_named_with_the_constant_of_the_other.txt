@@ -1,0 +1,30 @@
+action: generate_function
+=== input
+extends Node
+
+const Target = preload("res://tests/fixtures/other_scripts/target.gd")
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(target: Target, circle: Shapes.Circle, kind: Shapes.Kind) -> void:
+	target.missing(circle, kind)<|>
+
+=== unsaved res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+const Figures = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+var first: Figures.Circle
+
+=== expected res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+const Figures = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+var first: Figures.Circle
+
+
+func missing(p_circle: Figures.Circle, p_kind: Figures.Kind) -> void:
+	<|pass|>
+
+=== end

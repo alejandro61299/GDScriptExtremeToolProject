@@ -1,0 +1,12 @@
+action: run_first_popup_action
+popup_action: Extract Variable...
+=== input
+extends Node
+
+var health: int = 10
+
+
+func run(enemy: Node2D) -> void:
+	enemy.rotation = heal<|>th
+
+=== end

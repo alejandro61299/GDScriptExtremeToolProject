@@ -1,0 +1,74 @@
+action: extract_variable
+options: {"name": "notes", "where": "function"}
+=== input
+extends Node
+
+signal changed
+
+const LIMIT: int = 3
+
+static var shared: int = 0
+
+@export var title: String = ""
+
+@onready var root_node: Node = get_parent()
+
+var health: int = 10
+var items: Array[int] = []
+
+var _cache: Array[int] = []
+
+
+static func helper() -> int:
+	return 1
+
+
+func get_health() -> int:
+	return health
+
+
+func run(enemy: Node2D) -> void:
+	if enemy != null:
+		print("""
+	first
+			second
+
+	""".ded<|>ent())
+
+=== expected
+extends Node
+
+signal changed
+
+const LIMIT: int = 3
+
+static var shared: int = 0
+
+@export var title: String = ""
+
+@onready var root_node: Node = get_parent()
+
+var health: int = 10
+var items: Array[int] = []
+
+var _cache: Array[int] = []
+
+
+static func helper() -> int:
+	return 1
+
+
+func get_health() -> int:
+	return health
+
+
+func run(enemy: Node2D) -> void:
+	var notes: String = """
+	first
+			second
+
+	""".dedent()
+	if enemy != null:
+		print(notes<|>)
+
+=== end

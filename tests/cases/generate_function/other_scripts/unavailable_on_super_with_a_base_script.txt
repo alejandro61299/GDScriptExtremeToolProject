@@ -1,0 +1,23 @@
+action: generate_function
+compile_check: skip
+=== input
+extends "res://tests/fixtures/other_scripts/target_base.gd"
+
+
+func run() -> void:
+	super.missing()<|>
+
+=== unsaved res://tests/fixtures/other_scripts/target_base.gd
+extends RefCounted
+
+var base_tool: Tool
+
+
+class Tool:
+	var power: float = 2.0
+
+
+func base_total() -> int:
+	return 1
+
+=== end

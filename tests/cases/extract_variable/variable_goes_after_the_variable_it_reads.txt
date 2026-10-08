@@ -1,0 +1,26 @@
+action: extract_variable
+options: {"name": "doubled", "where": "class", "private": false}
+=== input
+extends Node
+
+var first: int = 1
+
+var _health: int = 10
+
+
+func run() -> void:
+	print(ma<|>xi(_health, 2))
+
+=== expected
+extends Node
+
+var first: int = 1
+
+var _health: int = 10
+var doubled: int = maxi(_health, 2)
+
+
+func run() -> void:
+	print(doubled<|>)
+
+=== end

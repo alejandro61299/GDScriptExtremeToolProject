@@ -1,0 +1,5 @@
+action: check_variable_extraction_of_project_scripts
+=== input
+extends Node
+
+=== end

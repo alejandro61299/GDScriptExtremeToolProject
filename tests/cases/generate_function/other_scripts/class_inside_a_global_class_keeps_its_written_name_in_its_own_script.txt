@@ -1,0 +1,39 @@
+action: generate_function
+requires_global_class: GDSExTestGadget
+=== input
+extends Node
+
+
+func run(gadget: GDSExTestGadget, part: GDSExTestGadget.Part) -> void:
+	var back: GDSExTestGadget.Size = gadget.missing(part)<|>
+	print(back)
+
+=== unsaved res://tests/fixtures/other_scripts/global_gadget.gd
+class_name GDSExTestGadget
+extends RefCounted
+
+enum Size { SMALL, BIG }
+
+var weight: float = 1.0
+
+
+class Part:
+	var length: int = 3
+
+=== expected res://tests/fixtures/other_scripts/global_gadget.gd
+class_name GDSExTestGadget
+extends RefCounted
+
+enum Size { SMALL, BIG }
+
+var weight: float = 1.0
+
+
+func missing(p_part: GDSExTestGadget.Part) -> GDSExTestGadget.Size:
+	<|return 0|>
+
+
+class Part:
+	var length: int = 3
+
+=== end

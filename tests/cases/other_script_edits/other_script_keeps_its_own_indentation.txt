@@ -1,0 +1,32 @@
+action: run_other_script_action
+other_script: res://tests/fixtures/other_scripts/only_in_a_tab.gd
+=== input
+extends Node
+
+
+func run() -> void:
+	pass<|>
+
+=== unsaved res://tests/fixtures/other_scripts/only_in_a_tab.gd
+extends RefCounted
+
+var count: int = 0
+
+
+func total() -> int:
+    return count
+
+=== expected res://tests/fixtures/other_scripts/only_in_a_tab.gd
+extends RefCounted
+
+var count: int = 0
+
+
+func total() -> int:
+    return count
+
+
+func added() -> void:
+    <|pass|>
+
+=== end

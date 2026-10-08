@@ -43,6 +43,10 @@ static func find_index(script_path: String) -> GDSExSymbolIndex.GDSExSymbolIndex
 	return entry.index
 
 
+static func find_lines(script_path: String) -> PackedStringArray:
+	return _read_source(script_path).split(LINE_SEPARATOR) if _has_source(script_path) else PackedStringArray()
+
+
 static func find_global_class_path(global_name: String) -> String:
 	if _global_classes_generation != _generation:
 		_global_classes_generation = _generation

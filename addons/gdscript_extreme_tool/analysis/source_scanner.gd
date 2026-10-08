@@ -16,6 +16,7 @@ const STATEMENT_KEYWORDS: Array[String] = [
 ]
 const ANNOTATION_START: String = "@"
 const NO_LINE: int = -1
+const UNCLOSED_TEXT_REACH: int = 40
 
 
 class GDSExBlock:
@@ -45,6 +46,7 @@ class GDSExStatement:
 	var blocks: Array[GDSExBlock] = []
 	var string_lines: PackedInt32Array = []
 	var is_abandoned: bool = false
+	var has_unclosed_text: bool = false
 
 	func offset_at(line: int, column: int) -> int:
 		for piece in pieces:
@@ -72,6 +74,9 @@ var _open_statement: GDSExStatement
 var _closing_line: int = NO_LINE
 var _depth: int = 0
 var _string_delimiter: String = ""
+var _leaves_text_open: bool = false
+var _unclosed_text_last_line: int = NO_LINE
+var _line_has_unclosed_text: bool = false
 var _pending_frame: GDSExFrame
 var _pending_comments: Array[Vector2i] = []
 
@@ -82,6 +87,7 @@ func scan(lines: PackedStringArray) -> Array[GDSExStatement]:
 	root_frame.block = root
 	_lines = lines
 	_closing_line = NO_LINE
+	_unclosed_text_last_line = NO_LINE
 	_frames.clear()
 	_frames.append(root_frame)
 	for line_index in lines.size():
@@ -134,6 +140,9 @@ func _scan_line(raw: String, line_index: int) -> void:
 	var starts_inside_string := not _string_delimiter.is_empty()
 	var masked := _mask(raw)
 	var has_code := not masked.strip_edges().is_empty()
+	if _leaves_text_open and line_index > _unclosed_text_last_line:
+		_unclosed_text_last_line = _find_line_that_closes_the_text(line_index)
+	_line_has_unclosed_text = line_index <= _unclosed_text_last_line
 	if _open_statement != null and has_code and not starts_inside_string and _abandons_open_brackets(raw, masked, line_index):
 		_open_statement.is_abandoned = true
 		_open_statement = null
@@ -211,6 +220,18 @@ func _find_closing_line(masked: String, line_index: int) -> int:
 			closing_line = line
 			break
 		line += 1
+	_string_delimiter = delimiter
+	return closing_line
+
+
+func _find_line_that_closes_the_text(line_index: int) -> int:
+	var delimiter := _string_delimiter
+	var closing_line := line_index
+	for line in range(line_index + 1, mini(line_index + 1 + UNCLOSED_TEXT_REACH, _lines.size())):
+		_mask(_lines[line])
+		if _leaves_text_open:
+			closing_line = line
+			break
 	_string_delimiter = delimiter
 	return closing_line
 
@@ -325,6 +346,8 @@ func _add_fragment(fragment: String, line_index: int) -> void:
 	_open_statement.pieces.append(piece)
 	_open_statement.code += text
 	_open_statement.own_last_line = line_index
+	if _line_has_unclosed_text:
+		_open_statement.has_unclosed_text = true
 
 
 func _open_pending_block(function_offset: int, line_index: int) -> void:
@@ -360,6 +383,7 @@ func _finish_block(block: GDSExBlock) -> void:
 func _mask(raw: String) -> String:
 	var masked := ""
 	var index := 0
+	_leaves_text_open = false
 	while index < raw.length():
 		var character := raw[index]
 		if _string_delimiter.is_empty():
@@ -385,6 +409,7 @@ func _mask(raw: String) -> String:
 			index += 1
 	if _string_delimiter.length() == 1 and not raw.ends_with(LINE_CONTINUATION):
 		_string_delimiter = ""
+		_leaves_text_open = true
 	return masked
 
 

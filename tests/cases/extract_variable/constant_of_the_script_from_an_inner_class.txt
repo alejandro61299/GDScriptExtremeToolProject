@@ -1,0 +1,29 @@
+action: extract_variable
+options: {"name": "LIMIT", "where": "script"}
+=== input
+extends Node
+
+var health: int = 10
+
+
+class Item:
+	var size: int = 1
+
+	func heavy() -> bool:
+		return size > Vec<|>tor2(5, 0).x
+
+=== expected
+extends Node
+
+const LIMIT: Vector2 = Vector2(5, 0)
+
+var health: int = 10
+
+
+class Item:
+	var size: int = 1
+
+	func heavy() -> bool:
+		return size > LIMIT<|>.x
+
+=== end

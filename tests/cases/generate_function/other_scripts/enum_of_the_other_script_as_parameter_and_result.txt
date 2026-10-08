@@ -1,0 +1,62 @@
+action: generate_function
+=== input
+extends Node
+
+const Target = preload("res://tests/fixtures/other_scripts/target.gd")
+
+
+func run(target: Target, kind: Target.Kind) -> void:
+	var chosen: Target.Kind = target.missing(kind, Target.Kind.SQUARE)<|>
+	print(chosen)
+
+=== unsaved res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+enum Kind { ROUND, SQUARE }
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+class Tool:
+	var power: float = 2.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+=== expected res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+enum Kind { ROUND, SQUARE }
+
+var count: int = 0
+
+
+class Part:
+	var size: int = 1
+
+
+	class Bolt:
+		var length: float = 1.0
+
+
+class Tool:
+	var power: float = 2.0
+
+
+static func make() -> Part:
+	return Part.new()
+
+
+func missing(p_kind: Kind, param_1: Kind) -> Kind:
+	<|return 0|>
+
+=== end

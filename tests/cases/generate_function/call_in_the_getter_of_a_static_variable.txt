@@ -1,0 +1,22 @@
+action: generate_function
+=== input
+extends Node
+
+static var shared: int = 0:
+	get:
+		make_sh<|>ared(2)
+		return 1
+
+=== expected
+extends Node
+
+static var shared: int = 0:
+	get:
+		make_shared(2)
+		return 1
+
+
+static func make_shared(param_0: int) -> void:
+	<|pass|>
+
+=== end

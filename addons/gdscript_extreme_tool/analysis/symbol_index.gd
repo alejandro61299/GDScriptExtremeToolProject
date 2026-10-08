@@ -13,6 +13,7 @@ const NUMBER_SEPARATOR: String = "_"
 
 static var _string_literal_pattern := RegEx.create_from_string("^(&|\\^|r)?[\"']{1,3}[? ]*[\"']{1,3}$")
 static var _constructor_pattern := RegEx.create_from_string("^([A-Za-z_]\\w*)\\s*[\\(\\.]")
+static var _binary_number_pattern := RegEx.create_from_string("^[+-]?0[bB][01]+$")
 
 
 class GDSExTypeData:
@@ -105,6 +106,7 @@ class GDSExFunctionScope extends GDSExScopeBase:
 	var is_lambda: bool = false
 	var is_static: bool = false
 	var is_inline: bool = false
+	var is_coroutine: bool = false
 	var params: Dictionary = {}
 	var untyped_params: PackedStringArray = []
 	var return_type: GDSExTypeData
@@ -250,7 +252,7 @@ static func literal_type(masked_value: String) -> GDSExTypeData:
 	if text == "true" or text == "false":
 		return make_type(GDSExLanguage.BOOLEAN_TYPE_NAME)
 	var number := text.replace(NUMBER_SEPARATOR, "")
-	if number.is_valid_int() or number.is_valid_hex_number(true):
+	if number.is_valid_int() or number.is_valid_hex_number(true) or _binary_number_pattern.search(number) != null:
 		return make_type(type_string(TYPE_INT))
 	if number.is_valid_float():
 		return make_type(type_string(TYPE_FLOAT))

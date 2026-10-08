@@ -1,0 +1,23 @@
+action: run_extract_variable_dialog
+options: {"where": "class"}
+=== input
+extends Node
+
+var health: int = 10
+
+
+func run() -> void:
+	$Spr<|>ite.queue_free()
+
+=== expected
+extends Node
+
+@onready var _sprite: Node = $Sprite
+
+var health: int = 10
+
+
+func run() -> void:
+	_sprite<|>.queue_free()
+
+=== end

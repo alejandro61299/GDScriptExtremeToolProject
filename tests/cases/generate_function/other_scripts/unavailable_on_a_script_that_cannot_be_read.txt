@@ -1,0 +1,12 @@
+action: generate_function
+compile_check: skip
+=== input
+extends Node
+
+const Target = preload("res://tests/fixtures/other_scripts/target.gd")
+
+
+func run(target: Target) -> void:
+	target.missing()<|>
+
+=== end

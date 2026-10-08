@@ -40,6 +40,9 @@ const NULL_LITERAL: String = "null"
 const CONSTRUCTOR_TEMPLATE: String = "%s.new()"
 const TYPED_ARRAY_TEMPLATE: String = "Array[%s]"
 const ENUM_DEFAULT_VALUE: String = "0"
+const SCRIPT_CLASS_NAME: String = "GDScript"
+const OBJECT_SCRIPT_PROPERTY: String = "script"
+const PROPERTY_GROUPS: int = PROPERTY_USAGE_GROUP | PROPERTY_USAGE_SUBGROUP | PROPERTY_USAGE_CATEGORY
 
 static var _modifiers_pattern := RegEx.create_from_string("^(?:(?:@\\w+(?:\\([^)]*\\))?|static)\\s+)+")
 static var _declaration_pattern := RegEx.create_from_string("^(?:var|const)\\s+\\w+(.*)$")
@@ -77,6 +80,7 @@ class GDSExResolved:
 	var enum_name: String = ""
 	var is_class_reference: bool = false
 	var is_preloaded: bool = false
+	var returns_nothing: bool = false
 
 	func is_known() -> bool:
 		return type != null or class_scope != null or enum_class != null
@@ -194,6 +198,34 @@ static func engine_base_type(class_scope: GDSExSymbolIndex.GDSExClassScope) -> S
 			return base_name if base_script == null else String(base_script.get_instance_base_type())
 		current = base_class
 	return GDSExLanguage.DEFAULT_SCRIPT_BASE
+
+
+static func is_function_of_every_script(function_name: String) -> bool:
+	return ClassDB.class_has_method(SCRIPT_CLASS_NAME, function_name)
+
+
+static func type_seen_from(type: GDSExSymbolIndex.GDSExTypeData, written_in: GDSExSymbolIndex.GDSExScopeInfo, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExSymbolIndex.GDSExTypeData:
+	if type == null or written_in.class_scope == scope_info.class_scope:
+		return type
+	return _translated_type(type, written_in, scope_info)
+
+
+static func value_type_seen_from(value: GDSExResolved, written_in: GDSExSymbolIndex.GDSExScopeInfo, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExSymbolIndex.GDSExTypeData:
+	if written_in.class_scope == scope_info.class_scope:
+		return value.type
+	if _is_an_instance_named_by_less_than_its_class(value, written_in):
+		var class_name_there := GDSExScriptTypeNames.name_of_class(value.class_scope, scope_info.class_scope, written_in.class_scope)
+		if not class_name_there.is_empty():
+			return GDSExSymbolIndex.make_type(class_name_there)
+	return type_seen_from(value.type, written_in, scope_info)
+
+
+static func _is_an_instance_named_by_less_than_its_class(value: GDSExResolved, written_in: GDSExSymbolIndex.GDSExScopeInfo) -> bool:
+	if value.class_scope == null or value.is_class_reference:
+		return false
+	if value.type == null:
+		return true
+	return value.type.generics.is_empty() and find_type_class(value.type.name, written_in) != value.class_scope
 
 
 static func is_identifier(text: String) -> bool:
@@ -907,7 +939,9 @@ static func _is_written_the_same_everywhere(type_name: String) -> bool:
 
 static func _resolved_return(type: GDSExSymbolIndex.GDSExTypeData, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
 	if type != null and type.name == GDSExLanguage.VOID_TYPE_NAME:
-		return GDSExResolved.new()
+		var nothing := GDSExResolved.new()
+		nothing.returns_nothing = true
+		return nothing
 	return _resolved_type(type, scope_info)
 
 
@@ -1143,11 +1177,36 @@ static func _find_engine_member(type_name: String, member_name: String) -> GDSEx
 	if ClassDB.class_has_signal(type_name, member_name):
 		return _engine_callable_member(GDSExMember.GDSExKind.SIGNAL, ClassDB.class_get_signal(type_name, member_name))
 	for property in ClassDB.class_get_property_list(type_name):
-		if property["name"] == member_name:
+		if property["name"] == member_name and not is_a_group_of_properties(property):
 			return _variable_member(_type_from_info(property, false))
 	if ClassDB.class_has_integer_constant(type_name, member_name) or ClassDB.class_has_enum(type_name, member_name):
 		return _constant_member(GDSExSymbolIndex.make_type(GDSExLanguage.INTEGER_TYPE_NAME))
 	return null
+
+
+static func is_a_group_of_properties(property: Dictionary) -> bool:
+	return int(property["usage"]) & PROPERTY_GROUPS != 0
+
+
+static func is_engine_property(type_name: String, member_name: String) -> bool:
+	if member_name == OBJECT_SCRIPT_PROPERTY:
+		return true
+	if not ClassDB.class_exists(type_name):
+		return false
+	for property in ClassDB.class_get_property_list(type_name):
+		if property["name"] == member_name and not is_a_group_of_properties(property):
+			return true
+	return false
+
+
+static func gives_no_result_in_the_engine(type_name: String, function_name: String) -> bool:
+	if not ClassDB.class_exists(type_name):
+		return false
+	for function in ClassDB.class_get_method_list(type_name):
+		if function["name"] == function_name:
+			var result: Dictionary = function["return"]
+			return result["type"] == TYPE_NIL and int(result["usage"]) & PROPERTY_USAGE_NIL_IS_VARIANT == 0
+	return false
 
 
 static func _engine_callable_member(kind: GDSExMember.GDSExKind, info: Dictionary) -> GDSExMember:

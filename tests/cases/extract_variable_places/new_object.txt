@@ -1,0 +1,58 @@
+action: describe_variable_places
+=== input
+extends Node
+
+const LIMIT: int = 8
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+enum Mode { OFF, ON }
+
+static var shared: int = 0
+
+var health: int = 10
+var items: Array[int] = []
+
+
+class Item:
+	const WEIGHT: float = 1.5
+	var size: int = 1
+
+	func heavy(extra: float) -> bool:
+		return size > 1
+
+
+	class Bolt:
+		func long() -> bool:
+			return 3 > 1
+
+
+static func helper() -> int:
+	return 1
+
+
+static func shared_twice() -> int:
+	return 1
+
+
+func get_health() -> int:
+	return health
+
+
+func outer(amount: int) -> int:
+	return amount
+
+
+func wait_done() -> int:
+	await get_tree().process_frame
+	return 1
+
+
+func run(amount: int) -> void:
+	add_child(Node.n<|>ew())
+
+=== expected
+value: Node.new()
+default: Function
+Function: ok []
+Class: ok [static private on_ready] ! The value will be computed once, when the object is created.
+=== end

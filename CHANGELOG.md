@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.0 — 2026-10-08
+
+### Added
+
+- **Extract Variable...** With the caret on a value, such as `120.0`, `"text"`, `Enemy.new()`, `shapes.make()` or `$Sprite2D`, declares a variable with that value and leaves its name in its place. A dialog asks for the name and where the variable lives: in its block, in the function, in the class or, from an inner class, in the script; and whether it is a constant, static, private or `@onready`. A choice that would not compile is off and says why. A choice that compiles but computes the value at another moment, such as a class variable or a value taken out of a loop, carries a warning. See "Extract Variable" in the README.
+- **Functions in other scripts.** Generate Function Definition is offered on a call to an object or a class of another script, and creates the function there: `shapes.missing()` adds `missing` to `shapes.gd`, and the menu names the file, "Generate Function Definition in shapes.gd". The function goes to the class of the object, also when it is an inner class, after its last function or variable and with the indentation of that file. It is `static` when the call is on the class. Its types are written the way that script writes them, so a `Shapes.Circle` argument becomes a `Circle` parameter inside `shapes.gd`. The other script is changed in its tab, which is opened if needed, and it is not saved. It works on any script the plugin reads, also inside `res://addons`. See "Functions in other scripts" in the README.
+
+### Fixed
+
+- Generate Function Definition on a call to an object of another class of the same script wrote the types as the calling class sees them. A parameter of the type `Nested`, only visible inside `Holder`, did not compile in the other class; it is now written `Holder.Nested`.
+- Generate Function Definition was offered on an annotation with arguments, such as `@export_range(0, 10)` or `@warning_ignore("unused_parameter")`, as if it were a call to an undefined function.
+- Generate Function Definition is no longer offered on a class written on one line, `class Empty: pass`, where the function it wrote did not compile.
+- Generate Function Definition is no longer offered for the functions that every script class has, such as `Inner.can_instantiate()`.
+- A number written in binary, such as `0b101`, is taken for an `int`. Add Explicit Types left `var mask := 0b101` without a type.
+- In a script that extends `CharacterBody2D`, `Area2D`, `Control` or any other physics body or control, `Input` was taken for a property of the node, because the inspector has a group of properties with that title. `var direction := Input.get_axis("ui_left", "ui_right")` was not offered Add Explicit Types. The same happened with `Theme` in a `Control` and with `Time` in a particles node.
+- Generate Function Definition on a call written in the `get` or `set` of a static variable now writes a `static func`. The function it wrote before could not be called from there.
+
 ## 0.3.0 — 2026-10-08
 
 ### Added

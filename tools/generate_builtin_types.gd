@@ -10,6 +10,8 @@ const GROUP_CLOSE: String = "\t},"
 const FLAT_ENTRY_TEMPLATE: String = "\t\"%s\": \"%s\","
 const GLOBAL_CONSTANT_TYPE: String = "int"
 const ENUM_TYPE_TEMPLATE: String = "%s.%s"
+const LIST_ENTRY_TEMPLATE: String = "\t\"%s\","
+const MATH_CATEGORY: String = "math"
 
 
 func _initialize() -> void:
@@ -59,7 +61,11 @@ func _initialize() -> void:
 	output.append_array(type_constants)
 	output.append_array(["}", "", "const GLOBAL_CONSTANTS: Dictionary[String, String] = {"])
 	output.append_array(constants)
-	output.append_array(["}", ""])
+	output.append_array(["}", "", "const MATH_FUNCTIONS: Array[String] = ["])
+	for function: Dictionary in api["utility_functions"]:
+		if function["category"] == MATH_CATEGORY:
+			output.append(LIST_ENTRY_TEMPLATE % function["name"])
+	output.append_array(["]", ""])
 
 	var file := FileAccess.open(OUTPUT_PATH, FileAccess.WRITE)
 	file.store_string("\n".join(output))
