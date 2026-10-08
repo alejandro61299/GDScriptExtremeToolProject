@@ -61,13 +61,13 @@ func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
 		return null
 	var signature := _build_signature(target, code, context.scope_info)
 	var plan := GDSExEditPlan.new()
+	var snippet := _build_snippet(signature, _target_scope_info(target, context.scope_info))
 	if not target.is_in_another_script():
-		plan.reveal(plan.insert(GDSExPlacement.new_function(target.target_class, context.scope_info, context.lines, context.indent_unit), _build_snippet(signature, context.scope_info)))
+		plan.reveal(plan.insert(GDSExPlacement.new_function(target.target_class, context.scope_info, context.lines, context.indent_unit), snippet))
 		return plan
 	var target_lines := GDSExScriptLibrary.find_lines(target.script_path)
-	var target_point := GDSExPlacement.end_of_class(target.target_class, target_lines, GDSExIndentation.detect_unit(target_lines, context.indent_unit))
 	plan.script_path = target.script_path
-	plan.reveal(plan.insert(target_point, _build_snippet(signature, _class_scope_info(target.target_class))))
+	plan.reveal(plan.insert(GDSExPlacement.end_of_class(target.target_class, target_lines, GDSExIndentation.detect_unit(target_lines, context.indent_unit)), snippet))
 	return plan
 
 
@@ -125,8 +125,10 @@ func _find_script_to_edit(class_scope: GDSExSymbolIndex.GDSExClassScope, edited_
 	return script_index.script_path
 
 
-func _class_scope_info(class_scope: GDSExSymbolIndex.GDSExClassScope) -> GDSExSymbolIndex.GDSExScopeInfo:
-	return GDSExSymbolIndex.get_scope_info_for_scope(GDSExSymbolIndex.find_index(class_scope), class_scope, class_scope.start_line)
+func _target_scope_info(target: GDSExTarget, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExSymbolIndex.GDSExScopeInfo:
+	if target.target_class == scope_info.class_scope:
+		return scope_info
+	return GDSExSymbolIndex.get_scope_info_for_scope(GDSExSymbolIndex.find_index(target.target_class), target.target_class, target.target_class.start_line)
 
 
 func _callback_target(call: GDSExCallSiteParser.GDSExCallSite, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExTarget:
@@ -178,18 +180,13 @@ func _build_signature(target: GDSExTarget, code: String, scope_info: GDSExSymbol
 			_add_param(signature, target.signal_member.param_names[index], target.signal_member.param_types[index])
 		signature.return_type = GDSExSymbolIndex.make_type(GDSExLanguage.VOID_TYPE_NAME)
 		return signature
+	var target_info := _target_scope_info(target, scope_info)
 	for argument in target.call.arguments:
-		_add_param(signature, argument.text, _type_for(target, GDSExTypeResolver.resolve_expression_type(argument.text, scope_info)))
-	signature.return_type = _type_for(target, GDSExTypeResolver.expected_type(code, target.call, scope_info))
+		_add_param(signature, argument.text, GDSExTypeResolver.value_type_seen_from(GDSExTypeResolver.resolve_expression(argument.text, scope_info), scope_info, target_info))
+	signature.return_type = GDSExTypeResolver.type_seen_from(GDSExTypeResolver.expected_type(code, target.call, scope_info), scope_info, target_info)
 	if signature.return_type == null:
 		signature.return_type = GDSExSymbolIndex.make_type(GDSExLanguage.VARIANT_TYPE_NAME)
 	return signature
-
-
-func _type_for(target: GDSExTarget, type: GDSExSymbolIndex.GDSExTypeData) -> GDSExSymbolIndex.GDSExTypeData:
-	if not target.is_in_another_script() or GDSExTypeResolver.is_written_the_same_everywhere(type):
-		return type
-	return null
 
 
 func _add_param(signature: GDSExFunctionSignature, source_name: String, type: GDSExSymbolIndex.GDSExTypeData) -> void:

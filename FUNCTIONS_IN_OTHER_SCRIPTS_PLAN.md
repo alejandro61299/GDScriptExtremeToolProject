@@ -8,7 +8,7 @@ Sale del apartado «Para después: crear funciones en otro script» de `PRELOAD_
 |---|---|---|
 | C1 | Un plan de edición puede ir a otra pestaña | Hecha |
 | C2 | La acción elige el otro script como destino | Hecha |
-| C3 | Tipos escritos para el script de destino | Pendiente |
+| C3 | Tipos escritos para el script de destino | Hecha |
 | C4 | Pruebas masivas, editor y documentación | Pendiente |
 
 Cada paso termina con la suite en verde y una pasada de `--headless --editor --quit` sin errores ni avisos, y se cierra con un commit en la rama `generate-outside`.
@@ -76,6 +76,8 @@ No los ha fijado el usuario; son la forma concreta que propongo y se pueden camb
 - **D12. Casos con dos scripts.** Un caso de la suite da el otro script con la sección `=== unsaved <ruta>` que ya existe, o con un archivo de `tests/fixtures/`, y lo que se espera de él con una sección nueva, `=== expected <ruta>`.
 - **D13. Funciones que toda clase de script tiene.** Una referencia a una clase de script es un objeto del motor con funciones propias: `Shapes.can_instantiate()`, `Shapes.get_base_script()`. Sobre una referencia a clase, esas no se ofrecen. Salió en C2: con solo el propio script casi no se veía, y al abrir la acción a las constantes con `preload` habría sido una oferta falsa frecuente. Vale también para las clases internas del propio script.
 - **D14. Clases escritas en una línea.** Sobre una clase como `class Empty: pass` no se ofrece. No hay bloque donde meter la función, y lo que se generaba no compilaba. Salió en C2 y vale también para el propio script.
+- **D15. Un valor cuya clase dice más que su tipo escrito.** `self`, en un script sin `class_name`, tiene como tipo escrito su clase base (`Node`), y el propio script alcanzado dando la vuelta por otro (`second.first`) no tiene ninguno. En esos casos se nombra la clase del valor desde el destino, si el destino tiene cómo: `CycleFirst`. Si no tiene, queda el tipo escrito, que para `self` es la clase base. Salió en C3.
+- **D16. También entre clases del mismo script.** Los tipos se reescriben siempre que la función va a una clase distinta de la que contiene la llamada, aunque sea del mismo archivo. Salió en C3 y corrige un fallo que ya existía (paso C3).
 
 ## 4. Comportamiento
 
@@ -263,6 +265,21 @@ Cambio respecto al plan: no hay archivo `writable_scripts.gd`. Con la decisión 
 - El valor de relleno del `return` se escribe con el nombre del destino, y `0` para un enum, como ya se hace.
 
 Verificación: casos con variaciones de cada fila de la tabla del apartado 4.3, y además: clase interna del destino pasada a una función de otra clase interna del mismo destino, enum del destino, colecciones con tipo, una clase del script que llama cuando el destino lo carga (los dos scripts que se cargan mutuamente) y cuando no, un tercer script que el destino carga con otro nombre de constante, una clase global, una constante tapada por una clase global, `self` como argumento, y el valor devuelto en cada una de esas formas. La compilación de los dos scripts juntos del paso C2 cubre aquí también los tipos.
+
+Hecho el 2026-10-08:
+
+- **Los tipos de la firma se reescriben para la clase de destino**: los de los parámetros, el devuelto y el valor de relleno del `return`. El resolvedor ofrece para ello `type_seen_from`, que es la traducción que ya existía con el sentido cambiado, y `value_type_seen_from` para los argumentos (detalle D15).
+- **Lo que no se puede escribir en el destino** deja el parámetro sin tipo y el valor devuelto como `Variant` (detalle D5). Una colección cuyo elemento no se puede escribir queda entera sin tipo.
+- **El nombre escrito se respeta cuando en el destino significa lo mismo**, que es el detalle D15 del plan anterior aplicado aquí: si los dos scripts cargan el tercero con la misma constante, `Shapes.Circle` se queda igual, y `GDSExTestGadget.Part` sigue escrito así dentro del propio script de `GDSExTestGadget` en lugar de acortarse a `Part`. Las dos formas compilan.
+- **Un fallo que ya existía, corregido** (detalle D16). Al generar una función en otra clase del mismo script, los tipos se escribían como se ven desde la llamada: con `nested: Nested` dentro de `Holder`, llamar a `other.missing(nested)` creaba en `Other` un parámetro `Nested`, que ahí no existe y no compila. Ahora escribe `Holder.Nested`.
+- **22 casos nuevos y 1 retirado**, 907 en total. El retirado es el que fijaba en C2 los parámetros sin tipo. De los nuevos, 20 están en `tests/cases/generate_function/other_scripts/` y 2 en `inner_class/`:
+  - Del destino: clase como parámetro y como resultado, clase a dos niveles, clases vistas desde una clase interna del destino y desde una hermana, enum como parámetro y resultado, enum visto desde una clase interna, y colecciones.
+  - Del script que llama: sus clases cuando el destino lo carga (`self` y una clase interna), como resultado, el propio script alcanzado dando la vuelta, y cuando el destino no lo puede nombrar.
+  - De un tercer script: con otra constante en el destino, con la misma, sin ninguna, a través de un script que el destino carga, con una constante heredada, con la de la clase envolvente y con una constante tapada por una clase global.
+  - Clase interna de una clase global, escrita en otro script y en el suyo.
+  - Dentro de un mismo script: función que va a una clase hermana y a la clase envolvente.
+- 19 de los 20 casos de otros scripts se escribieron a mano antes de ejecutarlos y pasaron a la primera. El que no, era una expectativa mía sobre el nombre más corto, que es el punto de arriba.
+- Se rompió el comportamiento a propósito de seis maneras y se detectan las seis.
 
 ### C4 — Pruebas masivas, editor y documentación
 

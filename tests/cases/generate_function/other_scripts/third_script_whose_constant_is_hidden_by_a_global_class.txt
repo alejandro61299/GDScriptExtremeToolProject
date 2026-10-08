@@ -1,0 +1,32 @@
+action: generate_function
+requires_global_class: GDSExTestGadget
+compile_check: skip
+=== input
+extends Node
+
+const Target = preload("res://tests/fixtures/other_scripts/target.gd")
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+
+func run(target: Target, circle: Shapes.Circle, kind: Shapes.Kind) -> void:
+	target.missing(circle)<|>
+
+=== unsaved res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+const GDSExTestGadget = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+var count: int = 0
+
+=== expected res://tests/fixtures/other_scripts/target.gd
+extends RefCounted
+
+const GDSExTestGadget = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+var count: int = 0
+
+
+func missing(p_circle) -> void:
+	<|pass|>
+
+=== end

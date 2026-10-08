@@ -201,13 +201,28 @@ static func is_function_of_every_script(function_name: String) -> bool:
 	return ClassDB.class_has_method(SCRIPT_CLASS_NAME, function_name)
 
 
-static func is_written_the_same_everywhere(type: GDSExSymbolIndex.GDSExTypeData) -> bool:
-	if type == null or not _is_name_written_the_same_everywhere(type.name):
+static func type_seen_from(type: GDSExSymbolIndex.GDSExTypeData, written_in: GDSExSymbolIndex.GDSExScopeInfo, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExSymbolIndex.GDSExTypeData:
+	if type == null or written_in.class_scope == scope_info.class_scope:
+		return type
+	return _translated_type(type, written_in, scope_info)
+
+
+static func value_type_seen_from(value: GDSExResolved, written_in: GDSExSymbolIndex.GDSExScopeInfo, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExSymbolIndex.GDSExTypeData:
+	if written_in.class_scope == scope_info.class_scope:
+		return value.type
+	if _is_an_instance_named_by_less_than_its_class(value, written_in):
+		var class_name_there := GDSExScriptTypeNames.name_of_class(value.class_scope, scope_info.class_scope, written_in.class_scope)
+		if not class_name_there.is_empty():
+			return GDSExSymbolIndex.make_type(class_name_there)
+	return type_seen_from(value.type, written_in, scope_info)
+
+
+static func _is_an_instance_named_by_less_than_its_class(value: GDSExResolved, written_in: GDSExSymbolIndex.GDSExScopeInfo) -> bool:
+	if value.class_scope == null or value.is_class_reference:
 		return false
-	for generic in type.generics:
-		if not is_written_the_same_everywhere(generic):
-			return false
-	return true
+	if value.type == null:
+		return true
+	return value.type.generics.is_empty() and find_type_class(value.type.name, written_in) != value.class_scope
 
 
 static func is_identifier(text: String) -> bool:
@@ -865,7 +880,7 @@ static func _translated_type(type: GDSExSymbolIndex.GDSExTypeData, written_in: G
 
 
 static func _translated_name(type_name: String, written_in: GDSExSymbolIndex.GDSExScopeInfo, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> String:
-	if _is_name_written_the_same_everywhere(type_name):
+	if _is_written_the_same_everywhere(type_name):
 		return type_name
 	var is_another_script := written_in.index != scope_info.index
 	var enum_name := ""
@@ -911,7 +926,7 @@ static func _find_visible_class(type_name: String, scope_info: GDSExSymbolIndex.
 	return found
 
 
-static func _is_name_written_the_same_everywhere(type_name: String) -> bool:
+static func _is_written_the_same_everywhere(type_name: String) -> bool:
 	if GDSExLanguage.is_known_type(type_name.get_slice(MEMBER_ACCESS, 0)):
 		return true
 	if type_name.contains(MEMBER_ACCESS):

@@ -5,60 +5,58 @@ extends Node
 const Target = preload("res://tests/fixtures/other_scripts/target.gd")
 
 
-func run(target: Target, part: Target.Part) -> void:
-	var made: Target.Part = target.missing(part, Target.make())<|>
-	print(made)
+func run(part: Target.Part, tool: Target.Tool) -> void:
+	var found: Target.Part.Bolt = tool.missing(part.size, part)<|>
+	print(found)
 
 === unsaved res://tests/fixtures/other_scripts/target.gd
 extends RefCounted
 
+enum Kind { ROUND, SQUARE }
+
 var count: int = 0
 
 
 class Part:
 	var size: int = 1
 
-	func grow() -> void:
-		size += 1
-
 
 	class Bolt:
 		var length: float = 1.0
 
 
+class Tool:
+	var power: float = 2.0
+
+
 static func make() -> Part:
 	return Part.new()
-
-
-func total() -> int:
-	return count
 
 === expected res://tests/fixtures/other_scripts/target.gd
 extends RefCounted
 
+enum Kind { ROUND, SQUARE }
+
 var count: int = 0
 
 
 class Part:
 	var size: int = 1
 
-	func grow() -> void:
-		size += 1
-
 
 	class Bolt:
 		var length: float = 1.0
 
 
+class Tool:
+	var power: float = 2.0
+	
+	
+	func missing(param_0: int, p_part: Part) -> Part.Bolt:
+		<|return Part.Bolt.new()|>
+
+
 static func make() -> Part:
 	return Part.new()
-
-
-func total() -> int:
-	return count
-
-
-func missing(p_part, param_1) -> Variant:
-	<|return null|>
 
 === end

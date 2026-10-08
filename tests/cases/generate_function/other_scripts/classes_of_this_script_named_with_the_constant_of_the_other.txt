@@ -1,0 +1,37 @@
+action: generate_function
+script_path: res://tests/fixtures/other_scripts/cycle_first.gd
+compile_check: apart
+=== input
+extends RefCounted
+
+const CycleSecond = preload("res://tests/fixtures/other_scripts/cycle_second.gd")
+
+var second: CycleSecond
+var first_name: String = "first"
+
+
+class Item:
+	var weight: float = 1.0
+
+
+func run(item: Item) -> void:
+	second.missing(self, item)<|>
+
+=== expected res://tests/fixtures/other_scripts/cycle_second.gd
+extends RefCounted
+
+const CycleFirst = preload("res://tests/fixtures/other_scripts/cycle_first.gd")
+
+var first: CycleFirst
+var item: CycleFirst.Item
+var second_count: int = 2
+
+
+func other() -> CycleFirst:
+	return first
+
+
+func missing(param_0: CycleFirst, p_item: CycleFirst.Item) -> void:
+	<|pass|>
+
+=== end
