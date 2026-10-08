@@ -12,7 +12,7 @@ The script is analyzed only when you open that menu, so a plain right-click cost
 
 | Action | What it does |
 |---|---|
-| Generate Function Definition | Creates the function for an undefined call, with parameter names and types inferred from the arguments and the return type inferred from where the call is used. |
+| Generate Function Definition | Creates the function for an undefined call, with parameter names and types inferred from the arguments and the return type inferred from where the call is used. A call on an object or a class of another script creates the function in that script: see "Functions in other scripts". |
 | Generate Local Variable | Declares the undefined identifier under the caret at the start of its scope, typed from how it is used. |
 | Generate Class Variable | Declares the undefined identifier as a member variable of the class. |
 | Generate Connected Function | On a signal, writes `signal.connect(_on_signal)` and creates the callback with the signal's parameters. |
@@ -49,7 +49,33 @@ Things to know:
 - When no constant of your script leads to that class, the value is left without a type. The plugin does not add `preload` constants on its own.
 - If the other script is open in a tab with unsaved changes, the tab is read instead of the file. Godot compiles against the saved file, so it reports an error in your script until you save the other one.
 - `load()`, `get_script()`, scripts built at runtime and autoloads are not followed.
-- The plugin never writes in another script. Generate Function Definition is not offered for a call on an instance of another script.
+
+## Functions in other scripts
+
+Generate Function Definition also works on a call to another script. With the caret on `scaled_area` here:
+
+```gdscript
+const Shapes = preload("shapes.gd")
+
+var shapes: Shapes = Shapes.new()
+
+
+func run(circle: Shapes.Circle) -> void:
+	var area: float = shapes.scaled_area(circle, 2.0)
+```
+
+the menu shows **Generate Function Definition in shapes.gd**. It opens the tab of `shapes.gd`, adds this after the last function or variable of the class and selects the body:
+
+```gdscript
+func scaled_area(p_circle: Circle, param_1: float) -> float:
+	return 0.0
+```
+
+- The function goes to the class of the object the call is made on: the script or one of its inner classes. It is `static` when the call is on the class (`Shapes.missing()`) and not on an instance.
+- The types are written the way that script has to write them: `Circle` and not `Shapes.Circle`. A class that script has no name for leaves the parameter without a type; the plugin does not add `preload` constants to it.
+- The other script is changed in its tab and it is not saved. Godot compiles against the saved file, so the call stays marked as an error until you save that tab. Undo in that tab removes the function, and the back button of the script editor returns to the call.
+- It works on any script the plugin can read, also one inside `res://addons`. What you add to an addon you did not write is lost when you update it.
+- It is not offered for a class of the engine, for `super`, or when Godot is set to open scripts in an external editor.
 
 ## Requirements
 

@@ -9,9 +9,11 @@ Sale del apartado «Para después: crear funciones en otro script» de `PRELOAD_
 | C1 | Un plan de edición puede ir a otra pestaña | Hecha |
 | C2 | La acción elige el otro script como destino | Hecha |
 | C3 | Tipos escritos para el script de destino | Hecha |
-| C4 | Pruebas masivas, editor y documentación | Pendiente |
+| C4 | Pruebas masivas, editor y documentación | Hecha |
 
 Cada paso termina con la suite en verde y una pasada de `--headless --editor --quit` sin errores ni avisos, y se cierra con un commit en la rama `generate-outside`.
+
+El plan está terminado. El resultado medido está en el apartado 8 y lo que queda por mirar en un editor con ventana en el 11.
 
 ## 1. Qué cambia
 
@@ -30,7 +32,7 @@ func run(circle: Shapes.Circle) -> void:
 Hoy el menú no ofrece nada sobre `scaled_area`. Con el plan ofrece "Generate Function Definition in shapes.gd", y al elegirla se abre la pestaña de `shapes.gd` con esto añadido al final de la clase y el cuerpo seleccionado:
 
 ```gdscript
-func scaled_area(circle: Circle, param_1: float) -> float:
+func scaled_area(p_circle: Circle, param_1: float) -> float:
 	return 0.0
 ```
 
@@ -58,9 +60,9 @@ Las tomó el usuario el 2026-10-08.
 4. **Nombre que empieza por `_`.** Se ofrece y la función se crea con el nombre que el usuario escribió. GDScript no impide llamarla desde fuera y Godot 4.7.2 no tiene ningún aviso para ello (apartado 5).
 5. **Versión.** Entra en la 0.4.0.
 
-## 3. Detalles decididos al redactar
+## 3. Detalles decididos al redactar y al implementar
 
-No los ha fijado el usuario; son la forma concreta que propongo y se pueden cambiar sin rehacer el plan.
+No los ha fijado el usuario. Del D1 al D12 son de la redacción del plan; del D13 al D16 salieron al implementarlo, y cada uno dice en qué paso.
 
 - **D1. Siempre a través de una pestaña.** El plugin nunca escribe el archivo del otro script directamente. Pide a Godot que lo abra y edita su pestaña. Así el deshacer funciona, no se pisa lo que haya sin guardar en esa pestaña y Godot no encuentra un archivo cambiado por fuera.
 - **D2. Manda el texto de la pestaña.** El sitio donde va la función se calcula sobre el texto de la pestaña de destino en el momento de aplicar, no sobre lo que se leyó al abrir el menú. Motivo, comprobado (apartado 5): si el archivo cambió por fuera con la pestaña abierta, la pestaña y el archivo tienen textos distintos, y un número de línea sacado del archivo caería en otro sitio de la pestaña.
@@ -91,6 +93,7 @@ Tienen que cumplirse todas:
 | La función no existe en esa clase ni en las que hereda, contando lo que haya sin guardar en su pestaña | No se ofrece |
 | El script de destino tiene una pestaña donde escribir (detalle D7) | No se ofrece |
 | No es `.new()` ni una llamada sobre `super` | No se ofrece, como hoy |
+| No es una función que toda clase de script tiene, ni la clase está escrita en una línea (detalles D13 y D14) | No se ofrece |
 
 Si el receptor resulta ser una clase del propio script alcanzada dando la vuelta por otro (`second.first.rename()`), se escribe en el script que se edita. Ya funciona así.
 
@@ -175,7 +178,7 @@ Godot 4.7.2 tiene 50 avisos de GDScript y ninguno trata de llamar desde fuera a 
 
 ### No comprobado
 
-Nada de esto se ha visto en un editor con ventana: que la pestaña cambie a la vista, que el foco acabe en ella, que la selección quede visible y que «atrás» devuelva a la llamada. Está en la lista del apartado 10.
+Nada de esto se ha visto en un editor con ventana: que la pestaña cambie a la vista, que el foco acabe en ella, que la selección quede visible y que «atrás» devuelva a la llamada. Está en la lista del apartado 11.
 
 ## 6. Arquitectura
 
@@ -288,11 +291,58 @@ Hecho el 2026-10-08:
 - Editor sin ventana con el menú de verdad: ofrecer, ejecutar, deshacer, y repetir con el destino cerrado, abierto y sin guardar.
 - Tiempo de abrir el menú, con el cursor sobre una llamada a otro script y fuera de ella.
 - README: la fila de la acción, y la frase que hoy dice que el plugin nunca escribe en otro script. CHANGELOG. El apartado de límites de `PRELOAD_TYPES_PLAN.md`.
-- La lista del apartado 10, para que el usuario la pase en un editor con ventana.
+- La lista del apartado 11, para que el usuario la pase en un editor con ventana.
 
 En cada paso se rompe el comportamiento a propósito de varias maneras y se comprueba que algún caso lo detecta, como en el plan anterior.
 
-## 8. Qué queda fuera
+Hecho el 2026-10-08:
+
+- **Contraste con lo que ya está escrito, en la suite** (`action: check_functions_generated_for_project_scripts`). Para cada llamada del proyecto a una función escrita en otro script, cambia el nombre de la llamada por uno que no existe y pregunta a la acción. Tiene que ofrecerse en ese script, ser `static` cuando la función real lo es y la llamada es sobre la clase, no serlo cuando la real no lo es, y dar a cada parámetro el tipo declarado, uno más concreto o ninguno. En una muestra hace el recorrido completo, como en el editor: contexto con la llamada cambiada, plan, aplicación en la pestaña del otro script, comprobación de que la función cayó en la clase del receptor y compilación de ese script. La muestra es una de cada 25 llamadas y una de cada 5 de las que van a una clase interna.
+- **Pasada completa, a mano:** las 697 llamadas, cada una con su recorrido completo. Ningún problema.
+- **GUT, a mano.** 86 scripts ajenos, casi sin tipos y con clases globales. Ninguna oferta falsa en otro script, y las 179 llamadas a funciones de otros scripts compilan con la función generada.
+- **Un fallo que ya existía, encontrado con GUT y corregido.** "Generate Function Definition" se ofrecía sobre cualquier anotación con argumentos, como `@export_range(0, 10)` o `@warning_ignore("unused_parameter")`, como si fuese una llamada a una función sin definir. No tiene que ver con otros scripts, pero es una oferta falsa de esta misma acción y arreglarla es una línea. En GUT aparecía seis veces.
+- **Editor sin ventana con el menú de verdad**, repetido con el código final: instancia, clase, clase interna, clase global, script dentro de `res://addons/` y una llamada con tipos del otro script. En las seis, un deshacer quita la función y rehacer la devuelve.
+- **Tiempo de abrir el menú**, apartado 8.
+- **README:** apartado nuevo, "Functions in other scripts", y la fila de la acción. Se quita la frase que decía que el plugin nunca escribe en otro script. El ejemplo del README se comprobó como un caso más antes de escribirlo.
+- **CHANGELOG:** entrada `0.4.0 — unreleased`, con lo nuevo en "Added" y los cuatro fallos en "Fixed". La versión de `plugin.cfg` no se toca: eso es preparar la release.
+- **`PRELOAD_TYPES_PLAN.md`:** su límite sobre generar código en otro archivo apunta a este plan.
+- **5 casos nuevos**, 912 en total: el contraste y cuatro de anotaciones.
+- Se rompió el comportamiento a propósito de seis maneras y se detectan las seis. Dos no las detectaba la primera versión del contraste: no miraba en qué clase caía la función, y la comparaba con lo que decía la propia acción en vez de con el receptor.
+
+## 8. Resultado
+
+Todo medido el 2026-10-08, con Godot 4.7.2.
+
+| Medida | Antes del plan | Al terminar |
+|---|---|---|
+| Llamadas del proyecto a funciones de otro script sobre las que la acción se ofrecería si faltasen | 0 de 681 | 697 de 697 |
+| De ellas, las que compilan en su script con la función generada | — | 697 de 697 |
+| Parámetros con el tipo declarado, uno más concreto o ninguno | — | 961 de 961 comparados |
+| Ofertas falsas en los scripts del proyecto | 0 | 0 |
+| Llamadas de GUT a funciones de otro script que compilan con la función generada | — | 179 de 179 |
+| Ofertas falsas en GUT, en otro script | — | 0 |
+| Ofertas falsas en GUT, en el propio script | 6 | 0 |
+| Suite | 830 casos | 912 casos |
+
+El proyecto tiene ahora más llamadas a otros scripts que al empezar porque tiene más código.
+
+Tiempo de abrir el menú, medido en las mismas condiciones con el código de la 0.3.0 y con el de ahora:
+
+| Medida | 0.3.0 | Ahora |
+|---|---|---|
+| Media de los scripts, primera vez | 30 ms | 31 ms |
+| Media de los scripts, las siguientes | 17,5 ms | 18,5 ms |
+| `class_layout.gd` (568 líneas, igual en los dos), las siguientes | 20 ms | 20 ms |
+| `builtin_types.gd` (1.996 líneas, igual en los dos), las siguientes | 116 ms | 115 ms |
+| `run_tests.gd` (1.675 líneas antes, 1.974 ahora), las siguientes | 175 ms | 210 ms |
+| Cursor sobre una llamada a otro script que existe, 40 scripts | 16,0 ms | 16,7 ms |
+| Cursor sobre una llamada a otro script que falta | no se ofrecía | 17,2 ms |
+
+En los archivos que no han cambiado el tiempo es el mismo. La media sube un milisegundo porque `run_tests.gd` tiene 300 líneas más. Ofrecer la acción en otro script cuesta medio milisegundo más que no ofrecerla.
+
+## 9. Qué queda fuera
+
+Además de lo de abajo, sigue sin comprobarse nada en un editor con ventana (apartado 11).
 
 - `super.missing()`: crear la función en la clase base. Encaja en el mismo mecanismo y queda como candidata.
 - Una función pasada como referencia a otro objeto: `button.pressed.connect(controller.on_pressed)`.
@@ -303,7 +353,7 @@ En cada paso se rompe el comportamiento a propósito de varias maneras y se comp
 - Godot configurado con un editor externo.
 - Añadir al otro script las constantes `preload` que harían falta para escribir un tipo (detalle D5).
 
-## 9. Riesgos
+## 10. Riesgos
 
 - **Escribir en el sitio equivocado.** El análisis y la pestaña podrían no tener el mismo texto. Detalles D2 y D3, y la pasada en el editor sin ventana con un archivo cambiado por fuera.
 - **Escribir en un addon ajeno.** Lo permite la decisión 3. Lo que se escriba ahí se pierde al actualizar el addon; va dicho en el README.
@@ -313,7 +363,7 @@ En cada paso se rompe el comportamiento a propósito de varias maneras y se comp
 - **Ruido en la salida.** Abrir un script que no compila y que no estaba cargado deja sus errores en la salida de Godot. No se puede evitar desde el plugin.
 - **Se toca el menú y el registro de acciones, que usan todas las acciones.** Red: los 830 casos, de los que solo deben cambiar los cinco que hoy comprueban que la acción no se ofrece, y los casos del menú.
 
-## 10. Para comprobar con ventana
+## 11. Para comprobar con ventana
 
 Lo que un editor sin ventana no enseña. Para pasar al cerrar C4:
 

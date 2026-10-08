@@ -28,6 +28,7 @@ const GDSExTypeResolver = preload("res://addons/gdscript_extreme_tool/analysis/t
 const GDSExScriptTypeNames = preload("res://addons/gdscript_extreme_tool/analysis/script_type_names.gd")
 const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
 const GDSExPlacement = preload("res://addons/gdscript_extreme_tool/editing/placement.gd")
+const GDSExCallSiteParser = preload("res://addons/gdscript_extreme_tool/analysis/call_site_parser.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -61,6 +62,11 @@ const COMPILE_CHECK_HEADER: String = "compile_check"
 const COMPILE_APART: String = "apart"
 const GLOBAL_NAME_PATTERN: String = "(?m)^class_name .*\\n"
 const COMPILE_DIRECTORY_TEMPLATE: String = "compile_%d"
+const MISSING_SUFFIX: String = "_gdsex_missing"
+const GENERATED_FUNCTIONS_MINIMUM: int = 100
+const GENERATED_SAMPLE_STEP: int = 25
+const GENERATED_INNER_SAMPLE_DIVISOR: int = 5
+const SAMPLE_STEP_HEADER: String = "sample_step"
 const THIS_SCRIPT_LABEL: String = "<this script>"
 const UNKNOWN_TYPE_LABEL: String = "?"
 const SCRIPT_EXTENSION: String = "gd"
@@ -170,6 +176,16 @@ class TestCase:
 	var unsaved_sources: Dictionary[String, String] = {}
 	var tab_sources: Dictionary[String, String] = {}
 	var expected_scripts: Dictionary[String, String] = {}
+
+
+class GenerationTally:
+	var generator: GDSExGenerateFunctionAction = GDSExGenerateFunctionAction.new()
+	var sample_step: int = 1
+	var calls: int = 0
+	var calls_on_inner_classes: int = 0
+	var parameters: int = 0
+	var compiled: int = 0
+	var problems: PackedStringArray = []
 
 
 class OtherScriptTestAction extends "res://addons/gdscript_extreme_tool/actions/code_action.gd":
@@ -567,6 +583,8 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_script_library()
 		"check_written_types_of_project_scripts":
 			return _check_written_types_of_project_scripts()
+		"check_functions_generated_for_project_scripts":
+			return _check_functions_generated_for_project_scripts(int(test_case.headers.get(SAMPLE_STEP_HEADER, str(GENERATED_SAMPLE_STEP))))
 	var action := _find_code_action(test_case.action)
 	if action == null:
 		return PackedStringArray(["Unknown action '%s'." % test_case.action])
@@ -1526,6 +1544,105 @@ func _compare_with_written_type(path: String, index: GDSExSymbolIndex.GDSExSymbo
 	if not _is_at_least(resolved.type, written, scope_info):
 		problems.append("%s:%d: the code says %s but the plugin takes the value for a %s." % [path, line + 1, GDSExSymbolIndex.type_to_string(written), GDSExSymbolIndex.type_to_string(resolved.type)])
 	return 0
+
+
+func _check_functions_generated_for_project_scripts(sample_step: int) -> PackedStringArray:
+	var tally := GenerationTally.new()
+	tally.sample_step = sample_step
+	for path in _project_script_paths():
+		GDSExScriptLibrary.refresh({})
+		var source := FileAccess.get_file_as_string(path)
+		var index := GDSExSymbolIndexBuilder.build(source.split("\n"), path)
+		_compare_generated_functions(path, source, index, index.statements, tally)
+	if tally.parameters < GENERATED_FUNCTIONS_MINIMUM or tally.compiled == 0:
+		tally.problems.append("Only %d parameters of %d calls to other scripts were compared and %d scripts compiled: the check is not looking at the project." % [tally.parameters, tally.calls, tally.compiled])
+	if _shows_pending_details:
+		print("         %d calls to other scripts, %d parameters compared, %d scripts compiled with the generated function" % [tally.calls, tally.parameters, tally.compiled])
+	return tally.problems
+
+
+func _compare_generated_functions(path: String, source: String, index: GDSExSymbolIndex.GDSExSymbolIndexData, statements: Array[GDSExSourceScanner.GDSExStatement], tally: GenerationTally) -> void:
+	for statement in statements:
+		var scope_info := GDSExSymbolIndex.get_scope_info_for_line(index, statement.first_line)
+		for call in GDSExCallSiteParser.parse(statement.code):
+			_compare_generated_function(path, source, statement, call, scope_info, tally)
+		for block in statement.blocks:
+			_compare_generated_functions(path, source, index, block.statements, tally)
+
+
+func _compare_generated_function(path: String, source: String, statement: GDSExSourceScanner.GDSExStatement, call: GDSExCallSiteParser.GDSExCallSite, scope_info: GDSExSymbolIndex.GDSExScopeInfo, tally: GenerationTally) -> void:
+	if call.receiver.is_empty() or call.name == GDSExLanguage.CONSTRUCTOR_NAME or call.receiver == GDSExLanguage.SUPER_KEYWORD:
+		return
+	var receiver := GDSExTypeResolver.resolve_expression(call.receiver, scope_info)
+	if receiver.class_scope == null or GDSExSymbolIndex.is_declared_in(receiver.class_scope, scope_info.index):
+		return
+	var member := GDSExTypeResolver.find_class_member(receiver.class_scope, call.name)
+	if member == null or member.function == null or member.owner_scope != receiver.class_scope:
+		return
+	var missing_name := call.name + MISSING_SUFFIX
+	var code := statement.code.substr(0, call.name_offset) + missing_name + statement.code.substr(call.name_end())
+	var where := "%s:%d: %s.%s" % [path, statement.first_line + 1, call.receiver, call.name]
+	var target: GDSExGenerateFunctionAction.GDSExTarget = null
+	for candidate in tally.generator.find_targets(code, scope_info):
+		if candidate.name == missing_name:
+			target = candidate
+	if target == null or not target.is_in_another_script():
+		tally.problems.append("%s would not be generated in its script if it were missing." % where)
+		return
+	tally.calls += 1
+	var signature := tally.generator.build_signature(target, code, scope_info)
+	if signature.is_static and not member.function.is_static:
+		tally.problems.append("%s is not static but would be generated as static." % where)
+	if receiver.is_class_reference and member.function.is_static and not signature.is_static:
+		tally.problems.append("%s is called on its class but would not be generated as static." % where)
+	var target_info := GDSExSymbolIndex.get_scope_info_for_scope(GDSExSymbolIndex.find_index(target.target_class), target.target_class, target.target_class.start_line)
+	for param_index in mini(signature.param_types.size(), member.param_types.size()):
+		var generated := signature.param_types[param_index]
+		var declared := member.param_types[param_index]
+		if generated == null or declared == null or generated.name == GDSExLanguage.VARIANT_TYPE_NAME or declared.name == GDSExLanguage.VARIANT_TYPE_NAME:
+			continue
+		tally.parameters += 1
+		if GDSExSymbolIndex.type_to_string(generated) != GDSExSymbolIndex.type_to_string(declared) and not _is_at_least(generated, declared, target_info):
+			tally.problems.append("%s: parameter %d is declared %s and would be generated as %s." % [where, param_index + 1, GDSExSymbolIndex.type_to_string(declared), GDSExSymbolIndex.type_to_string(generated)])
+	var is_sampled := tally.calls % tally.sample_step == 0
+	if receiver.class_scope.parent != null:
+		tally.calls_on_inner_classes += 1
+		is_sampled = is_sampled or tally.calls_on_inner_classes % maxi(1, tally.sample_step / GENERATED_INNER_SAMPLE_DIVISOR) == 0
+	if is_sampled:
+		_check_generated_function_compiles(path, source, statement, call, missing_name, GDSExScriptTypeNames.class_path(receiver.class_scope), where, tally)
+
+
+func _check_generated_function_compiles(path: String, source: String, statement: GDSExSourceScanner.GDSExStatement, call: GDSExCallSiteParser.GDSExCallSite, missing_name: String, class_path: String, where: String, tally: GenerationTally) -> void:
+	var position := statement.position_at(call.name_offset)
+	if position.x == -1:
+		return
+	var lines := source.split("\n")
+	lines[position.x] = lines[position.x].substr(0, position.y) + missing_name + lines[position.x].substr(position.y + call.name.length())
+	var editor := CodeEdit.new()
+	root.add_child(editor)
+	editor.text = "\n".join(lines)
+	editor.set_caret_line(position.x)
+	editor.set_caret_column(position.y + 1)
+	var context := GDSExCodeContext.new(editor, path)
+	var plan := tally.generator.build_plan(context)
+	var tab_editor := CodeEdit.new()
+	root.add_child(tab_editor)
+	if plan == null or not plan.is_for_another_script():
+		tally.problems.append("%s: the action is not offered for another script when the call is renamed in the editor." % where)
+	else:
+		tab_editor.text = FileAccess.get_file_as_string(plan.script_path)
+		GDSExCodeActionsPopup.apply_in_tab(tally.generator, editor, context, plan.script_path, tab_editor)
+		_error_collector.take()
+		tally.compiled += 1
+		var written_class := GDSExSymbolIndexBuilder.build(tab_editor.text.split("\n"), plan.script_path).root
+		for inner_name in class_path.split(".", false):
+			written_class = written_class.inner_classes.get(inner_name) if written_class != null else null
+		if written_class == null or not written_class.functions.has(missing_name):
+			tally.problems.append("%s: the function was not written in the class of its receiver in %s." % [where, plan.script_path])
+		elif not _compiles(RegEx.create_from_string(GLOBAL_NAME_PATTERN).sub(tab_editor.text, "")):
+			tally.problems.append("%s: %s does not compile with the generated function.\n%s" % [where, plan.script_path, "\n".join(_error_collector.take())])
+	editor.free()
+	tab_editor.free()
 
 
 func _names_a_script_class(type: GDSExSymbolIndex.GDSExTypeData) -> bool:

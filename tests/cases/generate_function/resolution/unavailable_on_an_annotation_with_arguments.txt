@@ -1,0 +1,7 @@
+action: generate_function
+=== input
+extends Node
+
+@export_range(0, 10) var speed: int = 1<|>
+
+=== end

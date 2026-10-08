@@ -20,6 +20,7 @@ const TYPED_PARAM_TEMPLATE : String = "%s: %s"
 const PARAM_SEPARATOR : String = ", "
 const RETURN_TEMPLATE : String = "return %s"
 const EMPTY_BODY : String = "pass"
+const ANNOTATION_PREFIX : String = "@"
 
 
 class GDSExTarget:
@@ -59,7 +60,7 @@ func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
 	var target := _choose_target(find_targets(code, context.scope_info), context.selection_from, context.selection_to)
 	if target == null:
 		return null
-	var signature := _build_signature(target, code, context.scope_info)
+	var signature := build_signature(target, code, context.scope_info)
 	var plan := GDSExEditPlan.new()
 	var snippet := _build_snippet(signature, _target_scope_info(target, context.scope_info))
 	if not target.is_in_another_script():
@@ -74,6 +75,8 @@ func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
 func find_targets(code: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> Array[GDSExTarget]:
 	var targets: Array[GDSExTarget] = []
 	for call in GDSExCallSiteParser.parse(code):
+		if call.name_offset > 0 and code[call.name_offset - 1] == ANNOTATION_PREFIX:
+			continue
 		var call_target := _call_target(call, scope_info)
 		if call_target != null:
 			targets.append(call_target)
@@ -171,7 +174,7 @@ func _choose_target(targets: Array[GDSExTarget], selection_from: int, selection_
 	return enclosing
 
 
-func _build_signature(target: GDSExTarget, code: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExFunctionSignature:
+func build_signature(target: GDSExTarget, code: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExFunctionSignature:
 	var signature := GDSExFunctionSignature.new()
 	signature.name = target.name
 	signature.is_static = target.is_static

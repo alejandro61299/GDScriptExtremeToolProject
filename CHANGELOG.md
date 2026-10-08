@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 — unreleased
+
+### Added
+
+- **Functions in other scripts.** Generate Function Definition is offered on a call to an object or a class of another script, and creates the function there: `shapes.missing()` adds `missing` to `shapes.gd`, and the menu names the file, "Generate Function Definition in shapes.gd". The function goes to the class of the object, also when it is an inner class, after its last function or variable and with the indentation of that file. It is `static` when the call is on the class. Its types are written the way that script writes them, so a `Shapes.Circle` argument becomes a `Circle` parameter inside `shapes.gd`. The other script is changed in its tab, which is opened if needed, and it is not saved. It works on any script the plugin reads, also inside `res://addons`. See "Functions in other scripts" in the README.
+
+### Fixed
+
+- Generate Function Definition on a call to an object of another class of the same script wrote the types as the calling class sees them. A parameter of the type `Nested`, only visible inside `Holder`, did not compile in the other class; it is now written `Holder.Nested`.
+- Generate Function Definition was offered on an annotation with arguments, such as `@export_range(0, 10)` or `@warning_ignore("unused_parameter")`, as if it were a call to an undefined function.
+- Generate Function Definition is no longer offered on a class written on one line, `class Empty: pass`, where the function it wrote did not compile.
+- Generate Function Definition is no longer offered for the functions that every script class has, such as `Inner.can_instantiate()`.
+
 ## 0.3.0 — 2026-10-08
 
 ### Added

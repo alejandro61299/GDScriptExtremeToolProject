@@ -407,7 +407,7 @@ Coste de analizar otros scripts, medido antes de empezar para decidir la caché:
 - Las rutas relativas de un script que aún no se ha guardado (detalle D7).
 - Autoloads. El mecanismo serviría para leer sus miembros, pero un autoload no tiene nombre de tipo salvo que declare `class_name`. Queda como candidato para después.
 - Scripts que no son GDScript.
-- Generar código en otro archivo: "Generate Function Definition" sobre una instancia de otro script sigue sin ofrecerse (detalle D5).
+- Generar código en otro archivo: "Generate Function Definition" sobre una instancia de otro script sigue sin ofrecerse (detalle D5). Hecho después, en `FUNCTIONS_IN_OTHER_SCRIPTS_PLAN.md`.
 - Un tipo al que solo se llega con más de un salto por otros scripts no se escribe (detalle D2).
 - Una función de otro script que no declara lo que devuelve, o una variable suya sin tipo, no sirven para tipar una variable declarada con `=` (detalle D8). Sí sirven para todo lo demás, como suposición.
 - Las funciones del motor que devuelven un enum (`json.parse()` devuelve `Error`) se siguen escribiendo como `int`. Ya pasaba antes y no es de este plan.
