@@ -1,0 +1,45 @@
+action: describe_value
+=== input
+extends Node2D
+
+const Shapes = preload("res://tests/fixtures/other_scripts/shapes.gd")
+
+var health: int = 10
+var items: Array[int] = []
+var shapes: Shapes = Shapes.new()
+
+
+class Item:
+	var weight: float = 1.0
+
+
+func get_health() -> int:
+	return health
+
+
+func move(speed: float, steps: int = 1) -> void:
+	position.x += speed * steps
+
+
+func outer(amount: int) -> int:
+	return amount
+
+
+func inner(amount: int) -> int:
+	return amount
+
+
+func wait_done() -> int:
+	await get_tree().process_frame
+	return 1
+
+
+func run(enemy: Node2D, first: int, second: int) -> void:
+	health = 4<|>2
+
+=== expected
+value: 42
+kind: literal
+type: int
+name: health
+=== end

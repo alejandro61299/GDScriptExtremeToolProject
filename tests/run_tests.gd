@@ -29,6 +29,8 @@ const GDSExScriptTypeNames = preload("res://addons/gdscript_extreme_tool/analysi
 const GDSExLanguage = preload("res://addons/gdscript_extreme_tool/analysis/language.gd")
 const GDSExPlacement = preload("res://addons/gdscript_extreme_tool/editing/placement.gd")
 const GDSExCallSiteParser = preload("res://addons/gdscript_extreme_tool/analysis/call_site_parser.gd")
+const GDSExExtractVariable = preload("res://addons/gdscript_extreme_tool/actions/extract_variable.gd")
+const GDSExValueFinder = preload("res://addons/gdscript_extreme_tool/analysis/value_finder.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -47,7 +49,9 @@ const EXTRACTION_NAME: String = "_new"
 const EXTRACTION_SAMPLE_STEP: int = 60
 const EXTRACTION_RANGE_SIZES: Array[int] = [0, 1, 2]
 const TYPES_ACTION: String = "describe_types"
-const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION, TYPES_ACTION]
+const VALUE_ACTION: String = "describe_value"
+const NO_VALUE_LABEL: String = "no value"
+const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION, TYPES_ACTION, VALUE_ACTION]
 const UNSAVED_SECTION_PREFIX: String = "unsaved "
 const TAB_SECTION_PREFIX: String = "tab "
 const EXPECTED_SECTION_PREFIX: String = "expected "
@@ -539,6 +543,8 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_description(test_case, _describe_extraction(editor))
 		TYPES_ACTION:
 			return _check_description(test_case, _describe_types(editor))
+		VALUE_ACTION:
+			return _check_description(test_case, _describe_value(editor))
 		"check_project_scripts":
 			return _check_project_scripts()
 		"check_no_false_targets":
@@ -803,6 +809,19 @@ func _describe_extraction(editor: CodeEdit) -> String:
 	for alternative in alternatives.slice(1):
 		description.append("or %s: %s -> %s" % [GDSExExtractFunction.GDSExForm.find_key(alternative.form), GDSExExtractFunction.signature(alternative, EXTRACTION_NAME), " | ".join(GDSExExtractFunction.call_lines(alternative, EXTRACTION_NAME, context.lines))])
 	return "\n".join(description)
+
+
+func _describe_value(editor: CodeEdit) -> String:
+	var extraction := GDSExExtractVariable.analyze(_context(editor))
+	if extraction == null:
+		return NO_VALUE_LABEL
+	var kind: String = GDSExValueFinder.GDSExValue.GDSExKind.find_key(extraction.value.kind)
+	return "\n".join(PackedStringArray([
+		"value: %s" % extraction.value_text,
+		"kind: %s" % kind.to_lower(),
+		"type: %s" % (UNKNOWN_TYPE_LABEL if extraction.type == null else GDSExSymbolIndex.type_to_string(extraction.type)),
+		"name: %s" % extraction.proposed_name,
+	]))
 
 
 func _describe_types(editor: CodeEdit) -> String:

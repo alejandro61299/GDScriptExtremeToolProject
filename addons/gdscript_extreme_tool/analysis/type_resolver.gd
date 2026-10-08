@@ -78,6 +78,7 @@ class GDSExResolved:
 	var enum_name: String = ""
 	var is_class_reference: bool = false
 	var is_preloaded: bool = false
+	var returns_nothing: bool = false
 
 	func is_known() -> bool:
 		return type != null or class_scope != null or enum_class != null
@@ -936,7 +937,9 @@ static func _is_written_the_same_everywhere(type_name: String) -> bool:
 
 static func _resolved_return(type: GDSExSymbolIndex.GDSExTypeData, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
 	if type != null and type.name == GDSExLanguage.VOID_TYPE_NAME:
-		return GDSExResolved.new()
+		var nothing := GDSExResolved.new()
+		nothing.returns_nothing = true
+		return nothing
 	return _resolved_type(type, scope_info)
 
 
