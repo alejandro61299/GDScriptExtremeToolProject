@@ -1,0 +1,27 @@
+action: cli
+compile_check: skip
+command: extract-variable player.gd:5:$Sprite2D --place class
+=== input
+extends Node2D
+
+
+func _ready() -> void:
+	var sprite := $Sprite2D
+	print(sprite)
+
+=== expected
+extends Node2D
+
+@onready var _sprite_2d: Node = $Sprite2D
+
+
+func _ready() -> void:
+	var sprite := _sprite_2d
+	print(sprite)
+
+=== output
+player.gd +3 -1
+3	@onready var _sprite_2d: Node = $Sprite2D
+7		var sprite := _sprite_2d
+! The value will be computed once, when the node is ready.
+=== end

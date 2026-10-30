@@ -1,0 +1,24 @@
+action: cli
+command: types player.gd
+=== input
+extends Node
+
+
+func _ready() -> void:
+	var value_0 = get_meta("v0")
+	var value_1 = get_meta("v1")
+	var value_2 = get_meta("v2")
+	var value_3 = get_meta("v3")
+	var value_4 = get_meta("v4")
+	var value_5 = get_meta("v5")
+	var value_6 = get_meta("v6")
+	var value_7 = get_meta("v7")
+	var value_8 = get_meta("v8")
+	var value_9 = get_meta("v9")
+	var value_10 = get_meta("v10")
+	var value_11 = get_meta("v11")
+	print(value_0)
+
+=== output
+player.gd nothing to type; untyped 12: value_0 5, value_1 6, value_2 7, value_3 8, value_4 9, value_5 10, value_6 11, value_7 12, value_8 13, value_9 14, ...
+=== end

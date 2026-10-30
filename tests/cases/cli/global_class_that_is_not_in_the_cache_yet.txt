@@ -1,0 +1,32 @@
+action: cli
+compile_check: skip
+command: types player.gd
+=== input
+extends Node
+
+
+func _ready() -> void:
+	var bat := GDSExCliTestBat.new()
+	var wings := bat.wing_count()
+	print(bat, wings)
+
+=== file monsters/bat.gd
+class_name GDSExCliTestBat
+extends RefCounted
+
+
+func wing_count() -> int:
+	return 2
+
+=== expected
+extends Node
+
+
+func _ready() -> void:
+	var bat: GDSExCliTestBat = GDSExCliTestBat.new()
+	var wings: int = bat.wing_count()
+	print(bat, wings)
+
+=== output
+player.gd typed 2
+=== end

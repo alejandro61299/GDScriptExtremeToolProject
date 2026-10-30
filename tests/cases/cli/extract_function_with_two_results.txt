@@ -1,0 +1,16 @@
+action: cli
+compile_check: skip
+command: extract-function player.gd:5-6
+exit: 1
+=== input
+extends Node
+
+
+func split(value: int) -> void:
+	var low := value - 1
+	var high := value + 1
+	print(low, high)
+
+=== output
+error: extract-function does not apply to player.gd:5-6: more than one variable would have to come back.
+=== end

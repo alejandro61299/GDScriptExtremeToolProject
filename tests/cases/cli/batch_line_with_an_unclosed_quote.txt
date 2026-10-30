@@ -1,0 +1,35 @@
+action: cli
+compile_check: skip
+command: 
+exit: 1
+=== input
+extends Node
+
+
+func _ready() -> void:
+	speed = 2.0
+	var damage: float = compute_damage(3)
+	label = "go"
+	print(speed, damage, label)
+
+=== stdin
+member player.gd:5:speed
+local "player.gd:7:label
+
+=== expected
+extends Node
+
+var speed: float
+
+
+func _ready() -> void:
+	speed = 2.0
+	var damage: float = compute_damage(3)
+	label = "go"
+	print(speed, damage, label)
+
+=== output
+error: line 2: A quote is not closed.
+player.gd +2
+3	var speed: float
+=== end

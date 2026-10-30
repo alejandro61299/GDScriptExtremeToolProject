@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.0 — unreleased
+
+### Added
+
+- **Command line.** `addons/gdscript_extreme_tool/cli/gdsex` runs every action from a terminal without opening the editor, and prints only what changed. `gdsex tidy <files or folders>` adds explicit types, reorders and formats every class of each script in one command; `--changed` takes the scripts changed in git. The other commands run one action at a target written as `file.gd:42:text`: `function`, `local`, `member`, `connect`, `init`, `extract-function`, `extract-variable`, `types`, `reorder`, `format` and `actions`. Several commands can go in one call, one per line, with the line numbers of the files before the call. See "Command line and AI agents" in the README.
+- **Skill for coding agents.** `gdsex install` copies a Claude Code skill to `.claude/skills/gdsex/SKILL.md` that tells an agent to write code loosely and let `gdsex` write the types, signatures and layout, to spend fewer tokens.
+
+### Changed
+
+- The actions no longer compile the base script of a class to know which engine class it extends: they read the chain of `extends` in the source. Compiling a script runs the initializers of its static variables.
+
 ## 0.4.0 — 2026-10-08
 
 ### Added

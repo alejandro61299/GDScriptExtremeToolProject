@@ -1,0 +1,15 @@
+action: cli
+compile_check: skip
+command: extract-variable player.gd:6:str(index) --place function
+exit: 1
+=== input
+extends Node
+
+
+func count_up(count: int) -> void:
+	for index in count:
+		print(str(index))
+
+=== output
+error: The value reads 'index', which only exists inside the loop.
+=== end

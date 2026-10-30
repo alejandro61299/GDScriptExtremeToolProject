@@ -1,0 +1,43 @@
+action: cli
+compile_check: skip
+command: function player.gd:9:scaled_area
+=== input
+extends Node
+
+const Helpers = preload("helpers.gd")
+
+var helpers: Helpers = Helpers.new()
+
+
+func _ready() -> void:
+	var area: float = helpers.scaled_area(2.0, existing_count())
+	var made: int = Helpers.make_count()
+	print(area, made)
+
+
+func existing_count() -> int:
+	return helpers.existing()
+
+=== file helpers.gd
+extends RefCounted
+
+
+func existing() -> int:
+	return 1
+
+=== expected helpers.gd
+extends RefCounted
+
+
+func existing() -> int:
+	return 1
+
+
+func scaled_area(param_0: float, param_1: int) -> float:
+	return 0.0
+
+=== output
+helpers.gd +4
+8	func scaled_area(param_0: float, param_1: int) -> float:
+9		return 0.0
+=== end

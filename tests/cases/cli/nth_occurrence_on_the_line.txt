@@ -1,0 +1,22 @@
+action: cli
+compile_check: skip
+command: local player.gd:5:a --nth 3
+=== input
+extends Node
+
+
+func _ready() -> void:
+	print(a, b, a, a)
+
+=== expected
+extends Node
+
+
+func _ready() -> void:
+	var a = null
+	print(a, b, a, a)
+
+=== output
+player.gd +1
+5		var a = null
+=== end

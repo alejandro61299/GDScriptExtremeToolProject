@@ -1,0 +1,25 @@
+action: cli
+compile_check: skip
+command: extract-function player.gd
+exit: 1
+=== input
+extends Node
+
+var _enemies: Array[Node2D] = []
+
+
+func spawn_wave(origin: Vector2, count: int) -> void:
+	for index in count:
+		var enemy: Node2D = Node2D.new()
+		enemy.rotation = 120.0
+		enemy.position = origin + Vector2(0, 16) * index
+		_enemies.append(enemy)
+	var total := 0
+	for enemy in _enemies:
+		total += 1
+		print(enemy)
+	print(total)
+
+=== output
+error: extract-function needs a position, such as player.gd:42:name.
+=== end

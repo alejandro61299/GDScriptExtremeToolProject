@@ -1,0 +1,21 @@
+action: describe_engine_base
+compile_check: skip
+=== input
+extends RefCounted
+
+
+class Runner extends Mover:
+	func run() -> void:
+		var speed := base_speed()<|>
+		print(speed)
+
+
+class Mover extends "res://tests/fixtures/other_scripts/static_marker_base.gd":
+	var _distance: float = 0.0
+
+=== expected
+engine base: Node
+offered: Generate Custom Init Definition..., Add Explicit Types, Extract Variable...
+compiled: none
+static values ran: no
+=== end

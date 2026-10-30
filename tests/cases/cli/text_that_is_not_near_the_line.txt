@@ -1,0 +1,16 @@
+action: cli
+compile_check: skip
+command: local player.gd:2:velocity
+exit: 1
+=== input
+extends Node
+
+
+func _ready() -> void:
+	var speed: float = 1.0
+	print(speed)
+	print(speed * 2)
+
+=== output
+error: 'velocity' is not on line 2 of player.gd or within 20 lines of it. Line 2 is: 
+=== end

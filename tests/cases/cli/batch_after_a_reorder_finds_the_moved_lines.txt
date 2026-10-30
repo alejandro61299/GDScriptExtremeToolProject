@@ -1,0 +1,28 @@
+action: cli
+compile_check: skip
+command: 
+=== input
+extends Node
+func _ready() -> void:
+	speed = 1.0
+var _health: int = 0
+
+=== stdin
+reorder player.gd
+member player.gd:3:speed
+
+=== expected
+extends Node
+
+var _health: int = 0
+var speed: float
+
+
+func _ready() -> void:
+	speed = 1.0
+
+=== output
+player.gd reordered
+player.gd +1
+4	var speed: float
+=== end

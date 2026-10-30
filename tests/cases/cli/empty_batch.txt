@@ -1,0 +1,11 @@
+action: cli
+compile_check: skip
+command: 
+exit: 2
+=== stdin
+# nothing
+
+
+=== output
+error: No command. Run 'gdsex help'.
+=== end

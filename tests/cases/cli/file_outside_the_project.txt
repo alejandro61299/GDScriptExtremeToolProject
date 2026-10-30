@@ -1,0 +1,6 @@
+action: cli
+command: tidy /outside/player.gd
+exit: 1
+=== output
+error: /outside/player.gd is outside the project.
+=== end

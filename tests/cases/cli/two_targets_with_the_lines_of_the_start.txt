@@ -1,0 +1,30 @@
+action: cli
+compile_check: skip
+command: member player.gd:5:speed player.gd:6:label
+=== input
+extends Node
+
+
+func _ready() -> void:
+	speed = 3.5
+	label = "go"
+	print(speed, label)
+
+=== expected
+extends Node
+
+var speed: float
+var label: String
+
+
+func _ready() -> void:
+	speed = 3.5
+	label = "go"
+	print(speed, label)
+
+=== output
+player.gd +2
+3	var speed: float
+player.gd +1
+4	var label: String
+=== end

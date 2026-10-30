@@ -1,0 +1,16 @@
+action: cli
+compile_check: skip
+command: member player.gd:4:_ready
+exit: 1
+=== input
+extends Node
+
+
+func _ready() -> void:
+	speed = 3.5
+	label = "go"
+	print(speed, label)
+
+=== output
+error: member does not apply at player.gd:4:_ready. Available there: init.
+=== end

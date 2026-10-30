@@ -1,0 +1,39 @@
+action: cli
+compile_check: skip
+command: 
+=== input
+extends Node
+func _ready() -> void:
+	var total := 0
+	for value in [1, 2]:
+		total += value
+	print(total)
+var _ready_count := 0
+
+=== stdin
+extract-function player.gd:3-5 --name _summed
+tidy player.gd
+
+=== expected
+extends Node
+
+var _ready_count: int = 0
+
+
+func _ready() -> void:
+	var total: int = _summed()
+	print(total)
+
+
+func _summed() -> int:
+	var total: int = 0
+	for value in [1, 2]:
+		total += value
+	return total
+
+=== output
+player.gd +8 -3
+7		var total: int = _summed()
+11	func _summed() -> int:  (+4)
+player.gd typed 3, reordered
+=== end

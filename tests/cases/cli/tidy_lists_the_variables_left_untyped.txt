@@ -1,0 +1,29 @@
+action: cli
+command: tidy player.gd
+=== input
+extends Node
+
+var _data = get_meta("data")
+
+
+func _ready() -> void:
+	var count := 3
+	var loaded = get_meta("loaded")
+	var mystery
+	print(count, loaded, mystery, _data)
+
+=== expected
+extends Node
+
+var _data = get_meta("data")
+
+
+func _ready() -> void:
+	var count: int = 3
+	var loaded = get_meta("loaded")
+	var mystery
+	print(count, loaded, mystery, _data)
+
+=== output
+player.gd typed 1; untyped 3: _data 3, loaded 8, mystery 9
+=== end

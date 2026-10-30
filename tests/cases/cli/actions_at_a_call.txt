@@ -1,0 +1,20 @@
+action: cli
+compile_check: skip
+command: actions player.gd:10:compute_damage player.gd:7
+=== input
+extends Node
+
+signal hit(amount: int)
+
+var _health: int = 10
+var _name: String = ""
+
+
+func _ready() -> void:
+	var damage: float = compute_damage(_health, 2.5)
+	print(damage)
+
+=== output
+player.gd:10:compute_damage: function, init, extract-function, extract-variable
+player.gd:7: init
+=== end

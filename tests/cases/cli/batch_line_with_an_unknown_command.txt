@@ -1,0 +1,20 @@
+action: cli
+compile_check: skip
+command: 
+exit: 1
+=== input
+extends Node
+
+
+func _ready() -> void:
+	speed = 2.0
+	var damage: float = compute_damage(3)
+	label = "go"
+	print(speed, damage, label)
+
+=== stdin
+declare player.gd:5:speed
+
+=== output
+error: line 1: Unknown command 'declare'. Commands: tidy, types, reorder, format, function, local, member, connect, init, extract-function, extract-variable, actions. Run 'gdsex help'.
+=== end

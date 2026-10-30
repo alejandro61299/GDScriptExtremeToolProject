@@ -1,0 +1,35 @@
+action: cli
+compile_check: skip
+command: 
+exit: 1
+=== input
+extends Node
+
+
+func _ready() -> void:
+	speed = 2.0
+	var damage: float = compute_damage(3)
+	label = "go"
+	print(speed, damage, label)
+
+=== stdin
+member player.gd:5:velocity
+member player.gd:5:speed
+
+=== expected
+extends Node
+
+var speed: float
+
+
+func _ready() -> void:
+	speed = 2.0
+	var damage: float = compute_damage(3)
+	label = "go"
+	print(speed, damage, label)
+
+=== output
+error: 'velocity' is not on line 5 of player.gd or within 20 lines of it. Line 5 is: speed = 2.0
+player.gd +2
+3	var speed: float
+=== end

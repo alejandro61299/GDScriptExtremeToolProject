@@ -1,0 +1,16 @@
+action: cli
+command: tidy player.gd --only types,sort
+exit: 1
+=== input
+extends Node
+func _ready() -> void:
+	var total := 0
+	var label := "score"
+	print(total, label)
+var _speed := 1.5
+signal hit
+const LIMIT: int = 3
+
+=== output
+error: Unknown step 'sort' in --only. Use types,reorder,format.
+=== end

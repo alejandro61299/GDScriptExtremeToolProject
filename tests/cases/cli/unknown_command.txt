@@ -1,0 +1,6 @@
+action: cli
+command: tidyup player.gd
+exit: 2
+=== output
+error: Unknown command 'tidyup'. Commands: tidy, types, reorder, format, function, local, member, connect, init, extract-function, extract-variable, actions. Run 'gdsex help'.
+=== end

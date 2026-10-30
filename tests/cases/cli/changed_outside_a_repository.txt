@@ -1,0 +1,15 @@
+action: cli
+compile_check: skip
+command: types --changed
+repository: no
+exit: 1
+=== input
+extends Node
+func _ready() -> void:
+	var total := 0
+	print(total)
+var _speed := 1.5
+
+=== output
+error: The project is not in a git repository, so --changed has nothing to compare.
+=== end

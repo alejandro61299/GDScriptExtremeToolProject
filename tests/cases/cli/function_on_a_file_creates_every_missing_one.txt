@@ -1,0 +1,66 @@
+action: cli
+compile_check: skip
+command: function player.gd
+=== input
+extends Node
+
+const Helpers = preload("helpers.gd")
+
+@onready var timer: Timer = $Timer
+
+
+func _ready() -> void:
+	var total: int = count_items([]) + count_items([1])
+	timer.timeout.connect(_on_timer_timeout)
+	print(total, Helpers.make_label(total))
+
+=== file helpers.gd
+extends RefCounted
+
+
+func existing() -> int:
+	return 1
+
+=== expected
+extends Node
+
+const Helpers = preload("helpers.gd")
+
+@onready var timer: Timer = $Timer
+
+
+func _ready() -> void:
+	var total: int = count_items([]) + count_items([1])
+	timer.timeout.connect(_on_timer_timeout)
+	print(total, Helpers.make_label(total))
+
+
+func _on_timer_timeout() -> void:
+	pass
+
+
+func count_items(param_0: Array) -> Variant:
+	return null
+
+=== expected helpers.gd
+extends RefCounted
+
+
+func existing() -> int:
+	return 1
+
+
+static func make_label(p_total: int) -> Variant:
+	return null
+
+=== output
+player.gd +4
+18	func count_items(param_0: Array) -> Variant:
+19		return null
+player.gd +4
+14	func _on_timer_timeout() -> void:
+15		pass
+helpers.gd +4
+8	static func make_label(p_total: int) -> Variant:
+9		return null
+=== end

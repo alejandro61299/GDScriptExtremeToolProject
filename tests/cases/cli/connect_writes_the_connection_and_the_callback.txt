@@ -1,0 +1,31 @@
+action: cli
+compile_check: skip
+command: connect player.gd:7:hit
+=== input
+extends Node
+
+signal hit(amount: int, source: Node)
+
+
+func _ready() -> void:
+	hit
+
+=== expected
+extends Node
+
+signal hit(amount: int, source: Node)
+
+
+func _ready() -> void:
+	hit.connect(_on_hit)
+
+
+func _on_hit(p_amount: int, p_source: Node) -> void:
+	pass
+
+=== output
+player.gd +5 -1
+7		hit.connect(_on_hit)
+10	func _on_hit(p_amount: int, p_source: Node) -> void:
+11		pass
+=== end

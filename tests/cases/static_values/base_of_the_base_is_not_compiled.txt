@@ -1,0 +1,16 @@
+action: describe_engine_base
+compile_check: skip
+=== input
+extends "res://tests/fixtures/other_scripts/static_marker_child.gd"
+
+
+func run() -> void:
+	var speed := child_speed + base_speed()<|>
+	print(speed)
+
+=== expected
+engine base: Node
+offered: Generate Custom Init Definition..., Add Explicit Types, Extract Variable...
+compiled: none
+static values ran: no
+=== end

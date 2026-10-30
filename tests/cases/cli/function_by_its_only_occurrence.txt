@@ -1,0 +1,36 @@
+action: cli
+compile_check: skip
+command: function player.gd:compute_damage -q
+=== input
+extends Node
+
+signal hit(amount: int)
+
+var _health: int = 10
+var _name: String = ""
+
+
+func _ready() -> void:
+	var damage: float = compute_damage(_health, 2.5)
+	print(damage)
+
+=== expected
+extends Node
+
+signal hit(amount: int)
+
+var _health: int = 10
+var _name: String = ""
+
+
+func _ready() -> void:
+	var damage: float = compute_damage(_health, 2.5)
+	print(damage)
+
+
+func compute_damage(p_health: int, param_1: float) -> float:
+	return 0.0
+
+=== output
+player.gd +4
+=== end

@@ -1,0 +1,25 @@
+action: cli
+command: types - --as res://tests/fixtures/other_scripts/caller.gd
+=== stdin
+extends Node
+
+const Shapes = preload("shapes.gd")
+
+
+func _ready() -> void:
+	var circle := Shapes.make()
+	print(circle)
+
+=== output
+extends Node
+
+const Shapes = preload("shapes.gd")
+
+
+func _ready() -> void:
+	var circle: Shapes.Circle = Shapes.make()
+	print(circle)
+
+=== error output
+- typed 1
+=== end

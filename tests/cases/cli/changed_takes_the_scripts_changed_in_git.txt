@@ -1,0 +1,42 @@
+action: cli
+compile_check: skip
+command: tidy --changed
+changed: player.gd, enemy.gd
+=== input
+extends Node
+func _ready() -> void:
+	var total := 0
+	print(total)
+var _speed := 1.5
+
+=== expected
+extends Node
+
+var _speed: float = 1.5
+
+
+func _ready() -> void:
+	var total: int = 0
+	print(total)
+
+=== file enemy.gd
+extends Node
+
+var _speed: float = 1.5
+
+
+func _ready() -> void:
+	var total: int = 0
+	print(total)
+
+=== file other.gd
+extends Node
+func _ready() -> void:
+	var total := 0
+	print(total)
+var _speed := 1.5
+
+=== output
+player.gd typed 2, reordered
+1 unchanged
+=== end

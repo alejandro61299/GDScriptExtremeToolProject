@@ -1,0 +1,41 @@
+action: cli
+compile_check: skip
+command: init player.gd:1 --all-vars -q
+=== input
+extends RefCounted
+
+@export var speed: float = 1.0
+
+var health: int = 0
+
+var _name: String
+var _secret: String
+
+
+func heal() -> void:
+	pass
+
+=== expected
+extends RefCounted
+
+@export var speed: float = 1.0
+
+var health: int = 0
+
+var _name: String
+var _secret: String
+
+
+func _init(p_speed: float, p_health: int, p_name: String, p_secret: String) -> void:
+	speed = p_speed
+	health = p_health
+	_name = p_name
+	_secret = p_secret
+
+
+func heal() -> void:
+	pass
+
+=== output
+player.gd +7
+=== end

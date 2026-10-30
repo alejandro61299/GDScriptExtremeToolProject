@@ -1,0 +1,13 @@
+action: cli
+compile_check: skip
+command: tidy --changed
+=== input
+extends Node
+func _ready() -> void:
+	var total := 0
+	print(total)
+var _speed := 1.5
+
+=== output
+No .gd files changed in git.
+=== end

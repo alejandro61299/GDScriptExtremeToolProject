@@ -1,0 +1,29 @@
+action: cli
+compile_check: skip
+command: 
+exit: 1
+=== input
+extends Node
+
+
+
+
+
+func _ready() -> void:
+	speed = 1.0
+
+=== stdin
+format player.gd
+member player.gd:5
+
+=== expected
+extends Node
+
+
+func _ready() -> void:
+	speed = 1.0
+
+=== output
+player.gd formatted
+error: Line 5 of player.gd was removed by an earlier command.
+=== end

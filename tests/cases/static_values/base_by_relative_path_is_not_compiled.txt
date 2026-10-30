@@ -1,0 +1,19 @@
+action: describe_engine_base
+compile_check: skip
+script_path: res://tests/fixtures/other_scripts/relative_caller.gd
+=== input
+extends "static_marker_base.gd"
+
+var _health: int = 0
+
+
+func run() -> void:
+	var speed := base_speed()<|>
+	print(speed)
+
+=== expected
+engine base: Node
+offered: Generate Custom Init Definition..., Add Explicit Types, Extract Variable...
+compiled: none
+static values ran: no
+=== end

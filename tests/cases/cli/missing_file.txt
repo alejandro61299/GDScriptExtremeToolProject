@@ -1,0 +1,6 @@
+action: cli
+command: tidy missing.gd
+exit: 1
+=== output
+error: missing.gd does not exist.
+=== end

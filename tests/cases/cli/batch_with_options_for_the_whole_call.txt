@@ -1,0 +1,22 @@
+action: cli
+compile_check: skip
+command: --check -q
+exit: 1
+=== input
+extends Node
+
+
+func _ready() -> void:
+	speed = 2.0
+	var damage: float = compute_damage(3)
+	label = "go"
+	print(speed, damage, label)
+
+=== stdin
+member player.gd:5:speed
+member player.gd:7:label
+
+=== output
+player.gd +2
+player.gd +1
+=== end

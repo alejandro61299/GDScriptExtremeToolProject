@@ -1,0 +1,18 @@
+action: describe_engine_base
+compile_check: skip
+=== input
+extends "res://tests/fixtures/other_scripts/missing_base.gd"
+
+var _health: int = 0
+
+
+func run() -> void:
+	var speed := 1.0<|>
+	print(speed)
+
+=== expected
+engine base: RefCounted
+offered: Generate Default Init Definition, Generate Custom Init Definition..., Add Explicit Types, Extract Variable...
+compiled: none
+static values ran: no
+=== end

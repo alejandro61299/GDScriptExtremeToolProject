@@ -1,0 +1,28 @@
+action: cli
+command: format player.gd
+=== input
+extends Node
+var _health: int = 0
+func _ready() -> void:
+	print( _health,1 )
+class Mover:
+
+
+	var _distance: int = 0
+
+=== expected
+extends Node
+
+var _health: int = 0
+
+
+func _ready() -> void:
+	print(_health, 1)
+
+
+class Mover:
+	var _distance: int = 0
+
+=== output
+player.gd formatted
+=== end

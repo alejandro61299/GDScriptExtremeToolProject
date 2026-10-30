@@ -1,0 +1,36 @@
+action: cli
+command: reorder player.gd:10
+=== input
+extends Node
+
+func _ready() -> void:
+	pass
+
+var _health: int = 0
+
+
+class Mover:
+	func move() -> void:
+		pass
+
+	var _distance: int = 0
+
+=== expected
+extends Node
+
+func _ready() -> void:
+	pass
+
+var _health: int = 0
+
+
+class Mover:
+	var _distance: int = 0
+	
+	
+	func move() -> void:
+		pass
+
+=== output
+player.gd reordered
+=== end

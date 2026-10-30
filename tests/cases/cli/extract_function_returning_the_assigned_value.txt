@@ -1,0 +1,38 @@
+action: cli
+compile_check: skip
+command: extract-function player.gd:7-10 --name _doubled_sum --form assignment
+=== input
+extends Node
+
+var _total: int = 0
+
+
+func run(items: Array[int]) -> void:
+	var sum := 0
+	for item in items:
+		sum += item
+	_total = sum * 2
+	print(_total)
+
+=== expected
+extends Node
+
+var _total: int = 0
+
+
+func run(items: Array[int]) -> void:
+	_total = _doubled_sum(items)
+	print(_total)
+
+
+func _doubled_sum(items: Array[int]) -> int:
+	var sum := 0
+	for item in items:
+		sum += item
+	return sum * 2
+
+=== output
+player.gd +8 -4
+7		_total = _doubled_sum(items)
+11	func _doubled_sum(items: Array[int]) -> int:  (+4)
+=== end

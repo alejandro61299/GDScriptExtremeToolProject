@@ -56,6 +56,10 @@ const LAMBDA_WARNING: String = "The value will be computed when the function run
 const OBJECT_WARNING: String = "The value will be computed once, when the object is created."
 const SCRIPT_WARNING: String = "The value will be computed once, when the script is loaded."
 const READY_WARNING: String = "The value will be computed once, when the node is ready."
+const UNKNOWN_PLACE_MESSAGE: String = "Unknown place '%s'. Use block, function, class or script."
+const NOT_IN_A_FUNCTION_MESSAGE: String = "The value is not inside a function."
+const NOT_IN_A_BLOCK_MESSAGE: String = "The value is not inside a block of the function."
+const NOT_IN_AN_INNER_CLASS_MESSAGE: String = "The value is not inside an inner class, so the script is its class."
 
 const ON_READY_PREFIX: String = "@onready "
 const STATIC_PREFIX: String = "static "
@@ -138,6 +142,11 @@ class GDSExState:
 
 	func is_usable() -> bool:
 		return is_shown and reason.is_empty()
+
+
+class GDSExRequestedChoice:
+	var choice: GDSExChoice
+	var error: String = ""
 
 
 class GDSExExtraction:
@@ -283,6 +292,32 @@ static func default_choice(extraction: GDSExExtraction) -> GDSExChoice:
 	return null
 
 
+static func choice_from_options(extraction: GDSExExtraction, place_name: String, options: Dictionary[GDSExOption, bool]) -> GDSExRequestedChoice:
+	var requested := GDSExRequestedChoice.new()
+	var choice := default_choice(extraction)
+	if not place_name.is_empty():
+		var place_index := PLACE_LABELS.find(place_name.capitalize())
+		if place_index == -1:
+			requested.error = UNKNOWN_PLACE_MESSAGE % place_name
+			return requested
+		var place := PLACES[place_index]
+		var state := place_state(extraction, place)
+		if not state.is_usable():
+			requested.error = state.reason if not state.reason.is_empty() else _hidden_place_reason(extraction, place)
+			return requested
+		choice = choice_for_place(extraction, place, choice)
+	for option in OPTIONS:
+		if not options.has(option) or options[option] == choice.has(option):
+			continue
+		var state := option_state(extraction, choice, option)
+		if not state.is_enabled():
+			requested.error = state.reason
+			return requested
+		choice = choice_with_option(extraction, choice, option, options[option])
+	requested.choice = choice
+	return requested
+
+
 static func choice_for_place(extraction: GDSExExtraction, place: GDSExPlace, previous: GDSExChoice) -> GDSExChoice:
 	var choice := previous.copy()
 	if place_state(extraction, place).is_usable():
@@ -320,6 +355,14 @@ static func normalized(extraction: GDSExExtraction, choice: GDSExChoice) -> GDSE
 	if not result.has_chosen_privacy:
 		result.is_private = result.place == GDSExPlace.CLASS and not result.is_constant
 	return result
+
+
+static func _hidden_place_reason(extraction: GDSExExtraction, place: GDSExPlace) -> String:
+	if extraction.site != GDSExSite.BODY and place != GDSExPlace.SCRIPT:
+		return NOT_IN_A_FUNCTION_MESSAGE
+	if place == GDSExPlace.BLOCK:
+		return NOT_IN_A_BLOCK_MESSAGE
+	return NOT_IN_AN_INNER_CLASS_MESSAGE
 
 
 static func find_warnings(extraction: GDSExExtraction, choice: GDSExChoice) -> PackedStringArray:

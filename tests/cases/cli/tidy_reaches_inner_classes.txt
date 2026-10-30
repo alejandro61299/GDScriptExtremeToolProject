@@ -1,0 +1,31 @@
+action: cli
+command: tidy player.gd
+=== input
+extends Node
+class Mover:
+	func move() -> void:
+		var step := 2.0
+		print(step)
+	var _distance := 0
+func _ready() -> void:
+	pass
+
+=== expected
+extends Node
+
+
+class Mover:
+	var _distance: int = 0
+	
+	
+	func move() -> void:
+		var step: float = 2.0
+		print(step)
+
+
+func _ready() -> void:
+	pass
+
+=== output
+player.gd typed 2, reordered, formatted
+=== end

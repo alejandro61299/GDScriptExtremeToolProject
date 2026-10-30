@@ -41,6 +41,7 @@ const CONSTRUCTOR_TEMPLATE: String = "%s.new()"
 const TYPED_ARRAY_TEMPLATE: String = "Array[%s]"
 const ENUM_DEFAULT_VALUE: String = "0"
 const SCRIPT_CLASS_NAME: String = "GDScript"
+const GDSCRIPT_EXTENSION: String = "gd"
 const OBJECT_SCRIPT_PROPERTY: String = "script"
 const PROPERTY_GROUPS: int = PROPERTY_USAGE_GROUP | PROPERTY_USAGE_SUBGROUP | PROPERTY_USAGE_CATEGORY
 
@@ -188,12 +189,11 @@ static func is_engine_callback(class_scope: GDSExSymbolIndex.GDSExClassScope, fu
 
 
 static func engine_base_type(class_scope: GDSExSymbolIndex.GDSExClassScope) -> String:
-	var root := GDSExSymbolIndex.find_root_class(class_scope)
 	var current := class_scope
 	for depth in MAX_INHERITANCE_DEPTH:
-		var base_name := _base_class_name(current)
-		var base_class := GDSExSymbolIndex.find_class(root, base_name) if current.base_script_path.is_empty() else null
-		if base_class == null or base_class == current:
+		var base_class := GDSExScriptTypeNames.find_base_class(current)
+		if base_class == null:
+			var base_name := _base_class_name(current)
 			var base_script := _load_script(current.base_script_path if not current.base_script_path.is_empty() else GDSExScriptLibrary.find_global_class_path(base_name))
 			return base_name if base_script == null else String(base_script.get_instance_base_type())
 		current = base_class
@@ -1134,6 +1134,8 @@ static func _substitute_generics(template: String, type: GDSExSymbolIndex.GDSExT
 
 static func _load_script(path: String) -> Script:
 	if path.is_empty() or not ResourceLoader.exists(path):
+		return null
+	if GDSExSymbolIndex.resolve_script_path(path, "").get_extension() == GDSCRIPT_EXTENSION:
 		return null
 	return load(path) as Script
 

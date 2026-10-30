@@ -1,0 +1,6 @@
+action: cli
+command: tidy
+exit: 2
+=== output
+error: tidy needs a target, such as player.gd or player.gd:42:speed.
+=== end

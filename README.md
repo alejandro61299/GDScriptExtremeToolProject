@@ -104,6 +104,57 @@ Some calls are not offered, because their result cannot be kept in a variable: a
 
 Not included yet: operations without brackets (`a + b`), reading a member (`player.health`), and replacing every equal value at once.
 
+## Command line and AI agents
+
+Every action also runs from a terminal, without opening the editor, through `addons/gdscript_extreme_tool/cli/gdsex`. It finds Godot and the project by itself, edits the files in place and prints only what changed. It is meant for coding agents too: an agent writes code loosely and lets `gdsex` write the types, the signatures and the layout, instead of spending tokens on them.
+
+```bash
+sh addons/gdscript_extreme_tool/cli/gdsex tidy scripts/
+```
+
+```
+scripts/player.gd typed 12, reordered, formatted
+scripts/enemy.gd formatted
+4 unchanged
+```
+
+`tidy` writes the type of every variable, sorts the members of every class, inner classes included, and formats the script: Add Explicit Types, Reorder Class Members and Format Class Members in one command. `tidy --changed` takes the `.gd` files changed in git. A folder includes every `.gd` inside it except `addons/` and `.godot/`, unless the folder you name is inside them.
+
+| Command | Action |
+|---|---|
+| `tidy <files or folders>` | Add Explicit Types, Reorder and Format. `--only types,format` chooses the steps. |
+| `types`, `reorder`, `format` | Each step alone. `reorder` and `format` on a line apply to its class only. |
+| `function <call>` | Generate Function Definition, also in another script. On a whole file it creates every missing function. |
+| `local <name>`, `member <name>` | Generate Local Variable, Generate Class Variable. |
+| `connect <signal>` | Generate Connected Function. |
+| `init <line>` | Generate Default or Custom Init Definition. `--name`, `--vars a,b`, `--all-vars`. |
+| `extract-function <lines>` | Extract Function. `--name`, `--form return\|assignment\|output\|plain`. |
+| `extract-variable <value>` | Extract Variable. `--name`, `--place block\|function\|class\|script`, `--const`, `--static`, `--private`, `--public`, `--onready`. |
+| `actions <target>` | Lists the commands that apply there, as the Alt+Enter menu does. |
+
+A target is `file.gd`, `file.gd:42` (line 42, counting from 1), `file.gd:30-38`, `file.gd:42:text` (that text on line 42, or up to 20 lines away) or `file.gd:text` (its only occurrence in the file). Without options, each command does what its dialog proposes; an option that the dialog would turn off is an error that gives the same reason.
+
+Several commands can go in one call, one per line on the standard input. Their line numbers refer to the files as they were when the call started, and each file is written once at the end:
+
+```bash
+sh addons/gdscript_extreme_tool/cli/gdsex <<'EOF'
+function player.gd:42:take_damage
+member player.gd:50:speed
+tidy player.gd
+EOF
+```
+
+Options for the whole call: `-q` prints only the headers, `--diff` prints a unified diff, `--check` writes nothing and exits with 1 when something would change, `--print` prints the resulting files instead of writing them. With `-` as the target the code comes from the standard input and the result goes to the standard output; `--as res://path.gd` tells it where that code lives. The exit code is 0 when everything was done, 1 when something failed or `--check` found changes, 2 for a wrong command and 3 when Godot or the project cannot be found.
+
+Things to know:
+
+- Godot is looked for in `$GODOT`, then `godot`, `godot4` and `Godot` in the `PATH`, then `/Applications/Godot.app`. The launcher is a `sh` script: on Windows it needs Git Bash or another POSIX shell, which has not been tested yet.
+- It does not run the code of your project: it starts Godot without a scene tree, so autoloads are not created, and it reads the GDScript files it needs instead of loading them.
+- It reads and writes the files on disk. If the editor has the same script open with unsaved changes, Godot asks which version to keep when you go back to it.
+- A class with `class_name` that the editor has not seen yet is found by reading the scripts of the project.
+
+`sh addons/gdscript_extreme_tool/cli/gdsex install` copies a skill for Claude Code to `.claude/skills/gdsex/SKILL.md`, which tells the agent when and how to use each command, and copies `gdsex` to `~/.local/bin` when that folder is in your `PATH`. It does not replace a skill you changed by hand unless you add `--force`.
+
 ## Requirements
 
 Godot 4.4 or later: the plugin relies on typed dictionaries and editor context menu plugins. It is developed and tested on Godot 4.7.2; versions between 4.4 and 4.7 are untested.

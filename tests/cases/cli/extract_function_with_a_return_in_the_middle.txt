@@ -1,0 +1,17 @@
+action: cli
+compile_check: skip
+command: extract-function player.gd:5-7
+exit: 1
+=== input
+extends Node
+
+
+func check(value: int) -> int:
+	if value < 0:
+		return 0
+	var doubled := value * 2
+	return doubled + 1
+
+=== output
+error: extract-function does not apply to player.gd:5-7: they return in the middle.
+=== end

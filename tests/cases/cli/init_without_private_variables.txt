@@ -1,0 +1,14 @@
+action: cli
+compile_check: skip
+command: init player.gd:1
+exit: 1
+=== input
+extends RefCounted
+
+
+func existing() -> int:
+	return 1
+
+=== output
+error: The class at player.gd:1 has no private variables. Use --vars a,b or --all-vars.
+=== end

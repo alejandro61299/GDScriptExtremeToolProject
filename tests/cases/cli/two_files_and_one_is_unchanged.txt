@@ -1,0 +1,46 @@
+action: cli
+command: tidy player.gd enemy.gd
+=== input
+extends Node
+func _ready() -> void:
+	var total := 0
+	var label := "score"
+	print(total, label)
+var _speed := 1.5
+signal hit
+const LIMIT: int = 3
+
+=== expected
+extends Node
+
+signal hit
+
+const LIMIT: int = 3
+
+var _speed: float = 1.5
+
+
+func _ready() -> void:
+	var total: int = 0
+	var label: String = "score"
+	print(total, label)
+
+=== file enemy.gd
+extends Node
+
+signal hit
+
+const LIMIT: int = 3
+
+var _speed: float = 1.5
+
+
+func _ready() -> void:
+	var total: int = 0
+	var label: String = "score"
+	print(total, label)
+
+=== output
+player.gd typed 3, reordered, formatted
+1 unchanged
+=== end

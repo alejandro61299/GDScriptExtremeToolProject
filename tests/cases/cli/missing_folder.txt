@@ -1,0 +1,6 @@
+action: cli
+command: tidy levels
+exit: 1
+=== output
+error: levels does not exist.
+=== end

@@ -1,0 +1,22 @@
+action: cli
+compile_check: skip
+command: init player.gd:3
+=== input
+extends Node
+
+var _health: int = 0
+
+=== expected
+extends Node
+
+var _health: int = 0
+
+
+func initialize(p_health: int) -> void:
+	_health = p_health
+
+=== output
+player.gd +4
+6	func initialize(p_health: int) -> void:
+7		_health = p_health
+=== end

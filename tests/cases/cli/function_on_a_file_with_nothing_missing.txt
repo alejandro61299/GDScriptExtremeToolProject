@@ -1,0 +1,13 @@
+action: cli
+compile_check: skip
+command: function player.gd
+=== input
+extends RefCounted
+
+
+func existing() -> int:
+	return 1
+
+=== output
+player.gd no missing functions
+=== end

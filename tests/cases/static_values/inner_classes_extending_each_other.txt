@@ -1,0 +1,21 @@
+action: describe_engine_base
+compile_check: skip
+=== input
+extends RefCounted
+
+
+class First extends Second:
+	func run() -> void:
+		var speed := 1.0<|>
+		print(speed)
+
+
+class Second extends First:
+	var _distance: float = 0.0
+
+=== expected
+engine base: RefCounted
+offered: Generate Custom Init Definition..., Add Explicit Types, Extract Variable...
+compiled: none
+static values ran: no
+=== end

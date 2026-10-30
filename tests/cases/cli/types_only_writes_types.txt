@@ -1,0 +1,26 @@
+action: cli
+command: types player.gd
+compile_check: skip
+=== input
+extends Node
+func _ready() -> void:
+	var total := 0
+	var label := "score"
+	print(total, label)
+var _speed := 1.5
+signal hit
+const LIMIT: int = 3
+
+=== expected
+extends Node
+func _ready() -> void:
+	var total: int = 0
+	var label: String = "score"
+	print(total, label)
+var _speed: float = 1.5
+signal hit
+const LIMIT: int = 3
+
+=== output
+player.gd typed 3
+=== end

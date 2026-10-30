@@ -1,0 +1,20 @@
+action: cli
+command: types player.gd
+=== input
+extends Node
+
+signal hit
+
+const LIMIT: int = 3
+
+var _speed: float = 1.5
+
+
+func _ready() -> void:
+	var total: int = 0
+	var label: String = "score"
+	print(total, label)
+
+=== output
+player.gd unchanged
+=== end

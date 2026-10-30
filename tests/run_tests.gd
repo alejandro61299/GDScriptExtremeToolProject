@@ -34,6 +34,7 @@ const GDSExExtractVariable = preload("res://addons/gdscript_extreme_tool/actions
 const GDSExValueFinder = preload("res://addons/gdscript_extreme_tool/analysis/value_finder.gd")
 const GDSExExtractVariableDialog = preload("res://addons/gdscript_extreme_tool/extract_variable_dialog.gd")
 const GDSExExtractVariableAction = preload("res://addons/gdscript_extreme_tool/actions/extract_variable_action.gd")
+const GDSExCli = preload("res://addons/gdscript_extreme_tool/cli/cli.gd")
 
 const CASES_ROOT: String = "res://tests/cases"
 const CASE_EXTENSION: String = "txt"
@@ -45,6 +46,7 @@ const SELECTION_CLOSE: String = "|>"
 const DEFAULT_INDENT_SIZE: int = 4
 const MEMORY_CHECK_BUILDS: int = 100
 const DETAILS_ARGUMENT: String = "--details"
+const FAILED_ONLY_ARGUMENT: String = "--failed-only"
 const SCOPES_ACTION: String = "describe_scopes"
 const EXTRACTION_RANGE_ACTION: String = "describe_extraction_range"
 const EXTRACTION_ACTION: String = "describe_extraction"
@@ -73,7 +75,10 @@ const GLOBAL_NAME_LINE_PATTERN: String = "(?m)^class_name .*$"
 const VARIABLE_DIALOG_SAMPLE: String = "extends Node\n\nconst LIMIT: int = 3\n\nvar health: int = 10\n\n\nclass Item:\n\tvar size: int = 1\n\n\tfunc heavy(extra: int) -> bool:\n\t\tfor index in 3:\n\t\t\tif size > 5 + index:\n\t\t\t\treturn true\n\t\treturn size > extra\n\n\nfunc get_health() -> int:\n\treturn health\n\n\nfunc run(enemy: Node2D) -> void:\n\tfor index in 3:\n\t\tenemy.rotation = 120.0 * index\n\t\tprint(get_health(), str(index))\n\tprint($Sprite)\n"
 const NO_VALUE_LABEL: String = "no value"
 const WHERE_HEADER: String = "where"
-const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION, TYPES_ACTION, VALUE_ACTION, PLACES_ACTION, OPTIONS_ACTION, VARIABLE_NAME_ACTION, VARIABLE_WARNINGS_ACTION]
+const ENGINE_BASE_ACTION: String = "describe_engine_base"
+const FIXTURE_STATIC_MARK: String = "gdsex_fixture_static_value_ran"
+const STATIC_MARKER_FIXTURES: Array[String] = ["res://tests/fixtures/other_scripts/static_marker_base.gd", "res://tests/fixtures/other_scripts/static_marker_child.gd"]
+const DESCRIPTION_ACTIONS: Array[String] = [SCOPES_ACTION, EXTRACTION_RANGE_ACTION, EXTRACTION_ACTION, TYPES_ACTION, VALUE_ACTION, PLACES_ACTION, OPTIONS_ACTION, VARIABLE_NAME_ACTION, VARIABLE_WARNINGS_ACTION, ENGINE_BASE_ACTION]
 const UNSAVED_SECTION_PREFIX: String = "unsaved "
 const TAB_SECTION_PREFIX: String = "tab "
 const EXPECTED_SECTION_PREFIX: String = "expected "
@@ -124,10 +129,24 @@ const BLANK_CHARACTERS: Array[String] = [" ", "\t", "\n"]
 const COLLECTION_CLOSINGS: Array[String] = ["]", "}"]
 const STRING_LITERAL_PATTERN: String = "\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\\\n]|\\\\.)*'"
 const PLAN_ACTION: String = "apply_plan"
+const CLI_ACTION: String = "cli"
+const CLI_ROOT: String = "res://tests/cli_cases"
+const CLI_MAIN_FILE: String = "player.gd"
+const CLI_FILE_HEADER: String = "file"
+const CLI_COMMAND_HEADER: String = "command"
+const CLI_EXIT_HEADER: String = "exit"
+const CLI_CHANGED_HEADER: String = "changed"
+const CLI_REPOSITORY_HEADER: String = "repository"
+const CLI_FILE_SECTION_PREFIX: String = "file "
+const CLI_OUTPUT_SECTION: String = "output"
+const CLI_ERROR_OUTPUT_SECTION: String = "error output"
+const CLI_STDIN_SECTION: String = "stdin"
+const CLI_INPUT_SECTION: String = "input"
 const DESCRIPTION_INDENT: String = "  "
 
 var _error_collector: ErrorCollector = ErrorCollector.new()
 var _shows_pending_details: bool = false
+var _shows_passed: bool = true
 var _passed: PackedStringArray = []
 var _pending: PackedStringArray = []
 var _failed: PackedStringArray = []
@@ -202,6 +221,56 @@ class TestCase:
 	var unsaved_sources: Dictionary[String, String] = {}
 	var tab_sources: Dictionary[String, String] = {}
 	var expected_scripts: Dictionary[String, String] = {}
+	var sections: Dictionary[String, String] = {}
+
+
+class CliTestFiles extends "res://addons/gdscript_extreme_tool/cli/cli_files.gd":
+	var sources: Dictionary[String, String] = {}
+	var changed: PackedStringArray = []
+	var is_repository: bool = true
+	var written: PackedStringArray = []
+
+	func unsaved_sources() -> Dictionary[String, String]:
+		return sources
+
+	func read_text(path: String) -> String:
+		return sources[path] if sources.has(path) else FileAccess.get_file_as_string(path)
+
+	func has_file(path: String) -> bool:
+		return sources.has(path) or FileAccess.file_exists(path)
+
+	func has_folder(path: String) -> bool:
+		var prefix := path.trim_suffix("/") + "/"
+		for source_path in sources:
+			if source_path.begins_with(prefix):
+				return true
+		return DirAccess.dir_exists_absolute(path)
+
+	func write_text(path: String, text: String) -> bool:
+		sources[path] = text
+		written.append(path)
+		return true
+
+	func list_scripts(folder: String) -> PackedStringArray:
+		var prefix := folder.trim_suffix("/") + "/"
+		var includes_skipped := _is_skipped(folder)
+		var scripts := PackedStringArray()
+		for source_path in sources:
+			if not source_path.begins_with(prefix) or source_path.get_extension() != SCRIPT_EXTENSION:
+				continue
+			if source_path.trim_prefix(prefix).contains("/" + HIDDEN_PREFIX) or source_path.trim_prefix(prefix).begins_with(HIDDEN_PREFIX):
+				continue
+			if not includes_skipped and _is_skipped(source_path.get_base_dir()):
+				continue
+			scripts.append(source_path)
+		scripts.sort()
+		return scripts
+
+	func changed_scripts() -> PackedStringArray:
+		return changed
+
+	func is_git_repository() -> bool:
+		return is_repository
 
 
 class GenerationTally:
@@ -239,20 +308,12 @@ class VariableTestAction extends "res://addons/gdscript_extreme_tool/actions/cod
 	func choose(extraction: GDSExExtractVariable.GDSExExtraction) -> GDSExExtractVariable.GDSExChoice:
 		if extraction == null:
 			return null
-		var choice := GDSExExtractVariable.default_choice(extraction)
-		if options.has(WHERE_OPTION):
-			var place: GDSExExtractVariable.GDSExPlace = GDSExExtractVariable.PLACES[GDSExExtractVariable.PLACE_LABELS.find(String(options[WHERE_OPTION]).capitalize())]
-			if not GDSExExtractVariable.place_state(extraction, place).is_usable():
-				return null
-			choice = GDSExExtractVariable.choice_for_place(extraction, place, choice)
+		var requested: Dictionary[GDSExExtractVariable.GDSExOption, bool] = {}
 		for option in GDSExExtractVariable.OPTIONS:
 			var key := String(GDSExExtractVariable.OPTION_LABELS[option]).to_lower().replace(" ", "_")
-			if not options.has(key) or options[key] == choice.has(option):
-				continue
-			if not GDSExExtractVariable.option_state(extraction, choice, option).is_enabled():
-				return null
-			choice = GDSExExtractVariable.choice_with_option(extraction, choice, option, options[key])
-		return choice
+			if options.has(key):
+				requested[option] = options[key]
+		return GDSExExtractVariable.choice_from_options(extraction, String(options.get(WHERE_OPTION, "")), requested).choice
 
 
 class VariableTally:
@@ -318,10 +379,8 @@ class ExtractTestAction extends "res://addons/gdscript_extreme_tool/actions/code
 		return "Extract Test"
 
 	func build_plan(context: GDSExCodeContext) -> GDSExEditPlan:
-		for alternative in GDSExExtractFunction.find_alternatives(context):
-			if alternative.is_valid() and (form_name.is_empty() or GDSExExtractFunction.GDSExForm.find_key(alternative.form) == form_name):
-				return GDSExExtractFunction.build_plan_for(alternative, context, function_name)
-		return null
+		var alternative := GDSExExtractFunction.alternative_with_form(context, form_name)
+		return null if alternative == null else GDSExExtractFunction.build_plan_for(alternative, context, function_name)
 
 
 class ErrorCollector extends Logger:
@@ -352,6 +411,8 @@ func _run() -> void:
 	var filters := OS.get_cmdline_user_args()
 	_shows_pending_details = filters.has(DETAILS_ARGUMENT)
 	filters.erase(DETAILS_ARGUMENT)
+	_shows_passed = not filters.has(FAILED_ONLY_ARGUMENT)
+	filters.erase(FAILED_ONLY_ARGUMENT)
 	for path in _collect_paths(CASES_ROOT, CASE_EXTENSION):
 		if _matches_filters(path, filters):
 			await _run_case(path)
@@ -522,6 +583,7 @@ func _parse_case(path: String) -> TestCase:
 			test_case.tab_sources[section.trim_prefix(TAB_SECTION_PREFIX).strip_edges()] = sections[section]
 		if section.begins_with(EXPECTED_SECTION_PREFIX):
 			test_case.expected_scripts[section.trim_prefix(EXPECTED_SECTION_PREFIX).strip_edges()] = sections[section]
+	test_case.sections = sections
 	var settings: Variant = str_to_var(headers.get("settings", "{}"))
 	if settings is Dictionary:
 		test_case.settings = settings
@@ -622,6 +684,8 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_description(test_case, _describe_extraction(editor))
 		TYPES_ACTION:
 			return _check_description(test_case, _describe_types(editor))
+		ENGINE_BASE_ACTION:
+			return _check_description(test_case, _describe_engine_base(editor))
 		VALUE_ACTION:
 			return _check_description(test_case, _describe_value(editor))
 		PLACES_ACTION:
@@ -688,12 +752,140 @@ func _run_action(test_case: TestCase, editor: CodeEdit) -> PackedStringArray:
 			return _check_script_library()
 		"check_written_types_of_project_scripts":
 			return _check_written_types_of_project_scripts()
+		CLI_ACTION:
+			return _check_cli(test_case)
+		"check_cli_line_endings":
+			return _check_cli_line_endings()
+		"check_cli_launcher":
+			return _check_cli_launcher()
 		"check_functions_generated_for_project_scripts":
 			return _check_functions_generated_for_project_scripts(int(test_case.headers.get(SAMPLE_STEP_HEADER, str(GENERATED_SAMPLE_STEP))))
 	var action := _find_code_action(test_case.action)
 	if action == null:
 		return PackedStringArray(["Unknown action '%s'." % test_case.action])
 	return _check_code_action(test_case, action, editor)
+
+
+func _check_cli(test_case: TestCase) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var files := CliTestFiles.new()
+	var main_path: String = CLI_ROOT.path_join(test_case.headers.get(CLI_FILE_HEADER, CLI_MAIN_FILE))
+	if test_case.sections.has(CLI_INPUT_SECTION):
+		files.sources[main_path] = test_case.input.text
+	for section: String in test_case.sections:
+		if section.begins_with(CLI_FILE_SECTION_PREFIX):
+			files.sources[_cli_path(section.trim_prefix(CLI_FILE_SECTION_PREFIX))] = test_case.sections[section]
+	var originals := files.sources.duplicate()
+	files.changed = PackedStringArray()
+	for changed_path in test_case.headers.get(CLI_CHANGED_HEADER, "").split(",", false):
+		files.changed.append(_cli_path(changed_path.strip_edges()))
+	files.is_repository = test_case.headers.get(CLI_REPOSITORY_HEADER, YES) == YES
+	var arguments := GDSExCli.split_line(test_case.headers.get(CLI_COMMAND_HEADER, ""))
+	var result := GDSExCli.run(arguments, test_case.sections.get(CLI_STDIN_SECTION, ""), files, ProjectSettings.globalize_path(CLI_ROOT))
+	var expected_exit := int(test_case.headers.get(CLI_EXIT_HEADER, "0"))
+	if result.exit_code != expected_exit:
+		problems.append("The exit code is %d instead of %d." % [result.exit_code, expected_exit])
+	if test_case.sections.has(CLI_OUTPUT_SECTION) and result.output != test_case.sections[CLI_OUTPUT_SECTION]:
+		problems.append("Unexpected output.\n--- expected ---\n%s\n--- actual ---\n%s" % [test_case.sections[CLI_OUTPUT_SECTION], result.output])
+	if result.error_output != test_case.sections.get(CLI_ERROR_OUTPUT_SECTION, ""):
+		problems.append("Unexpected error output.\n--- expected ---\n%s\n--- actual ---\n%s" % [test_case.sections.get(CLI_ERROR_OUTPUT_SECTION, ""), result.error_output])
+	var expected_sources := originals.duplicate()
+	if test_case.sections.has(CLI_INPUT_SECTION):
+		expected_sources[main_path] = test_case.expected.text
+	for script_path: String in test_case.sections:
+		if script_path.begins_with(EXPECTED_SECTION_PREFIX):
+			expected_sources[_cli_path(script_path.trim_prefix(EXPECTED_SECTION_PREFIX))] = test_case.sections[script_path]
+	for source_path in files.written:
+		if originals.get(source_path, "") == files.sources[source_path]:
+			problems.append("%s was written without changes." % source_path)
+	for source_path: String in files.sources:
+		if not expected_sources.has(source_path):
+			problems.append("%s was written and should not exist." % source_path)
+		elif files.sources[source_path] != expected_sources[source_path]:
+			problems.append("%s is not as expected.\n--- expected ---\n%s\n--- actual ---\n%s" % [source_path, expected_sources[source_path], files.sources[source_path]])
+	return problems
+
+
+func _check_cli_line_endings() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var files := CliTestFiles.new()
+	var samples: Dictionary[String, String] = {
+		"windows.gd": "extends Node\r\n\r\n\r\nfunc _ready() -> void:\r\n\tvar total := 0\r\n\tprint(total)\r\n",
+		"no_final_newline.gd": "extends Node\n\n\nfunc _ready() -> void:\n\tvar total := 0\n\tprint(total)",
+		"untouched.gd": "extends Node\r\n\r\n\r\nfunc _ready() -> void:\r\n\tvar total: int = 0\r\n\tprint(total)\r\n",
+	}
+	for file_name in samples:
+		files.sources[_cli_path(file_name)] = samples[file_name]
+	var result := GDSExCli.run(PackedStringArray(["types", "windows.gd", "no_final_newline.gd", "untouched.gd"]), "", files, ProjectSettings.globalize_path(CLI_ROOT))
+	if result.exit_code != 0:
+		problems.append("The exit code is %d: %s" % [result.exit_code, result.output])
+	for file_name in ["windows.gd", "no_final_newline.gd"]:
+		var expected: String = samples[file_name].replace("var total := 0", "var total: int = 0")
+		if files.sources[_cli_path(file_name)] != expected:
+			problems.append("%s became %s instead of %s." % [file_name, files.sources[_cli_path(file_name)].c_escape(), expected.c_escape()])
+	if files.written.has(_cli_path("untouched.gd")):
+		problems.append("untouched.gd was written although nothing changed in it.")
+	return problems
+
+
+func _check_cli_launcher() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var project := ProjectSettings.globalize_path("res://").trim_suffix("/")
+	var launcher := project.path_join("addons/gdscript_extreme_tool/cli/gdsex")
+	var godot := "GODOT=%s" % OS.get_executable_path().c_escape()
+	var typed_sample := "extends Node\n\n\nfunc _ready() -> void:\n\tvar total: int = 0\n\tprint(total)\n"
+	var runs: Array[Array] = [
+		["cd '%s/tests/fixtures' && %s sh '%s' --check types other_scripts/chain_third.gd" % [project, godot, launcher], 0, "other_scripts/chain_third.gd unchanged\n"],
+		["cd '%s' && printf 'extends Node\\n\\n\\nfunc _ready() -> void:\\n\\tvar total := 0\\n\\tprint(total)\\n' | %s sh '%s' types - 2>/dev/null" % [project, godot, launcher], 0, typed_sample + "\n"],
+		["cd '%s' && %s sh '%s' bogus" % [project, godot, launcher], 2, ""],
+		["cd / && %s sh '%s' types player.gd" % [godot, launcher], 3, "error: No project.godot in this folder or above it. Run gdsex inside a Godot project.\n"],
+		["cd '%s' && GODOT=/missing/godot sh '%s' types player.gd" % [project, launcher], 3, "error: GODOT is /missing/godot, which is not an executable file.\n"],
+	]
+	for run in runs:
+		var output: Array = []
+		var exit_code := OS.execute("/bin/sh", PackedStringArray(["-c", run[0]]), output, true)
+		var text: String = output[0] if not output.is_empty() else ""
+		if exit_code != run[1]:
+			problems.append("'%s' exited with %d instead of %d: %s" % [run[0], exit_code, run[1], text])
+		elif not String(run[2]).is_empty() and text != run[2]:
+			problems.append("'%s' printed:\n%s\ninstead of:\n%s" % [run[0], text, run[2]])
+	problems.append_array(_check_cli_install(launcher))
+	return problems
+
+
+func _check_cli_install(launcher: String) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var root := ProjectSettings.globalize_path(TEMPORARY_ROOT).path_join("launcher")
+	var cli_folder := root.path_join("project/addons/gdscript_extreme_tool/cli")
+	var home := root.path_join("home")
+	DirAccess.make_dir_recursive_absolute(cli_folder)
+	DirAccess.make_dir_recursive_absolute(home.path_join(".local/bin"))
+	_write_file(root.path_join("project/project.godot"), "config_version=5\n")
+	for file_name in ["gdsex", "gdsex.gd", "SKILL.md"]:
+		DirAccess.copy_absolute(launcher.get_base_dir().path_join(file_name), cli_folder.path_join(file_name))
+	var install := "cd '%s/project' && HOME='%s' PATH='%s/.local/bin:/usr/bin:/bin' sh '%s/gdsex' install" % [root, home, home, cli_folder]
+	var skill := root.path_join("project/.claude/skills/gdsex/SKILL.md")
+	var steps: Array[Array] = [
+		[install, "skill: .claude/skills/gdsex/SKILL.md\ncommand: %s/.local/bin/gdsex\n" % home],
+		["printf 'changed by hand' > '%s' && %s" % [skill, install], "skill: .claude/skills/gdsex/SKILL.md was changed by hand and was left as it is. Run gdsex install --force to replace it.\ncommand: %s/.local/bin/gdsex\n" % home],
+		[install + " --force", "skill: .claude/skills/gdsex/SKILL.md\ncommand: %s/.local/bin/gdsex\n" % home],
+	]
+	for step in steps:
+		var output: Array = []
+		var exit_code := OS.execute("/bin/sh", PackedStringArray(["-c", step[0]]), output, true)
+		var text: String = output[0] if not output.is_empty() else ""
+		if exit_code != 0 or text != step[1]:
+			problems.append("install printed (exit %d):\n%s\ninstead of:\n%s" % [exit_code, text, step[1]])
+	if FileAccess.get_file_as_string(skill) != FileAccess.get_file_as_string(launcher.get_base_dir().path_join("SKILL.md")):
+		problems.append("install --force did not replace the skill.")
+	if FileAccess.get_file_as_string(home.path_join(".local/bin/gdsex")) != FileAccess.get_file_as_string(launcher):
+		problems.append("install did not copy the launcher.")
+	OS.execute("/bin/rm", PackedStringArray(["-rf", root]))
+	return problems
+
+
+func _cli_path(written_path: String) -> String:
+	return written_path if written_path.begins_with("res://") else CLI_ROOT.path_join(written_path)
 
 
 func _find_code_action(action_name: String) -> GDSExCodeAction:
@@ -1431,6 +1623,25 @@ func _describe_types(editor: CodeEdit) -> String:
 			description += " reference"
 		descriptions.append(description)
 	return "\n".join(descriptions)
+
+
+func _describe_engine_base(editor: CodeEdit) -> String:
+	if Engine.has_meta(FIXTURE_STATIC_MARK):
+		Engine.remove_meta(FIXTURE_STATIC_MARK)
+	var context := _context(editor)
+	var labels := PackedStringArray()
+	for available in GDSExActionRegistry.find_available(GDSExActionRegistry.create_actions(), context):
+		labels.append(available.label)
+	var compiled := PackedStringArray()
+	for fixture_path in STATIC_MARKER_FIXTURES:
+		if ResourceLoader.has_cached(fixture_path):
+			compiled.append(fixture_path.get_file())
+	var description := PackedStringArray()
+	description.append("engine base: %s" % GDSExTypeResolver.engine_base_type(context.scope_info.class_scope))
+	description.append("offered: %s" % ", ".join(labels))
+	description.append("compiled: %s" % ("none" if compiled.is_empty() else ", ".join(compiled)))
+	description.append("static values ran: %s" % ("yes" if Engine.has_meta(FIXTURE_STATIC_MARK) else "no"))
+	return "\n".join(description)
 
 
 func _class_label(class_scope: GDSExSymbolIndex.GDSExClassScope) -> String:
@@ -2568,7 +2779,8 @@ func _report(test_case: TestCase, problems: PackedStringArray) -> void:
 		problems.append("The case passes now. Remove 'status: pending'.")
 	if problems.is_empty():
 		_passed.append(test_case.name)
-		print("PASS     %s" % test_case.name)
+		if _shows_passed:
+			print("PASS     %s" % test_case.name)
 		return
 	_fail(test_case, problems)
 

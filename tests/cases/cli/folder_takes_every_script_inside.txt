@@ -1,0 +1,69 @@
+action: cli
+command: tidy enemies
+compile_check: skip
+=== file enemies/bat.gd
+extends Node
+func _ready() -> void:
+	var total := 0
+	var label := "score"
+	print(total, label)
+var _speed := 1.5
+signal hit
+const LIMIT: int = 3
+
+=== file enemies/boss/dragon.gd
+extends Node
+func _ready() -> void:
+	var total := 0
+	var label := "score"
+	print(total, label)
+var _speed := 1.5
+signal hit
+const LIMIT: int = 3
+
+=== file enemies/notes.txt
+not code
+=== file player.gd
+extends Node
+func _ready() -> void:
+	var total := 0
+	var label := "score"
+	print(total, label)
+var _speed := 1.5
+signal hit
+const LIMIT: int = 3
+
+=== expected enemies/bat.gd
+extends Node
+
+signal hit
+
+const LIMIT: int = 3
+
+var _speed: float = 1.5
+
+
+func _ready() -> void:
+	var total: int = 0
+	var label: String = "score"
+	print(total, label)
+
+=== expected enemies/boss/dragon.gd
+extends Node
+
+signal hit
+
+const LIMIT: int = 3
+
+var _speed: float = 1.5
+
+
+func _ready() -> void:
+	var total: int = 0
+	var label: String = "score"
+	print(total, label)
+
+=== output
+enemies/bat.gd typed 3, reordered, formatted
+enemies/boss/dragon.gd typed 3, reordered, formatted
+=== end

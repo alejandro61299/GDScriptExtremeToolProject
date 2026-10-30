@@ -1,0 +1,18 @@
+action: describe_engine_base
+requires_global_class: GDSExTestGadgetChild
+=== input
+extends GDSExTestGadgetChild
+
+var _health: int = 0
+
+
+func run() -> void:
+	var text := extra<|>
+	print(text)
+
+=== expected
+engine base: RefCounted
+offered: Generate Default Init Definition, Generate Custom Init Definition..., Add Explicit Types
+compiled: none
+static values ran: no
+=== end

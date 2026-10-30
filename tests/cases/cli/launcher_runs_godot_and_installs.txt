@@ -1,0 +1,3 @@
+action: check_cli_launcher
+=== input
+=== end

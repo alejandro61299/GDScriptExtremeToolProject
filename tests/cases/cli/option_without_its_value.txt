@@ -1,0 +1,6 @@
+action: cli
+command: tidy player.gd --only
+exit: 2
+=== output
+error: --only needs a value.
+=== end

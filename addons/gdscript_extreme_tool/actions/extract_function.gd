@@ -122,6 +122,13 @@ static func find_alternatives(context: GDSExCodeContext) -> Array[GDSExExtractio
 	return [kept, assigned]
 
 
+static func alternative_with_form(context: GDSExCodeContext, form_name: String) -> GDSExExtraction:
+	for alternative in find_alternatives(context):
+		if alternative.is_valid() and (form_name.is_empty() or String(GDSExForm.find_key(alternative.form)).to_lower() == form_name.to_lower()):
+			return alternative
+	return null
+
+
 static func form_label(extraction: GDSExExtraction) -> String:
 	match extraction.form:
 		GDSExForm.RETURN:

@@ -1,0 +1,17 @@
+action: describe_engine_base
+=== input
+extends Node2D
+
+var _health: int = 0
+
+
+func run() -> void:
+	var angle := rotation<|>
+	print(angle)
+
+=== expected
+engine base: Node2D
+offered: Generate Custom Init Definition..., Add Explicit Types
+compiled: none
+static values ran: no
+=== end

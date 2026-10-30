@@ -1,0 +1,35 @@
+action: cli
+command: types --diff player.gd
+compile_check: skip
+=== input
+extends Node
+func _ready() -> void:
+	var total := 0
+	var label := "score"
+	print(total, label)
+var _speed := 1.5
+signal hit
+const LIMIT: int = 3
+
+=== expected
+extends Node
+func _ready() -> void:
+	var total: int = 0
+	var label: String = "score"
+	print(total, label)
+var _speed: float = 1.5
+signal hit
+const LIMIT: int = 3
+
+=== output
+--- a/player.gd
++++ b/player.gd
+@@ -3,2 +3,2 @@
+-	var total := 0
+-	var label := "score"
++	var total: int = 0
++	var label: String = "score"
+@@ -6 +6 @@
+-var _speed := 1.5
++var _speed: float = 1.5
+=== end

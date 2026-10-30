@@ -1,0 +1,47 @@
+action: cli
+compile_check: skip
+command: extract-variable player.gd:11:_enemies.size() --place function
+exit: 0
+=== input
+extends Node
+
+var _enemies: Array[Node2D] = []
+
+
+func spawn_wave(origin: Vector2, count: int) -> void:
+	for index in count:
+		var enemy: Node2D = Node2D.new()
+		enemy.rotation = 120.0
+		enemy.position = origin + Vector2(0, 16) * index
+		print(_enemies.size())
+	var total := 0
+	for enemy in _enemies:
+		total += 1
+		print(enemy)
+	print(total)
+
+=== expected
+extends Node
+
+var _enemies: Array[Node2D] = []
+
+
+func spawn_wave(origin: Vector2, count: int) -> void:
+	var size: int = _enemies.size()
+	for index in count:
+		var enemy: Node2D = Node2D.new()
+		enemy.rotation = 120.0
+		enemy.position = origin + Vector2(0, 16) * index
+		print(size)
+	var total := 0
+	for enemy in _enemies:
+		total += 1
+		print(enemy)
+	print(total)
+
+=== output
+player.gd +2 -1
+7		var size: int = _enemies.size()
+12			print(size)
+! The value will be computed once, before the loop.
+=== end

@@ -1,0 +1,109 @@
+#!/bin/sh
+set -u
+
+addon_script="addons/gdscript_extreme_tool/cli/gdsex.gd"
+skill_source="addons/gdscript_extreme_tool/cli/SKILL.md"
+skill_target=".claude/skills/gdsex/SKILL.md"
+launcher_folder="$HOME/.local/bin"
+
+fail() {
+	printf 'error: %s\n' "$1" >&2
+	exit 3
+}
+
+find_godot() {
+	if [ -n "${GODOT:-}" ]; then
+		[ -x "$GODOT" ] || fail "GODOT is $GODOT, which is not an executable file."
+		printf '%s\n' "$GODOT"
+		return
+	fi
+	for name in godot godot4 Godot; do
+		if command -v "$name" >/dev/null 2>&1; then
+			command -v "$name"
+			return
+		fi
+	done
+	for path in /Applications/Godot.app/Contents/MacOS/Godot "$HOME/Applications/Godot.app/Contents/MacOS/Godot"; do
+		if [ -x "$path" ]; then
+			printf '%s\n' "$path"
+			return
+		fi
+	done
+	fail "Godot not found. Set GODOT to the path of the Godot executable."
+}
+
+find_project_from() {
+	folder=$1
+	while [ -n "$folder" ] && [ "$folder" != "/" ]; do
+		if [ -f "$folder/project.godot" ]; then
+			printf '%s\n' "$folder"
+			return 0
+		fi
+		folder=$(dirname "$folder")
+	done
+	return 1
+}
+
+find_project() {
+	if find_project_from "$(pwd -P)"; then
+		return
+	fi
+	for argument in "$@"; do
+		path=${argument%%:*}
+		[ -e "$path" ] || continue
+		[ -d "$path" ] || path=$(dirname "$path")
+		if find_project_from "$(cd "$path" && pwd -P)"; then
+			return
+		fi
+	done
+	fail "No project.godot in this folder or above it. Run gdsex inside a Godot project."
+}
+
+install() {
+	project=$1
+	shift
+	force=no
+	[ "${1:-}" = "--force" ] && force=yes
+	mkdir -p "$project/$(dirname "$skill_target")"
+	if [ ! -f "$project/$skill_target" ] || [ "$force" = yes ] || cmp -s "$project/$skill_source" "$project/$skill_target"; then
+		cp "$project/$skill_source" "$project/$skill_target"
+		printf 'skill: %s\n' "$skill_target"
+	else
+		printf 'skill: %s was changed by hand and was left as it is. Run gdsex install --force to replace it.\n' "$skill_target"
+	fi
+	launcher="$project/addons/gdscript_extreme_tool/cli/gdsex"
+	case ":$PATH:" in
+	*":$launcher_folder:"*)
+		if [ ! -e "$launcher_folder/gdsex" ] || [ "$force" = yes ] || cmp -s "$launcher" "$launcher_folder/gdsex"; then
+			cp "$launcher" "$launcher_folder/gdsex"
+			chmod +x "$launcher_folder/gdsex"
+			printf 'command: %s/gdsex\n' "$launcher_folder"
+		else
+			printf 'command: %s/gdsex is another file and was left as it is. Run gdsex install --force to replace it.\n' "$launcher_folder"
+		fi
+		;;
+	*)
+		printf 'command: %s is not in PATH, so run sh addons/gdscript_extreme_tool/cli/gdsex\n' "$launcher_folder"
+		;;
+	esac
+}
+
+project=$(find_project "$@") || exit 3
+[ -f "$project/$addon_script" ] || fail "The project $project does not have the GDScript Extreme Tool addon in addons/gdscript_extreme_tool."
+
+if [ "${1:-}" = "install" ]; then
+	shift
+	install "$project" "$@"
+	exit 0
+fi
+
+if [ $# -eq 0 ] && [ -t 0 ]; then
+	set -- help
+fi
+
+godot=$(find_godot) || exit 3
+status_file=$(mktemp "${TMPDIR:-/tmp}/gdsex.XXXXXX") || fail "Could not create a temporary file."
+"$godot" --headless --no-header --path "$project" --script "res://$addon_script" -- --cwd "$(pwd -P)" --status-file "$status_file" "$@"
+status=$(cat "$status_file" 2>/dev/null)
+rm -f "$status_file"
+exit "${status:-3}"

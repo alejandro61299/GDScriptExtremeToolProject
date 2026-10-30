@@ -1,0 +1,40 @@
+action: cli
+compile_check: skip
+command: 
+=== input
+extends Node
+
+
+func _ready() -> void:
+	speed = 2.0
+	var damage: float = compute_damage(3)
+	label = "go"
+	print(speed, damage, label)
+
+=== stdin
+function player.gd:6:compute_damage
+member player.gd:5:speed
+
+=== expected
+extends Node
+
+var speed: float
+
+
+func _ready() -> void:
+	speed = 2.0
+	var damage: float = compute_damage(3)
+	label = "go"
+	print(speed, damage, label)
+
+
+func compute_damage(param_0: int) -> float:
+	return 0.0
+
+=== output
+player.gd +4
+13	func compute_damage(param_0: int) -> float:
+14		return 0.0
+player.gd +2
+3	var speed: float
+=== end

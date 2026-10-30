@@ -1,0 +1,6 @@
+action: cli
+command: tidy player.gd --fast
+exit: 2
+=== output
+error: Unknown option '--fast' for tidy.
+=== end

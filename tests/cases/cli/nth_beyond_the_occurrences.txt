@@ -1,0 +1,16 @@
+action: cli
+compile_check: skip
+command: local player.gd:speed --nth 4
+exit: 1
+=== input
+extends Node
+
+
+func _ready() -> void:
+	var speed: float = 1.0
+	print(speed)
+	print(speed * 2)
+
+=== output
+error: 'speed' appears 3 times in player.gd, not 4.
+=== end

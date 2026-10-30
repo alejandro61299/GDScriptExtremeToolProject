@@ -1,0 +1,16 @@
+action: cli
+compile_check: skip
+command: local player.gd:6:print(speed
+exit: 1
+=== input
+extends Node
+
+
+func _ready() -> void:
+	print(speed)
+	var unused: int = 0
+	print(speed)
+
+=== output
+error: 'print(speed' is on lines 5 and 7 of player.gd, at the same distance from line 6. Write one of those lines.
+=== end
