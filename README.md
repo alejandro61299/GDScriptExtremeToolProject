@@ -220,8 +220,8 @@ godot --headless --path . --script res://tools/generate_builtin_types.gd -- exte
 To build a release archive, set the version in `addons/gdscript_extreme_tool/plugin.cfg`, add its notes to `CHANGELOG.md`, commit, tag and archive the tag. `.gitattributes` marks everything except the addon as `export-ignore`, so the archive contains only `addons/gdscript_extreme_tool`:
 
 ```
-git tag v0.4.0
-git archive --format=zip --output=gdscript_extreme_tool-0.4.0.zip v0.4.0
+git tag v1.0.0
+git archive --format=zip --output=gdscript_extreme_tool-1.0.0.zip v1.0.0
 ```
 
 ## License
