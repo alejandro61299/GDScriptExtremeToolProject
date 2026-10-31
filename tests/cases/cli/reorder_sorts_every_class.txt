@@ -23,8 +23,8 @@ var _health: int = 0
 
 class Mover:
 	var _distance: int = 0
-	
-	
+
+
 	func move() -> void:
 		pass
 

@@ -19,8 +19,8 @@ extends Node
 
 class Stats extends RefCounted:
 	var _life : int = 0
-	
-	
+
+
 	func heal() -> void:
 	<|>	pass
 

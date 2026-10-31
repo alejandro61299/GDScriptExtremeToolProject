@@ -21,7 +21,7 @@ extends Node
 
 class Stats extends RefCounted:
 	var _life : int = 0<|>
-	
+
 	# End of the class.
 
 func _process(delta: float) -> void:

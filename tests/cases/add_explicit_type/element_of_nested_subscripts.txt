@@ -1,0 +1,42 @@
+action: add_explicit_type
+=== input
+extends Node
+
+var seconds : Array[PackedFloat32Array] = []
+var grid : Array[Array] = []
+
+
+func run(from : int, middle : int, to : int) -> void:
+	var to_middle := seconds[from][middle]<|>
+	var through := to_middle + seconds[middle][to]
+	var count := rows()[from][to]
+	var through_self := self.seconds[from][middle]
+	var row := seconds[from]
+	var cell = grid[from][to]
+	print(through, count, through_self, row, cell)
+
+
+func rows() -> Array[PackedInt32Array]:
+	return []
+
+=== expected
+extends Node
+
+var seconds : Array[PackedFloat32Array] = []
+var grid : Array[Array] = []
+
+
+func run(from : int, middle : int, to : int) -> void:
+	var to_middle: float = seconds[from][middle]<|>
+	var through: float = to_middle + seconds[middle][to]
+	var count: int = rows()[from][to]
+	var through_self: float = self.seconds[from][middle]
+	var row: PackedFloat32Array = seconds[from]
+	var cell = grid[from][to]
+	print(through, count, through_self, row, cell)
+
+
+func rows() -> Array[PackedInt32Array]:
+	return []
+
+=== end

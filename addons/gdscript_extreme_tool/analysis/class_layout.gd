@@ -14,6 +14,7 @@ const REGION_END: String = "#endregion"
 const SUBGROUP_ANNOTATION: String = "@export_subgroup"
 const GROUP_STARTERS: Array[String] = ["@export_category", "@export_group"]
 const INDENT_CHARACTERS: String = " \t"
+const BLANK_LINE: String = ""
 
 enum GDSExPhase { STATIC, REGULAR, READY }
 
@@ -45,7 +46,6 @@ class GDSExDraft:
 	var lines: PackedStringArray = []
 	var line_map: PackedInt32Array = []
 	var rewrites: Dictionary[int, PackedStringArray] = {}
-	var blank_line: String = ""
 
 
 	func _init(source_lines: PackedStringArray, source_first_line: int, source_last_line: int) -> void:
@@ -69,7 +69,7 @@ class GDSExDraft:
 				continue
 			blank_lines += 1
 			if blank_lines <= max_blank_lines:
-				_copy_line(line, blank_line)
+				_copy_line(line, BLANK_LINE)
 
 
 	func copy_block(block: GDSExBlock, glues_comments: bool) -> void:
@@ -83,7 +83,7 @@ class GDSExDraft:
 		for offset in mini(replaced_count, count):
 			line_map[replaced_first_line + offset - first_line] = first_line + lines.size() + offset
 		for blank in count:
-			lines.append(blank_line)
+			lines.append(BLANK_LINE)
 
 
 	func _copy_line(line: int, text: String) -> void:
@@ -112,7 +112,7 @@ static func reorder(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: Packed
 	var ordered := _order(blocks)
 	if ordered == blocks:
 		return null
-	return _compose(class_scope, blocks, ordered, _new_draft(class_scope, lines, body_first, body_last), body_last, false)
+	return _compose(class_scope, blocks, ordered, GDSExDraft.new(lines, body_first, body_last), body_last, false)
 
 
 static func format(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray, indent_unit: String) -> GDSExLayout:
@@ -126,16 +126,9 @@ static func format(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Ar
 	_attach_comments(blocks, lines, scope_first, scope_last)
 	if _has_header(class_scope):
 		_split_gap(_new_block(class_scope.header_end_line, class_scope.header_end_line, 0), blocks[0], lines)
-	var draft := _new_draft(class_scope, lines, scope_first, scope_last)
+	var draft := GDSExDraft.new(lines, scope_first, scope_last)
 	draft.rewrites = _code_rewrites(class_scope, statements, lines, _own_line_ranges(class_scope, scope_first, scope_last), indent_unit)
 	return _compose(class_scope, blocks, blocks, draft, scope_last, true)
-
-
-static func _new_draft(class_scope: GDSExSymbolIndex.GDSExClassScope, lines: PackedStringArray, first_line: int, last_line: int) -> GDSExDraft:
-	var draft := GDSExDraft.new(lines, first_line, last_line)
-	if class_scope.parent != null:
-		draft.blank_line = class_scope.body_indent_text
-	return draft
 
 
 static func _code_rewrites(class_scope: GDSExSymbolIndex.GDSExClassScope, statements: Array[GDSExSourceScanner.GDSExStatement], lines: PackedStringArray, line_ranges: Array[Vector2i], indent_unit: String) -> Dictionary[int, PackedStringArray]:
