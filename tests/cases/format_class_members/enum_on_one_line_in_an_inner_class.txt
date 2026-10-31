@@ -19,7 +19,7 @@ class Inner:
 		SLOW,
 		FAST,
 	}
-	
+
 	var mode : Mode = Mode.SLOW
 
 === end

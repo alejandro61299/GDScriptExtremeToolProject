@@ -1,0 +1,29 @@
+action: format_class_members
+=== input
+extends Node
+
+
+class Item:
+	extends RefCounted
+	var id : int = 0
+	
+	var label : String = ""
+	func describe() -> String:
+		return label<|>
+
+=== expected
+extends Node
+
+
+class Item:
+	extends RefCounted
+
+	var id : int = 0
+
+	var label : String = ""
+
+
+	func describe() -> String:
+		return label<|>
+
+=== end

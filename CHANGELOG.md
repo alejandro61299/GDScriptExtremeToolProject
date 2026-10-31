@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- A value with several subscripts gets the type of its last one. With `var seconds: Array[PackedFloat32Array]`, Add Explicit Types wrote `var to_middle: PackedFloat32Array = seconds[from][middle]`, the type of the first subscript, and the script did not compile; it is now a `float`. When the type of a level is not known, as in an `Array[Array]`, the variable is left without a type.
+- A property of an engine class that accepts several classes has the class it is declared with. `var material := (piece.mesh as BoxMesh).material` became `var material: BaseMaterial3D, ShaderMaterial = ...`, which did not compile, because the property lists the classes the inspector offers; it is now a `Material`.
+- The blank lines that Format and Reorder write inside an inner class are empty, as they are outside it. They kept the indentation of the class, so a line with only a tab was left after `extends` and between the members.
+
 ## 1.0.0 — 2026-10-30
 
 ### Added

@@ -10,6 +10,7 @@ const GDSExScriptLibrary = preload("res://addons/gdscript_extreme_tool/analysis/
 const GDSExScriptTypeNames = preload("res://addons/gdscript_extreme_tool/analysis/script_type_names.gd")
 
 const MEMBER_ACCESS: String = "."
+const SUBSCRIPT_OPENING: String = "["
 const CONNECT_FUNCTION: String = "connect"
 const PRELOAD_FUNCTION: String = "preload"
 const EMIT_FUNCTION: String = "emit"
@@ -91,7 +92,7 @@ class GDSExChainToken:
 	var text: String = ""
 	var name: String = ""
 	var is_call: bool = false
-	var is_indexed: bool = false
+	var subscript_count: int = 0
 	var is_valid: bool = true
 
 
@@ -622,12 +623,13 @@ static func _parse_token(token_text: String) -> GDSExChainToken:
 	token.name = token.text.substr(0, name_end)
 	var rest := token.text.substr(name_end).strip_edges()
 	token.is_call = rest.begins_with("(")
-	token.is_indexed = rest.ends_with("]")
 	while not rest.is_empty() and not token.name.is_empty():
 		var close := GDSExSourceScanner.find_matching_bracket(rest, 0) if GDSExSourceScanner.OPENING_BRACKETS.contains(rest[0]) else -1
 		if close == -1:
 			token.is_valid = false
 			break
+		if rest.begins_with(SUBSCRIPT_OPENING):
+			token.subscript_count += 1
 		rest = rest.substr(close + 1).strip_edges()
 	return token
 
@@ -645,7 +647,7 @@ static func _resolve_first_token(token_text: String, scope_info: GDSExSymbolInde
 		resolved = resolve_self(scope_info)
 	else:
 		resolved = _resolve_identifier(token.name, scope_info)
-	return _indexed(resolved, scope_info) if token.is_indexed and not token.name.is_empty() else resolved
+	return _indexed(resolved, token.subscript_count, scope_info)
 
 
 static func _resolve_nameless(text: String, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
@@ -724,7 +726,7 @@ static func _resolve_member_token(owner: GDSExResolved, token_text: String, scop
 	if not token.is_valid or token.name.is_empty():
 		return GDSExResolved.new()
 	var resolved := GDSExResolved.new()
-	if owner.enum_class != null and not token.is_call and not token.is_indexed:
+	if owner.enum_class != null and not token.is_call and token.subscript_count == 0:
 		var enum_type_name := GDSExScriptTypeNames.name_of_enum(owner.enum_name, owner.enum_class, scope_info.class_scope)
 		return resolved if enum_type_name.is_empty() else _resolved_name(enum_type_name, scope_info)
 	if owner.enum_class != null:
@@ -746,7 +748,7 @@ static func _resolve_member_token(owner: GDSExResolved, token_text: String, scop
 				resolved.type = GDSExSymbolIndex.make_type(owner.type.name + MEMBER_ACCESS + token.name)
 		elif owner.is_class_reference and owner.class_scope == null and GDSExLanguage.is_builtin_type(owner.type.name):
 			resolved.type = _builtin_constant_type(owner.type.name, token)
-	return _indexed(resolved, scope_info) if token.is_indexed else resolved
+	return _indexed(resolved, token.subscript_count, scope_info)
 
 
 static func _builtin_constant_type(type_name: String, token: GDSExChainToken) -> GDSExSymbolIndex.GDSExTypeData:
@@ -1002,7 +1004,13 @@ static func _find_script_class(script_path: String) -> GDSExSymbolIndex.GDSExCla
 	return null if script_index == null else script_index.root
 
 
-static func _indexed(resolved: GDSExResolved, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
+static func _indexed(resolved: GDSExResolved, subscript_count: int, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
+	for subscript in subscript_count:
+		resolved = _element(resolved, scope_info)
+	return resolved
+
+
+static func _element(resolved: GDSExResolved, scope_info: GDSExSymbolIndex.GDSExScopeInfo) -> GDSExResolved:
 	if resolved.type == null:
 		return GDSExResolved.new()
 	if not resolved.type.generics.is_empty():
@@ -1020,7 +1028,7 @@ static func _iterated(resolved: GDSExResolved, scope_info: GDSExSymbolIndex.GDSE
 		return _resolved_type(resolved.type.generics[0], scope_info)
 	if resolved.type.name == GDSExLanguage.INTEGER_TYPE_NAME or resolved.type.name == GDSExLanguage.FLOAT_TYPE_NAME:
 		return _resolved_type(resolved.type, scope_info)
-	return _indexed(resolved, scope_info)
+	return _element(resolved, scope_info)
 
 
 static func _class_type(class_scope: GDSExSymbolIndex.GDSExClassScope) -> GDSExSymbolIndex.GDSExTypeData:
@@ -1180,10 +1188,19 @@ static func _find_engine_member(type_name: String, member_name: String) -> GDSEx
 		return _engine_callable_member(GDSExMember.GDSExKind.SIGNAL, ClassDB.class_get_signal(type_name, member_name))
 	for property in ClassDB.class_get_property_list(type_name):
 		if property["name"] == member_name and not is_a_group_of_properties(property):
-			return _variable_member(_type_from_info(property, false))
+			return _variable_member(_engine_property_type(type_name, property))
 	if ClassDB.class_has_integer_constant(type_name, member_name) or ClassDB.class_has_enum(type_name, member_name):
 		return _constant_member(GDSExSymbolIndex.make_type(GDSExLanguage.INTEGER_TYPE_NAME))
 	return null
+
+
+static func _engine_property_type(type_name: String, property: Dictionary) -> GDSExSymbolIndex.GDSExTypeData:
+	var getter := ClassDB.class_get_property_getter(type_name, property["name"])
+	if property["type"] == TYPE_OBJECT and not is_identifier(String(property["class_name"])) and not getter.is_empty():
+		for function in ClassDB.class_get_method_list(type_name):
+			if function["name"] == getter:
+				return _type_from_info(function["return"], false)
+	return _type_from_info(property, false)
 
 
 static func is_a_group_of_properties(property: Dictionary) -> bool:
@@ -1228,7 +1245,7 @@ static func _type_from_info(info: Dictionary, is_return: bool) -> GDSExSymbolInd
 	var hint_string: String = info.get("hint_string", "")
 	var object_class := String(info.get("class_name", &""))
 	if type == TYPE_OBJECT:
-		if not object_class.is_empty():
+		if is_identifier(object_class):
 			return GDSExSymbolIndex.make_type(object_class)
 		if hint == PROPERTY_HINT_RESOURCE_TYPE and is_identifier(hint_string):
 			return GDSExSymbolIndex.make_type(hint_string)

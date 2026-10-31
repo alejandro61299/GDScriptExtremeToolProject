@@ -16,8 +16,8 @@ extends Node
 
 class Mover:
 	var _distance: int = 0
-	
-	
+
+
 	func move() -> void:
 		var step: float = 2.0
 		print(step)

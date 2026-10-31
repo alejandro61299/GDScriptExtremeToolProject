@@ -1,0 +1,22 @@
+action: add_explicit_type
+=== input
+extends Node3D
+
+
+func paint(piece : MeshInstance3D) -> void:
+	var material := (piece.mesh as BoxMesh).material<|>
+	var overlay := piece.material_overlay
+	var camera := get_viewport().get_camera_3d().attributes
+	print(material, overlay, camera)
+
+=== expected
+extends Node3D
+
+
+func paint(piece : MeshInstance3D) -> void:
+	var material: Material = (piece.mesh as BoxMesh).material<|>
+	var overlay: Material = piece.material_overlay
+	var camera: CameraAttributes = get_viewport().get_camera_3d().attributes
+	print(material, overlay, camera)
+
+=== end
